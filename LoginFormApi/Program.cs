@@ -42,6 +42,15 @@ app.MapPost("/api/signin", async (User model, ApplicationContext db) =>
 });
 app.MapPost("/api/signup", async (User model, ApplicationContext db) =>
 {
+    if (!model.HasValidPassword())
+    {
+        return Results.BadRequest("The password isn't secure");
+    }
+
+    if (!model.Email.EndsWith("@kbtu.kz"))
+    {
+        return Results.BadRequest("The email should end with `@kbtu.kz`");
+    }
     var existingUser = await db.Users.FirstOrDefaultAsync(u => u.Email == model.Email);
     if (existingUser != null)
     {
@@ -85,3 +94,4 @@ string GenerateJwtToken(User user)
 
     return new JwtSecurityTokenHandler().WriteToken(jwt);
 }
+public partial class Program {}
