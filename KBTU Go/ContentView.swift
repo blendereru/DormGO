@@ -8,74 +8,124 @@
 
 import SwiftUI
 
+struct User {
+    var name: String
+    var email: String
+}
+
+func getUserDetails() -> User {
+    // In a real scenario, you would decode the JWT or call an API to fetch user details.
+    return User(name: "Raiymbek Omarov", email: "raiymbek@example.com")
+}
+
+func deleteJWTFromKeychain() -> Bool {
+    let query: [String: Any] = [
+        kSecClass as String: kSecClassGenericPassword,
+        kSecAttrAccount as String: "userJWT"  // Same identifier
+    ]
+    
+    let status = SecItemDelete(query as CFDictionary)
+    return status == errSecSuccess
+}
 
 struct ContentView: View {
-    @State private var isSheet1Presented = false
-    let columns = [GridItem(.adaptive(minimum: 150))] // This makes the buttons adapt to the available screen width
-
+    @AppStorage("isAuthenticated") private var isAuthenticated: Bool = false
+    
+    init() {
+        // Check for JWT in Keychain
+        if let _ = getJWTFromKeychain() {
+            isAuthenticated = true
+        }
+    }
+    
     var body: some View {
-        TabView {
-            // First Tab: Rides
-            VStack {
-                LazyVGrid(columns: columns, spacing: 16) {
-                    // Add your ride info buttons here
-                    RideInfoButton(
-                        peopleAssembled: "4/4",
-                        destination: "Dorm",
-                        minutesago: "10",
-                        rideName: "Jackie Sayle",
-                        status: "Available",
-                        color: .yellow, company: "Yandex"
-                    ) {
-                        isSheet1Presented = true
+        Group {
+            if isAuthenticated {
+                MainView(logoutAction: {
+                    let success = deleteJWTFromKeychain()
+                    if success {
+                        print("JWT deleted successfully")
+                    } else {
+                        print("Failed to delete JWT")
                     }
-                    .sheet(isPresented: $isSheet1Presented) {
-                        SheetContent(title: "Ride Details")
+                    isAuthenticated = false
+                })
+            } else {
+                AuthenticationView(onAuthenticated: {
+                    isAuthenticated = true
+                })
+            }
+        }
+    }
+}
+struct MainView: View {
+    @State private var isSheet1Presented = false
+    let columns = [GridItem(.adaptive(minimum: 150))]
+    @State private var user: User = User(name: "", email: "")
+    var logoutAction: () -> Void  // Accept logout closure
+    
+    var body: some View {
+        VStack {
+            // Main content
+            TabView {
+                // First Tab: Rides
+                VStack {
+                    LazyVGrid(columns: columns, spacing: 16) {
+                        // Your ride buttons
                     }
-
-                    RideInfoButton(
-                        peopleAssembled: "4/4",
-                        destination: "Uni",
-                        minutesago: "5",
-                        rideName: "Raiymbek Omarov",
-                        status: "Available",
-                        color: .blue, company: "Indriver"
-                    ) {
-                        isSheet1Presented = true
-                    }
-                    .sheet(isPresented: $isSheet1Presented) {
-                        SheetContent(title: "Ride Details")
-                    }
-
-                    RideInfoButton(
-                        peopleAssembled: "3/4",
-                        destination: "Uni",
-                        minutesago: "5",
-                        rideName: "Жұлдыз",
-                        status: "Available",
-                        color: .purple, company: "Yandex"
-                    ) {
-                        isSheet1Presented = true
-                    }
-                    .sheet(isPresented: $isSheet1Presented) {
-                        SheetContent(title: "Ride Details")
-                    }
-                    // Add more buttons if needed
+                    .padding()
+                    Spacer()
                 }
-                .padding()
-
-                Spacer() // Push content down
-            }
-            .tabItem {
-                Label("Rides", systemImage: "car.front.waves.up.fill")
-            }
-
-            // Second Tab: Profile
-            Text("Profile Tab Content")
-                .font(.largeTitle)
+                .tabItem {
+                    Label("Rides", systemImage: "car.front.waves.up.fill")
+                }
+                
+                // Second Tab: Profile
+                VStack {
+                    Text("Name: \(user.name)")
+                        .font(.title)
+                        .padding()
+                    Text("Email: \(user.email)")
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                        .padding()
+                    
+                    Button(action: {
+                        logoutAction()  // Log out action
+                    }) {
+                        Text("Log Out")
+                            .font(.headline)
+                            .foregroundColor(.red)
+                            .padding()
+                    }
+                }
                 .tabItem {
                     Label("Profile", systemImage: "person.crop.circle")
                 }
+            }
+        }
+    }
+}
+
+struct AuthenticationView: View {
+    @State private var showLogin = true
+    var onAuthenticated: () -> Void
+
+    var body: some View {
+        VStack {
+            if showLogin {
+                LoginView(onLoginSuccess: onAuthenticated)
+            } else {
+                RegistrationView(onRegistrationSuccess: onAuthenticated)
+            }
+
+            Button(action: {
+                showLogin.toggle()
+            }) {
+                Text(showLogin ? "Switch to Registration" : "Switch to Login")
+                    .font(.headline)
+                    .padding()
+            }
         }
     }
 }
@@ -145,6 +195,10 @@ struct SheetContent: View {
         .padding()
     }
 }
-#Preview {
-    ContentView()
+struct ContentView_Previews: PreviewProvider {
+    static var previews: some View {
+        ContentView()
+            .environment(\.locale, .init(identifier: "en")) // Set to English
+         
+    }
 }
