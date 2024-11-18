@@ -1,8 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LoginFormApi", "LoginFormApi\LoginFormApi.csproj", "{CF237FD6-2CE2-4996-8E01-67B59C7BEC90}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LoginFormApi.Tests", "LoginFormApi.Tests\LoginFormApi.Tests.csproj", "{3F0337AC-32FC-4D71-9E8C-8703D471D174}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IdentityApiAuth", "IdentityApiAuth\IdentityApiAuth.csproj", "{39F5AAE1-BB9E-43A2-97C3-C76A44876C38}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -10,13 +8,9 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{CF237FD6-2CE2-4996-8E01-67B59C7BEC90}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{CF237FD6-2CE2-4996-8E01-67B59C7BEC90}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{CF237FD6-2CE2-4996-8E01-67B59C7BEC90}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{CF237FD6-2CE2-4996-8E01-67B59C7BEC90}.Release|Any CPU.Build.0 = Release|Any CPU
-		{3F0337AC-32FC-4D71-9E8C-8703D471D174}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{3F0337AC-32FC-4D71-9E8C-8703D471D174}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{3F0337AC-32FC-4D71-9E8C-8703D471D174}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{3F0337AC-32FC-4D71-9E8C-8703D471D174}.Release|Any CPU.Build.0 = Release|Any CPU
+		{39F5AAE1-BB9E-43A2-97C3-C76A44876C38}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{39F5AAE1-BB9E-43A2-97C3-C76A44876C38}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{39F5AAE1-BB9E-43A2-97C3-C76A44876C38}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{39F5AAE1-BB9E-43A2-97C3-C76A44876C38}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
