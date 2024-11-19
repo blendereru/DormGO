@@ -81,7 +81,7 @@ struct LoginView: View {
     }
     // Send login request with encrypted password
     func sendLoginRequest(email: String, password: String) {
-        let url = URL(string: "https://1060-95-59-45-33.ngrok-free.app/api/login")!  // Assuming it's /api/login
+        let url = URL(string: "https://8440-188-127-36-2.ngrok-free.app/api/signin")!
 
         guard let key = getKeyFromKeychain(keyIdentifier: "userSymmetricKey") else {
             message = "Error: Key not found"
@@ -132,6 +132,7 @@ struct LoginView: View {
                                 message = "Login successful! JWT saved securely."
                                 jwt = token // Update state with the JWT
                                 onLoginSuccess()
+                                sendProtectedRequest()
                             } else {
                                 message = "Login successful, but failed to save JWT."
                             }
@@ -165,6 +166,7 @@ struct LoginView: View {
             
             Button(action: {
                 sendLoginRequest(email: email, password: password)
+                sendProtectedRequest()
             }) {
                 Text("Login")
                     .fontWeight(.bold)

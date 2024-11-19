@@ -10,6 +10,52 @@ import SwiftUI
 import Security
 import CryptoKit
 
+func sendProtectedRequest() {
+    let url = URL(string: "https://8440-188-127-36-2.ngrok-free.app/api/protected")!
+    
+    // Retrieve the JWT token from Keychain
+    guard let token = getJWTFromKeychain() else {
+        print("Error: JWT token not found in Keychain")
+        return
+    }
+    print("JWT Token: \(token)")
+    var request = URLRequest(url: url)
+     // Assuming the endpoint expects a GET request
+    
+    // Add the JWT token to the Authorization header
+    request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+    
+    // Print the headers to terminal
+    if let allHeaders = request.allHTTPHeaderFields {
+        print("Request Headers: \(allHeaders)")
+    }
+    
+    let task = URLSession.shared.dataTask(with: request) { data, response, error in
+        DispatchQueue.main.async {
+            if let error = error {
+                print("Error: \(error.localizedDescription)")
+                return
+            }
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                print("HTTP Status Code: \(httpResponse.statusCode)")
+                
+                if let headers = httpResponse.allHeaderFields as? [String: String] {
+                    print("Response Headers: \(headers)")
+                }
+                
+                if let data = data, let responseString = String(data: data, encoding: .utf8) {
+                    print("Response Body: \(responseString)")
+                } else {
+                    print("No data received")
+                }
+            }
+        }
+    
+    }
+    
+    task.resume()
+}
 func saveKeyToKeychain(key: SymmetricKey, keyIdentifier: String) -> Bool {
     let keyData = key.withUnsafeBytes { Data($0) }
     
@@ -104,20 +150,67 @@ struct RegistrationView: View {
     @State private var message = ""
     @State private var jwt: String? = nil // Store JWT token here
     var onRegistrationSuccess: () -> Void // Closure passed for success handling
-
+    func longPollForToken(email:String) {
+ 
+        guard let url = URL(string: "https://8440-188-127-36-2.ngrok-free.app/api/check-confirmation/\(email)") else {
+           
+            print("Error: Invalid URL")
+            return
+        }
+        
+        let request = URLRequest(url: url)
+//        request.httpMethod = "POST" // Set the HTTP method to POST
+//
+//        // You can further configure the request here, such as adding headers or body
+//        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+//        // You can further configure the request here, such as adding headers or body
+      
+      
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("Error: \(error.localizedDescription)")
+                    return
+                }
+                
+                if let data = data {
+                    do {
+                        if let responseObject = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
+                            if let token = responseObject["token"] as? String {
+                                print("Token received: \(token)")
+                                if saveJWTToKeychain(token: token) {
+                                    print("JWT saved successfully!")
+                                    UserDefaults.standard.set(true, forKey: "isAuthenticated")
+                                    sendProtectedRequest() // Proceed with protected request
+                                } else {
+                                    print("Error saving JWT")
+                                    longPollForToken(email:email)
+                                }
+                            } else {
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+                                    longPollForToken(email:email) // Retry polling
+                                }
+                            }
+                        } else {
+                            print("Error: Unexpected response format")
+                        }
+                    } catch {
+                        print("Error: Failed to parse server response - \(error.localizedDescription)")
+                    }
+                }
+            }
+        }.resume()
+    }
     // Function to send email and password to the backend server
     func sendRegistrationRequest(email: String, password: String) {
-        let url = URL(string: "https://1060-95-59-45-33.ngrok-free.app/api/signup")!
+        let url = URL(string: "https://8440-188-127-36-2.ngrok-free.app/api/signup")!
         
-        // Generate a new symmetric key and store it securely
-        // When registering, save the symmetric key:
-        let key = SymmetricKey(size: .bits256) // Use a new key for registration
+        let key = SymmetricKey(size: .bits256)
         guard saveKeyToKeychain(key: key, keyIdentifier: "userSymmetricKey") else {
             message = "Error: Unable to save key"
             return
         }
         
-        // Encrypt the password with the generated key
         guard let encryptedPassword = encryptPassword(password, using: key) else {
             message = "Encryption failed"
             return
@@ -127,14 +220,6 @@ struct RegistrationView: View {
             "email": email,
             "password": encryptedPassword
         ]
-        
-        // Log the JSON body to see what is being sent
-        if let jsonData = try? JSONSerialization.data(withJSONObject: body, options: []) {
-            if let jsonString = String(data: jsonData, encoding: .utf8) {
-                 // Here we print the JSON
-                print("reg JSON: \(jsonString)")
-            }
-        }
         
         guard let jsonData = try? JSONSerialization.data(withJSONObject: body, options: []) else {
             message = "Error: Unable to convert body to JSON"
@@ -146,7 +231,7 @@ struct RegistrationView: View {
         request.httpBody = jsonData
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
-        let task = URLSession.shared.dataTask(with: request) { data, response, error in
+        URLSession.shared.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
                 if let error = error {
                     message = "Error: \(error.localizedDescription)"
@@ -155,27 +240,23 @@ struct RegistrationView: View {
                 
                 if let data = data {
                     do {
-                        let responseObject = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any]
-                        
-                        if let token = responseObject?["token"] as? String {
-                            if saveJWTToKeychain(token: token) {
-                                message = "Registration successful! JWT saved securely."
-                                jwt = token // Update state with the JWT
-                                onRegistrationSuccess() // Call the correct success handler
+                        if let responseObject = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
+                            if responseObject["success"] as? Bool == true {
+                                message = "Registration successful. Waiting for token..."
+                                longPollForToken(email: email) // Start polling for the token
                             } else {
-                                message = "Registration successful, but failed to save JWT."
+                                message = "Registration failed: \(responseObject["error"] as? String ?? "Unknown error")"
+                                longPollForToken(email:email)
                             }
                         } else {
-                            message = "Registration failed: Invalid credentials."
+                            message = "Unexpected response format."
                         }
                     } catch {
-                        message = "Error: Unable to parse server response."
+                        message = "Error parsing server response."
                     }
                 }
             }
-        }
-        
-        task.resume()
+        }.resume()
     }
     
     var body: some View {
@@ -193,6 +274,7 @@ struct RegistrationView: View {
             
             Button(action: {
                 sendRegistrationRequest(email: email, password: password)
+          
             }) {
                 Text("Register")
                     .fontWeight(.bold)
