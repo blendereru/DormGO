@@ -43,7 +43,7 @@ update the `EmailSettings` section in the `appsettings.json` file:
 ```
 If you're using Gmail, use an [App Password](https://support.google.com/accounts/answer/185833?hl=en). 
 ## 🎯 ToDos
-1. [ ] Set `Webhook/Long polling` to  wait for server's `JWT` after email confirmation
+1. [X] Set `Webhook/Long polling` to  wait for server's `JWT` after email confirmation
 2. [ ] Track user's session in `database` to ensure no suspicious action is done
 3. [ ] Ask to confirm `email` after `/api/signin` to ensure the right user is logging in.
 ## 📗 License

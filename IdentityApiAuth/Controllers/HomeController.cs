@@ -13,9 +13,16 @@ public class HomeController : Controller
         _userManager = userManager;
     }
     [HttpGet("/api/protected")]
-    public IActionResult Index(ClaimsPrincipal user)
+    public IActionResult Index()
     {
-        var email = user.Identity?.Name;
-        return Ok($"Hello, {email}! This is a protected endpoint.");
+        var emailClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email);
+        var nameClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Name);
+        var roleClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role);
+        return Json(new
+        {
+            Email = emailClaim?.Value,
+            Name = nameClaim?.Value,
+            Role = roleClaim?.Value
+        });
     }
 }

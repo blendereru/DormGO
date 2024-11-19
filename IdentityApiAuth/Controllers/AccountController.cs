@@ -19,7 +19,7 @@ public class AccountController : Controller
         _emailSender  = emailSender;
     }
     [HttpPost("/api/signup")]
-    public async Task<IActionResult> Register([FromBody]RequestModel model)
+    public async Task<IActionResult> Register([FromBody] RequestModel model)
     {
         var user = new IdentityUser()
         {
@@ -36,13 +36,27 @@ public class AccountController : Controller
             return BadRequest(ModelState);
         }
         await SendConfirmationEmailAsync(user);
-        return Ok(new { Message = "User registered successfully", Status = "Email confirmation is required" });
+        return Ok(new { Message = "User registered successfully. Email confirmation is pending." });
     }
-    
-    [HttpPost("/api/signin")]
-    public async Task<IActionResult> Login(string email, string password)
+    [HttpGet("/api/check-confirmation/{email}")]
+    public async Task<IActionResult> CheckEmailConfirmationStatus(string email)
     {
         var user = await _userManager.FindByEmailAsync(email);
+        if (user == null)
+        {
+            return NotFound("User not found");
+        }
+        if (await _userManager.IsEmailConfirmedAsync(user))
+        {
+            var jwtToken = GenerateJwtToken(user.Email!);
+            return Ok(new { Message = "Email confirmed successfully.", Token = jwtToken });
+        }
+        return Ok(new { Message = "Email not confirmed yet." });
+    }
+    [HttpPost("/api/signin")]
+    public async Task<IActionResult> Login([FromBody]RequestModel model)
+    {
+        var user = await _userManager.FindByEmailAsync(model.Email!);
         if (user == null)
         {
             return Unauthorized("Invalid email or password.");
@@ -51,7 +65,7 @@ public class AccountController : Controller
         {
             return BadRequest("Email is not confirmed. Please check your email for the confirmation link.");
         }
-        var isPasswordValid = await _userManager.CheckPasswordAsync(user, password);
+        var isPasswordValid = await _userManager.CheckPasswordAsync(user, model.Password);
         if (!isPasswordValid)
         {
             return Unauthorized("Invalid email or password.");
@@ -77,15 +91,15 @@ public class AccountController : Controller
         {
             return BadRequest(result);
         }
-        var jwtToken = GenerateJwtToken(user.Email!);
-        return Ok(new { Message = "Email confirmed successfully.", Token = jwtToken});
+
+        return Ok(new { Message = "Email confirmed successfully" });
     }
     [NonAction]
     private async Task SendConfirmationEmailAsync(IdentityUser user)
     {
         ArgumentNullException.ThrowIfNull(user, nameof(user));
         var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-        var confirmationLink = $"https://0d44-2-134-108-133.ngrok-free.app{Url.Action("ConfirmEmail", "Account", new { userId = user.Id, token = token })}";
+        var confirmationLink = $"https://8440-188-127-36-2.ngrok-free.app{Url.Action("ConfirmEmail", "Account", new { userId = user.Id, token = token })}";
         var body = $"Please confirm your email by <a href='{HtmlEncoder.Default.Encode(confirmationLink)}'>clicking here</a>.";
         await _emailSender.SendEmailAsync(user.Email!, "Confirm your email", body, true);
     }
@@ -95,7 +109,7 @@ public class AccountController : Controller
         var claims = new List<Claim>()
         {
             new Claim(ClaimTypes.Name, email),
-            new Claim(ClaimTypes.NameIdentifier, email),
+            new Claim(ClaimTypes.Email, email),
             new Claim(ClaimTypes.Role, "User")
         };
         var jwt = new JwtSecurityToken(
