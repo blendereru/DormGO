@@ -60,6 +60,21 @@ struct LoginView: View {
     @State private var message = ""
     @State private var jwt: String? = nil
     var onLoginSuccess: () -> Void
+    
+    private func validateInput() -> Bool {
+        if !isValidEmail(email) {
+            message = "Invalid email. Must end with @kbtu.kz"
+            return false
+        }
+        
+        if !isValidPassword(password) {
+            message = "Invalid password. Must be at least 8 characters, include uppercase, lowercase, and a number."
+            return false
+        }
+        
+        return true
+    }
+    
     func encryptPassword(_ password: String, using key: SymmetricKey) -> String? {
         let passwordData = Data(password.utf8)
         
@@ -81,6 +96,7 @@ struct LoginView: View {
     }
     // Send login request with encrypted password
     func sendLoginRequest(email: String, password: String) {
+        guard validateInput() else { return }
         let url = URL(string: "https://8440-188-127-36-2.ngrok-free.app/api/signin")!
 
         guard let key = getKeyFromKeychain(keyIdentifier: "userSymmetricKey") else {

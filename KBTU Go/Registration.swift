@@ -150,6 +150,21 @@ struct RegistrationView: View {
     @State private var message = ""
     @State private var jwt: String? = nil // Store JWT token here
     var onRegistrationSuccess: () -> Void // Closure passed for success handling
+    
+    private func validateInput() -> Bool {
+        if !isValidEmail(email) {
+            message = "Invalid email. Must end with @kbtu.kz"
+            return false
+        }
+        
+        if !isValidPassword(password) {
+            message = "Invalid password. Must be at least 8 characters, include uppercase, lowercase, and a number."
+            return false
+        }
+        
+        return true
+    }
+    
     func longPollForToken(email:String) {
  
         guard let url = URL(string: "https://8440-188-127-36-2.ngrok-free.app/api/check-confirmation/\(email)") else {
@@ -203,6 +218,7 @@ struct RegistrationView: View {
     }
     // Function to send email and password to the backend server
     func sendRegistrationRequest(email: String, password: String) {
+        guard validateInput() else { return }
         let url = URL(string: "https://8440-188-127-36-2.ngrok-free.app/api/signup")!
         
         let key = SymmetricKey(size: .bits256)
