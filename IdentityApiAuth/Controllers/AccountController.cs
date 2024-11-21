@@ -11,17 +11,17 @@ namespace IdentityApiAuth.Controllers;
 
 public class AccountController : Controller
 {
-    private readonly UserManager<IdentityUser> _userManager;
+    private readonly UserManager<ApplicationUser> _userManager;
     private readonly IEmailSender _emailSender;
-    public AccountController(UserManager<IdentityUser> userManager, IEmailSender emailSender)
+    public AccountController(UserManager<ApplicationUser> userManager, IEmailSender emailSender)
     {
         _userManager = userManager;
         _emailSender  = emailSender;
     }
     [HttpPost("/api/signup")]
-    public async Task<IActionResult> Register([FromBody] RequestModel model)
+    public async Task<IActionResult> Register([FromBody] UserModel model)
     {
-        var user = new IdentityUser()
+        var user = new ApplicationUser()
         {
             UserName = model.Email,
             Email = model.Email
@@ -54,7 +54,7 @@ public class AccountController : Controller
         return Ok(new { Message = "Email not confirmed yet." });
     }
     [HttpPost("/api/signin")]
-    public async Task<IActionResult> Login([FromBody]RequestModel model)
+    public async Task<IActionResult> Login([FromBody]UserModel model)
     {
         var user = await _userManager.FindByEmailAsync(model.Email!);
         if (user == null)
@@ -95,7 +95,7 @@ public class AccountController : Controller
         return Ok(new { Message = "Email confirmed successfully" });
     }
     [NonAction]
-    private async Task SendConfirmationEmailAsync(IdentityUser user)
+    private async Task SendConfirmationEmailAsync(ApplicationUser user)
     {
         ArgumentNullException.ThrowIfNull(user, nameof(user));
         var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);

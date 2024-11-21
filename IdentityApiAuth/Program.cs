@@ -18,7 +18,7 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
-builder.Services.AddIdentity<IdentityUser, IdentityRole>()
+builder.Services.AddIdentityCore<ApplicationUser>()
     .AddEntityFrameworkStores<ApplicationContext>()
     .AddDefaultTokenProviders();
 builder.Host.UseSerilog();
