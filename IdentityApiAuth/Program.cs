@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using IdentityApiAuth.Models;
+using Mapster;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -18,7 +19,7 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
-builder.Services.AddIdentity<IdentityUser, IdentityRole>()
+builder.Services.AddIdentityCore<ApplicationUser>()
     .AddEntityFrameworkStores<ApplicationContext>()
     .AddDefaultTokenProviders();
 builder.Host.UseSerilog();
@@ -64,6 +65,8 @@ builder.Services.AddDbContext<ApplicationContext>(opts =>
 {
     opts.UseSqlServer(builder.Configuration.GetConnectionString("IdentityConnection"));
 });
+builder.Services.AddMapster();
+MapsterConfig.Configure();
 builder.Services.AddTransient<IEmailSender, EmailSender>();
 var app = builder.Build();
 app.UseSerilogRequestLogging();
