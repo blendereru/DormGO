@@ -59,9 +59,11 @@ struct ContentView: View {
     }
 }
 struct MainView: View {
+    @State private var name: String = ""   // State variable for name
+        @State private var email: String = ""
     @State private var isSheet1Presented = false
     let columns = [GridItem(.adaptive(minimum: 150))]
-    @State private var user: User = User(name: "", email: "")
+    @State private var user: ProtectedResponse?
     var logoutAction: () -> Void  // Accept logout closure
     
     var body: some View {
@@ -82,10 +84,10 @@ struct MainView: View {
                 
                 // Second Tab: Profile
                 VStack {
-                    Text("Name: \(user.name)")
+                    Text("Name: \(name)")
                         .font(.title)
                         .padding()
-                    Text("Email: \(user.email)")
+                    Text("Email: \(email)")
                         .font(.subheadline)
                         .foregroundColor(.gray)
                         .padding()
@@ -98,6 +100,11 @@ struct MainView: View {
                             .foregroundColor(.red)
                             .padding()
                     }
+                } .onAppear {
+                    sendProtectedRequest { protectedResponse in
+                        self.name = protectedResponse.name
+                        self.email = protectedResponse.email
+                    }
                 }
                 .tabItem {
                     Label("Profile", systemImage: "person.crop.circle")
@@ -105,6 +112,7 @@ struct MainView: View {
             }
         }
     }
+  
 }
 
 struct AuthenticationView: View {

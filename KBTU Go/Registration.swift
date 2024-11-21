@@ -9,9 +9,12 @@ import Foundation
 import SwiftUI
 import Security
 import CryptoKit
-
-func sendProtectedRequest() {
-    let url = URL(string: "https://8440-188-127-36-2.ngrok-free.app/api/protected")!
+struct ProtectedResponse: Codable {
+    let email: String
+    let name: String
+}
+func sendProtectedRequest(completion: @escaping (ProtectedResponse) -> Void)  {
+    let url = URL(string: "https://20ee-95-57-53-33.ngrok-free.app/api/protected")!
     
     // Retrieve the JWT token from Keychain
     guard let token = getJWTFromKeychain() else {
@@ -46,6 +49,20 @@ func sendProtectedRequest() {
                 
                 if let data = data, let responseString = String(data: data, encoding: .utf8) {
                     print("Response Body: \(responseString)")
+                    do{ let decoder = JSONDecoder()
+                        let protectedResponse = try decoder.decode(ProtectedResponse.self, from: data)
+                      
+                        // Save email and name to your model
+                        saveToModel(email: protectedResponse.email, name: protectedResponse.name)
+                        DispatchQueue.main.async {
+                            completion(protectedResponse)
+                                  }
+                        print("Email: \(protectedResponse.email)")
+                        print("Name: \(protectedResponse.name)")
+                    }
+                    catch{
+                        print("Error decoding JSON: \(error.localizedDescription)")
+                    }
                 } else {
                     print("No data received")
                 }
@@ -55,6 +72,11 @@ func sendProtectedRequest() {
     }
     
     task.resume()
+}
+func saveToModel(email: String, name: String) {
+    // Save the email and name to your model
+    // e.g., update a global object, database, or state
+    print("Saved to model: Email = \(email), Name = \(name)")
 }
 func saveKeyToKeychain(key: SymmetricKey, keyIdentifier: String) -> Bool {
     let keyData = key.withUnsafeBytes { Data($0) }
@@ -167,7 +189,7 @@ struct RegistrationView: View {
     
     func longPollForToken(email:String) {
  
-        guard let url = URL(string: "https://8440-188-127-36-2.ngrok-free.app/api/check-confirmation/\(email)") else {
+        guard let url = URL(string: "https://20ee-95-57-53-33.ngrok-free.app/api/check-confirmation/\(email)") else {
            
             print("Error: Invalid URL")
             return
@@ -196,7 +218,14 @@ struct RegistrationView: View {
                                 if saveJWTToKeychain(token: token) {
                                     print("JWT saved successfully!")
                                     UserDefaults.standard.set(true, forKey: "isAuthenticated")
-                                    sendProtectedRequest() // Proceed with protected request
+                                    sendProtectedRequest { protectedResponse in
+                                            print("Fetched Protected Data:")
+                                            print("Name: \(protectedResponse.name)")
+                                            print("Email: \(protectedResponse.email)")
+
+                                            // Save to model, update UI, or perform other actions
+                                            saveToModel(email: protectedResponse.email, name: protectedResponse.name)
+                                        } // Proceed with protected request
                                 } else {
                                     print("Error saving JWT")
                                     longPollForToken(email:email)
@@ -219,7 +248,7 @@ struct RegistrationView: View {
     // Function to send email and password to the backend server
     func sendRegistrationRequest(email: String, password: String) {
         guard validateInput() else { return }
-        let url = URL(string: "https://8440-188-127-36-2.ngrok-free.app/api/signup")!
+        let url = URL(string: "https://20ee-95-57-53-33.ngrok-free.app/api/signup")!
         
         let key = SymmetricKey(size: .bits256)
         guard saveKeyToKeychain(key: key, keyIdentifier: "userSymmetricKey") else {
