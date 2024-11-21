@@ -1,5 +1,7 @@
 using System.Security.Claims;
+using IdentityApiAuth.DTOs;
 using IdentityApiAuth.Models;
+using MapsterMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -9,9 +11,14 @@ namespace IdentityApiAuth.Controllers;
 public class HomeController : Controller
 {
     private readonly UserManager<ApplicationUser> _userManager;
-    public HomeController(UserManager<ApplicationUser> userManager)
+    private readonly ApplicationContext _db;
+    private readonly IMapper _mapper;
+    public HomeController(UserManager<ApplicationUser> userManager, ApplicationContext db,
+        IMapper mapper)
     {
         _userManager = userManager;
+        _db = db;
+        _mapper = mapper;
     }
     [HttpGet("/api/protected")]
     public IActionResult Index()
@@ -26,13 +33,23 @@ public class HomeController : Controller
             Role = roleClaim?.Value
         });
     }
-    // //ToDO: show posts to all users in the system
-    // [HttpPost("/api/post/create")]
-    // public async Task<IActionResult> CreatePost([FromBody] PostModel postModel)
-    // {
-    //     ArgumentNullException.ThrowIfNull(postModel, nameof(postModel));
-    //     ArgumentNullException.ThrowIfNull(postModel.Creator, nameof(postModel.Creator));
-    //     var user = await _userManager.FindByEmailAsync(postModel.Creator.Email);
-    //     
-    // }
+    [HttpPost("/api/post/create")]
+    public async Task<IActionResult> CreatePost([FromBody] PostDto postDto)
+    {
+        ArgumentNullException.ThrowIfNull(postDto, nameof(postDto));
+        ArgumentNullException.ThrowIfNull(postDto.Creator, nameof(postDto.Creator));
+        var user = await _userManager.FindByEmailAsync(postDto.Creator.Email);
+        if (user == null)
+        {
+            return BadRequest($"User with email {postDto.Creator.Email} not found.");
+        }
+        var post = _mapper.Map<Post>(postDto);
+        post.Members.Add(user);
+        user.Posts.Add(post);
+        _db.Users.Update(user);
+        _db.Posts.Add(post);
+        await _db.SaveChangesAsync();
+        return Ok(new { Message = "The post was saved to db" });
+    }
+
 }
