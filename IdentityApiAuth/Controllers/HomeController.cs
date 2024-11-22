@@ -36,8 +36,10 @@ public class HomeController : Controller
     [HttpPost("/api/post/create")]
     public async Task<IActionResult> CreatePost([FromBody] PostDto postDto)
     {
-        ArgumentNullException.ThrowIfNull(postDto, nameof(postDto));
-        ArgumentNullException.ThrowIfNull(postDto.Creator, nameof(postDto.Creator));
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
         var user = await _userManager.FindByEmailAsync(postDto.Creator.Email);
         if (user == null)
         {

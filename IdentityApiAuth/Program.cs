@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Security.Claims;
 using IdentityApiAuth.Models;
 using Mapster;
@@ -18,7 +19,7 @@ Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateLogger();
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddControllersWithViews();
+builder.Services.AddControllersWithViews().AddNewtonsoftJson();
 builder.Services.AddIdentityCore<ApplicationUser>()
     .AddEntityFrameworkStores<ApplicationContext>()
     .AddDefaultTokenProviders();
