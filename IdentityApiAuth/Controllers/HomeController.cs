@@ -40,10 +40,15 @@ public class HomeController : Controller
         {
             return BadRequest(ModelState);
         }
-        var user = await _userManager.FindByEmailAsync(postDto.Creator.Email);
+        var creatorEmail = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email);
+        if (creatorEmail == null)
+        {
+            return BadRequest("The user's email was not found from jwt token");
+        }
+        var user = await _userManager.FindByEmailAsync(creatorEmail.Value);
         if (user == null)
         {
-            return BadRequest($"User with email {postDto.Creator.Email} not found.");
+            return BadRequest($"User with email {creatorEmail.Value} not found.");
         }
         var post = _mapper.Map<Post>(postDto);
         post.Members.Add(user);
