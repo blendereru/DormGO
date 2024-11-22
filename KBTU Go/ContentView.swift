@@ -31,12 +31,19 @@ func deleteJWTFromKeychain() -> Bool {
 struct ContentView: View {
     @AppStorage("isAuthenticated") private var isAuthenticated: Bool = false
     
-    init() {
-        // Check for JWT in Keychain
-        if let _ = getJWTFromKeychain() {
-            isAuthenticated = true
-        }
-    }
+//    init() {
+//        // Check for JWT in Keychain
+//        if let _ = getJWTFromKeychain() {
+//            isAuthenticated = true
+//        }
+//    }
+    init(isPreview: Bool = false) {
+         if isPreview {
+             isAuthenticated = true  // Simulate logged-in state for preview
+         } else if let _ = getJWTFromKeychain() {
+             isAuthenticated = true
+         }
+     }
     
     var body: some View {
         Group {
@@ -62,6 +69,7 @@ struct MainView: View {
     @State private var name: String = ""   // State variable for name
         @State private var email: String = ""
     @State private var isSheet1Presented = false
+    @State private var isSheet2Presented = false
     let columns = [GridItem(.adaptive(minimum: 150))]
     @State private var user: ProtectedResponse?
     var logoutAction: () -> Void  // Accept logout closure
@@ -72,8 +80,34 @@ struct MainView: View {
             TabView {
                 // First Tab: Rides
                 VStack {
+                    HStack{
+                        Spacer()
+                        Button(action: {
+                            isSheet2Presented=true
+                        }){
+                            Text("Publish")
+                                .frame(width: 120,height:50)
+                                
+                                .background(Color.blue)
+                                .foregroundColor(.white)
+                                .cornerRadius(30)
+                                
+                            
+                        } .padding(.trailing, 16)
+                            .sheet(isPresented: $isSheet2Presented) {
+                                // Content to show in the sheet
+                                PublishContent()  
+                            }
+                    }
+                    .padding(.top, 16)
                     LazyVGrid(columns: columns, spacing: 16) {
                         // Your ride buttons
+                        RideInfoButton(peopleAssembled: "", destination: "", minutesago: "", rideName: "", status: "", color: .red, company: "" ){
+                            isSheet1Presented=true
+                        }
+                        .sheet(isPresented: $isSheet1Presented){
+                            SheetContent(title: "title")
+                        }
                     }
                     .padding()
                     Spacer()
@@ -203,10 +237,10 @@ struct SheetContent: View {
         .padding()
     }
 }
+
+
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
-        ContentView()
-            .environment(\.locale, .init(identifier: "en")) // Set to English
-         
+        ContentView(isPreview: true)  // Pass `true` to simulate being logged in
     }
 }

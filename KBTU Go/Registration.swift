@@ -14,7 +14,7 @@ struct ProtectedResponse: Codable {
     let name: String
 }
 func sendProtectedRequest(completion: @escaping (ProtectedResponse) -> Void)  {
-    let url = URL(string: "https://20ee-95-57-53-33.ngrok-free.app/api/protected")!
+    let url = URL(string: "https://15d8-95-57-53-33.ngrok-free.app/api/protected")!
     
     // Retrieve the JWT token from Keychain
     guard let token = getJWTFromKeychain() else {
@@ -189,7 +189,7 @@ struct RegistrationView: View {
     
     func longPollForToken(email:String) {
  
-        guard let url = URL(string: "https://20ee-95-57-53-33.ngrok-free.app/api/check-confirmation/\(email)") else {
+        guard let url = URL(string: "https://15d8-95-57-53-33.ngrok-free.app/api/check-confirmation/\(email)") else {
            
             print("Error: Invalid URL")
             return
@@ -248,7 +248,7 @@ struct RegistrationView: View {
     // Function to send email and password to the backend server
     func sendRegistrationRequest(email: String, password: String) {
         guard validateInput() else { return }
-        let url = URL(string: "https://20ee-95-57-53-33.ngrok-free.app/api/signup")!
+        let url = URL(string: "https://15d8-95-57-53-33.ngrok-free.app/api/signup")!
         
         let key = SymmetricKey(size: .bits256)
         guard saveKeyToKeychain(key: key, keyIdentifier: "userSymmetricKey") else {
