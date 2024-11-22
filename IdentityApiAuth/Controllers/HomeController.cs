@@ -36,12 +36,19 @@ public class HomeController : Controller
     [HttpPost("/api/post/create")]
     public async Task<IActionResult> CreatePost([FromBody] PostDto postDto)
     {
-        ArgumentNullException.ThrowIfNull(postDto, nameof(postDto));
-        ArgumentNullException.ThrowIfNull(postDto.Creator, nameof(postDto.Creator));
-        var user = await _userManager.FindByEmailAsync(postDto.Creator.Email);
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+        var creatorEmail = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email);
+        if (creatorEmail == null)
+        {
+            return BadRequest("The user's email was not found from jwt token");
+        }
+        var user = await _userManager.FindByEmailAsync(creatorEmail.Value);
         if (user == null)
         {
-            return BadRequest($"User with email {postDto.Creator.Email} not found.");
+            return BadRequest($"User with email {creatorEmail.Value} not found.");
         }
         var post = _mapper.Map<Post>(postDto);
         post.Members.Add(user);

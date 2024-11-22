@@ -6,7 +6,7 @@ public static class MapsterConfig
 {
     public static void Configure()
     {
-        TypeAdapterConfig<Post, PostDto>.NewConfig()
+        TypeAdapterConfig<PostDto, Post>.NewConfig()
             .Map(dest => dest.Description, src => src.Description)
             .Map(dest => dest.CurrentPrice, src => src.CurrentPrice)
             .Map(dest => dest.Latitude, src => src.Latitude)
@@ -14,8 +14,8 @@ public static class MapsterConfig
             .Map(dest => dest.CreatedAt, src => src.CreatedAt)
             .Map(dest => dest.MaxPeople, src => src.MaxPeople);
 
-        TypeAdapterConfig<ApplicationUser, UserDto>.NewConfig()
+        TypeAdapterConfig<UserDto, ApplicationUser>.NewConfig()
             .Map(dest => dest.Email, src => src.Email)
-            .Map(dest => dest.Email, src => src.UserName);
+            .Map(dest => dest.UserName, src => src.Email);
     }
 }
