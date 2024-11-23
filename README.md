@@ -1,4 +1,5 @@
 # LoginForm
+<a href="https://github.com/blendereru/LoginForm/blob/6bafb0d7e5eea91c3371e97b5972ffca8d46fe94/.github/workflows/dotnet.yml"><img src="https://img.shields.io/badge/build-passing-02a62d?style=flat&logo=github&link=https://github.com/blendereru/LoginForm/blob/6bafb0d7e5eea91c3371e97b5972ffca8d46fe94/.github/workflows/dotnet.yml" alt="build" /></a>
 <a href="https://dotnet.microsoft.com/en-us/"><img src="https://img.shields.io/badge/version-8.0-600aa6?style=flat&logo=dotnet&link=https://dotnet.microsoft.com/en-us/" alt="version" /></a>
 <a href="https://www.swift.org/"><img src="https://img.shields.io/badge/Swift-5.0-e35424?style=flat&logo=swift&logoColor=white&link=https://www.swift.org/" alt="Swift" /></a>
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
@@ -10,8 +11,13 @@ in `Apple` devices.
 * `/api/signup` - is needed to register new user in a database
 * `/api/confirm-email` - is needed to confirm user's email.
 * `/api/signin` - is needed to log an existing user in the system. Doesn't allow to sign in until the `email` is confirmed.
-* `/api/protected` - example of protected resource to which only `authorized` users can get access to.` Client-side` needs to pass
-`JSON Web Token`(shortly `jwt`) in a request header.
+* `/api/check-confirmation/{email}` - the endpoint that is needed to set `long-polling` connection, to check if user
+has confirmed his email. 
+### Endpoints for authorized users `only`
+* `/api/post/create`(needs fix) - the endpoint to create a `post` and make it visible for all users.
+* `/api/post/update` - is needed to update the post settings.
+* `/api/post/delete` - is needed to delete the existing post.
+* `/api/post/read` - to read all posts.
 
 ## 🚨 Requirements
 To use this project, ensure the following requirements are met:
