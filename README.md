@@ -7,21 +7,23 @@
 The process of sign-in, sign-up in mobile-app. It uses `Swift` and `ASP.NET Core` for client and server interaction, and is available
 in `Apple` devices. 
 ## Screenshots
-### Home Screen
-<img src="Extra_assets/screen.jpg" width="300" />
-### Post Creation Page
-<img src="Extra_assets/screen2.jpg" width="300" />
+### Home Screen & Post Creation Page
+<div style="display: flex; gap: 20px;">
+  <img src="Extra_assets/screen.jpg" width="300" />
+  <img src="Extra_assets/screen2.png" width="300" />
+</div>
+
 ## 🏗️ Architecture
 This project follows the MVVM (Model-View-ViewModel) architecture pattern with SwiftUI for the user interface and Combine for reactive data binding.
-## 🏗️ Architecture
-This project follows the MVVM (Model-View-ViewModel) architecture pattern with SwiftUI for the user interface and Combine for reactive data binding.
+
 ## Setup for the app
-    •    Xcode (version 15 or later)
-    •    macOS (version 12 or later)
-## 📦 Dependencies  
-    •    Combine: Reactive programming framework for data binding.
-    •    CoreLocation: For location services and retrieving the user’s location.
-    •    MapKit: For map view and geolocation-related functionality.
+    • Xcode (version 15 or later)
+    • macOS (version 12 or later)
+
+## 📦 Dependencies
+    • Combine: Reactive programming framework for data binding.
+    • CoreLocation: For location services and retrieving the user’s location.
+    • MapKit: For map view and geolocation-related functionality.
 ## Endpoints
 `Server-side` defines multiple `endpoints` for client to send requests to. 
 * `/api/signup` - is needed to register new user in a database
