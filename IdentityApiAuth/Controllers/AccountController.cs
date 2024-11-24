@@ -7,6 +7,7 @@ using IdentityApiAuth.Models;
 using MapsterMapper;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 namespace IdentityApiAuth.Controllers;
@@ -86,24 +87,69 @@ public class AccountController : Controller
     }
 
     [HttpPost("/api/signin")]
-    public async Task<IActionResult> Login([FromBody]UserDto dto)
+    public async Task<IActionResult> Login([FromBody] UserDto dto)
     {
         var user = await _userManager.FindByEmailAsync(dto.Email!);
         if (user == null)
         {
             return Unauthorized("Invalid email or password.");
         }
+    
         if (!user.EmailConfirmed)
         {
             return BadRequest("Email is not confirmed. Please check your email for the confirmation link.");
         }
+    
         var isPasswordValid = await _userManager.CheckPasswordAsync(user, dto.Password);
         if (!isPasswordValid)
         {
             return Unauthorized("Invalid email or password.");
         }
-        var token = GenerateAccessToken(user.Email!);
-        return Ok(new { Message = "Login successful", Token = token });
+        if (user.RefreshSessions.Count >= 5)
+        {
+            var sessionsToRemove = _db.RefreshSessions
+                .Where(s => s.UserId == user.Id)
+                .ToList();
+
+            _db.RefreshSessions.RemoveRange(sessionsToRemove);
+            await _db.SaveChangesAsync();
+        }
+        var accessToken = GenerateAccessToken(user.Email!);
+        var refreshToken = GenerateRefreshToken();
+    
+        var session = new RefreshSession
+        {
+            UserId = user.Id,
+            RefreshToken = refreshToken,
+            UA = Request.Headers["User-Agent"].ToString(),
+            Ip = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            ExpiresIn = DateTimeOffset.UtcNow.AddDays(7).ToUnixTimeMilliseconds()
+        };
+        _db.RefreshSessions.Add(session);
+        await _db.SaveChangesAsync();
+        return Ok(new 
+        { 
+            Message = "Login successful", 
+            access_token = accessToken,
+            refresh_token = refreshToken 
+        });
+    }
+
+    [HttpPost("/api/signout")]
+    public async Task<IActionResult> Logout([FromBody] RefreshTokenRequest request)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+        var session = await _db.RefreshSessions.FirstOrDefaultAsync(x => x.RefreshToken == request.RefreshToken);
+        if (session == null)
+        {
+            return BadRequest("The refresh token is not found");
+        }
+        _db.RefreshSessions.Remove(session);
+        await _db.SaveChangesAsync();
+        return Ok("The refresh token was successfully removed");
     }
     [HttpGet("/api/confirm-email")]
     public async Task<IActionResult> ConfirmEmail(string userId, string token)
@@ -173,7 +219,7 @@ public class AccountController : Controller
     {
         ArgumentNullException.ThrowIfNull(user, nameof(user));
         var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-        var confirmationLink = $"http://localhost:5093{Url.Action("ConfirmEmail", "Account", new { userId = user.Id, token = token })}";
+        var confirmationLink = $"https://6461-95-57-53-33.ngrok-free.app{Url.Action("ConfirmEmail", "Account", new { userId = user.Id, token = token })}";
         var body = $"Please confirm your email by <a href='{HtmlEncoder.Default.Encode(confirmationLink)}'>clicking here</a>.";
         await _emailSender.SendEmailAsync(user.Email!, "Confirm your email", body, true);
     }

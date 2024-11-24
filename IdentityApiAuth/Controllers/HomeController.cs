@@ -58,5 +58,4 @@ public class HomeController : Controller
         await _db.SaveChangesAsync();
         return Ok(new { Message = "The post was saved to db" });
     }
-
 }
