@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IdentityApiAuth", "IdentityApiAuth\IdentityApiAuth.csproj", "{39F5AAE1-BB9E-43A2-97C3-C76A44876C38}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IdentityApiAuth", "src\server\IdentityApiAuth\IdentityApiAuth.csproj", "{39F5AAE1-BB9E-43A2-97C3-C76A44876C38}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

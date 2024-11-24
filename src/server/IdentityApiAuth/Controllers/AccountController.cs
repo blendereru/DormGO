@@ -92,7 +92,7 @@ public class AccountController : Controller
         var user = await _userManager.FindByEmailAsync(dto.Email!);
         if (user == null)
         {
-            return Unauthorized("Invalid email or password.");
+            return Unauthorized("Invalid email");
         }
     
         if (!user.EmailConfirmed)
@@ -103,7 +103,7 @@ public class AccountController : Controller
         var isPasswordValid = await _userManager.CheckPasswordAsync(user, dto.Password);
         if (!isPasswordValid)
         {
-            return Unauthorized("Invalid email or password.");
+            return Unauthorized("Invalid password.");
         }
         if (user.RefreshSessions.Count >= 5)
         {
@@ -219,7 +219,7 @@ public class AccountController : Controller
     {
         ArgumentNullException.ThrowIfNull(user, nameof(user));
         var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-        var confirmationLink = $"https://6461-95-57-53-33.ngrok-free.app{Url.Action("ConfirmEmail", "Account", new { userId = user.Id, token = token })}";
+        var confirmationLink = $"https://354d-95-57-53-33.ngrok-free.app{Url.Action("ConfirmEmail", "Account", new { userId = user.Id, token = token })}";
         var body = $"Please confirm your email by <a href='{HtmlEncoder.Default.Encode(confirmationLink)}'>clicking here</a>.";
         await _emailSender.SendEmailAsync(user.Email!, "Confirm your email", body, true);
     }
