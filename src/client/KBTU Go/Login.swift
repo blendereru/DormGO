@@ -97,7 +97,7 @@ struct LoginView: View {
     // Send login request with encrypted password
     func sendLoginRequest(email: String, password: String) {
         guard validateInput() else { return }
-        let url = URL(string: "https://edbd-95-57-53-33.ngrok-free.app/api/signin")!
+        let url = URL(string: "https://ac30-188-127-36-2.ngrok-free.app/api/signin")!
 
         guard let key = getKeyFromKeychain(keyIdentifier: "userSymmetricKey") else {
             message = "Error: Key not found"

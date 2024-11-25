@@ -13,83 +13,265 @@ import MapKit
 import SwiftUI
 import CoreLocation
 import Combine
-
-func sendProtectedRequest2(Description: String, CurrentPrice: Double, Latitude: Double, Longitude: Double, CreatedAt: String, MaxPeople: Int, completion: @escaping (ProtectedResponse) -> Void) {
-    let url = URL(string: "https://15d8-95-57-53-33.ngrok-free.app/api/post/create")!
-    
-    // Retrieve the JWT token from Keychain
-    guard let token = getJWTFromKeychain(tokenType: "accesstoken") else {
-        print("Error: JWT token not found in Keychain")
-        return
-    }
-    print("JWT Token: \(token)")
-    
-    var request = URLRequest(url: url)
-    request.httpMethod = "POST"  // Make sure the method is POST
-    
-    // Set the JWT token in the Authorization header
-    request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-    
-    // Use the dynamic body passed into the function
-    let body: [String: Any] = [
-        "Description": Description,
-        "CurrentPrice": CurrentPrice,
-        "Latitude": Latitude,
-        "Longitude": Longitude,
-        "CreatedAt": CreatedAt,
-        "MaxPeople": MaxPeople,
+class PostAPIManager{
+    static let shared = PostAPIManager()
+    func sendProtectedRequest2(Description: String, CurrentPrice: Double, Latitude: Double, Longitude: Double, CreatedAt: String, MaxPeople: Int, completion: @escaping (ProtectedResponse?) -> Void) {
+        let url = URL(string: "https://9da1-2-134-108-133.ngrok-free.app/api/post/create")!
         
-    ]
-    
-    // Convert body to JSON data
-    guard let jsonData = try? JSONSerialization.data(withJSONObject: body, options: []) else {
-        print("Error: Unable to convert body to JSON")
-        return
-    }
-    
-    request.httpBody = jsonData
-    
-    // Print the headers to terminal
-    if let allHeaders = request.allHTTPHeaderFields {
-        print("Request Headers: \(allHeaders)")
-    }
-
-    let task = URLSession.shared.dataTask(with: request) { data, response, error in
-        DispatchQueue.main.async {
-            if let error = error {
-                print("Error: \(error.localizedDescription)")
-                return
+        // Retrieve the JWT token from Keychain
+        guard let token = getJWTFromKeychain(tokenType: "access_token") else {
+            print("Access token missing. Attempting to refresh token.")
+            refreshToken2 { success in
+                if success {
+                    self.sendProtectedRequest2(
+                                          Description: Description,
+                                          CurrentPrice: CurrentPrice,
+                                          Latitude: Latitude,
+                                          Longitude: Longitude,
+                                          CreatedAt: CreatedAt,
+                                          MaxPeople: MaxPeople,
+                                          completion: completion
+                                      )
+                } else {
+                    print("Unable to refresh token. Exiting.")
+                    completion(nil)
+                }
             }
+            return
+        }
+        print("JWT Token: \(token)")
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"  // Make sure the method is POST
+        
+        // Set the JWT token in the Authorization header
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        // Use the dynamic body passed into the function
+        let body: [String: Any] = [
+            "Description": Description,
+            "CurrentPrice": CurrentPrice,
+            "Latitude": Latitude,
+            "Longitude": Longitude,
+            "CreatedAt": CreatedAt,
+            "MaxPeople": MaxPeople,
             
-            if let httpResponse = response as? HTTPURLResponse {
-                print("HTTP Status Code: \(httpResponse.statusCode)")
-                
-                if let headers = httpResponse.allHeaderFields as? [String: String] {
-                    print("Response Headers: \(headers)")
+        ]
+        
+        // Convert body to JSON data
+        guard let jsonData = try? JSONSerialization.data(withJSONObject: body, options: []) else {
+            print("Error: Unable to convert body to JSON")
+            return
+        }
+        
+        request.httpBody = jsonData
+        
+        // Print the headers to terminal
+        if let allHeaders = request.allHTTPHeaderFields {
+            print("Request Headers: \(allHeaders)")
+        }
+        
+        let task = URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("Error: \(error.localizedDescription)")
+                    return
                 }
                 
-                if let data = data, let responseString = String(data: data, encoding: .utf8) {
-                    print("Response Body: \(responseString)")
-                    do {
-                        let decoder = JSONDecoder()
-                        let protectedResponse = try decoder.decode(ProtectedResponse.self, from: data)
-                        print("Email: \(protectedResponse.email)")
-                        print("Name: \(protectedResponse.name)")
-                        completion(protectedResponse)
-                    } catch {
-                        print("Error decoding JSON: \(error.localizedDescription)")
+                if let httpResponse = response as? HTTPURLResponse {
+                    print("HTTP Status Code: \(httpResponse.statusCode)")
+                    
+                    if let headers = httpResponse.allHeaderFields as? [String: String] {
+                        print("Response Headers: \(headers)")
                     }
-                } else {
-                    print("No data received")
+                    if httpResponse.statusCode == 401 {
+                        print("Token expired. Refreshing...")
+                        self.refreshToken2 { success in
+                            if success {
+                                self.sendProtectedRequest2(
+                                    Description: Description,
+                                    CurrentPrice: CurrentPrice,
+                                    Latitude: Latitude,
+                                    Longitude: Longitude,
+                                    CreatedAt: CreatedAt,
+                                    MaxPeople: MaxPeople,
+                                    completion: completion
+                                )
+                            } else {
+                                print("Failed to refresh token.")
+                                completion(nil)
+                            }
+                        }
+                        return
+                    }
+
+                    if let data = data, let responseString = String(data: data, encoding: .utf8) {
+                        print("Response Body: \(responseString)")
+                        do {
+                            let decoder = JSONDecoder()
+                            let protectedResponse = try decoder.decode(ProtectedResponse.self, from: data)
+                            print("Email: \(protectedResponse.email)")
+                            print("Name: \(protectedResponse.name)")
+                            completion(protectedResponse)
+                        } catch {
+                            print("Error decoding JSON: \(error.localizedDescription)")
+                        }
+                    } else {
+                        print("No data received")
+                    }
                 }
             }
         }
+        
+        task.resume()
     }
-    
-    task.resume()
-}
+    func refreshToken2(completion: @escaping (Bool) -> Void) {
+        // Retrieve tokens from Keychain first
+        guard let refreshToken = getJWTFromKeychain(tokenType: "refresh_token"),
+              let accessToken = getJWTFromKeychain(tokenType: "access_token") else {
+            print("Token(s) missing.")
+            completion(false)
+            return
+        }
 
+        // Prepare the request
+        let refreshURL = URL(string: "https://9da1-2-134-108-133.ngrok-free.app/api/refresh-tokens")!
+        var request = URLRequest(url: refreshURL)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let body: [String: Any] = [
+            "refreshToken": refreshToken,
+            "accessToken": accessToken
+        ]
+
+        // Set the HTTP body
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body, options: [])
+
+        // Make the request to refresh the token
+        let task = URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("Error refreshing token: \(error.localizedDescription)")
+                    completion(false)
+                    return
+                }
+
+                if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
+                    guard let data = data else {
+                        print("Error: No data received")
+                        completion(false)
+                        return
+                    }
+
+                    do {
+                        if let responseObject = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
+                            // Extract tokens from the response
+                            if let newAccessToken = responseObject["access_token"] as? String,
+                               let newRefreshToken = responseObject["refresh_token"] as? String {
+
+                                print("Access Token received: \(newAccessToken)")
+                                print("Refresh Token received: \(newRefreshToken)")
+
+                                // Save tokens to Keychain
+                                let isAccessTokenSaved = saveJWTToKeychain(token: newAccessToken, tokenType: "access_token")
+                                let isRefreshTokenSaved = saveJWTToKeychain(token: newRefreshToken, tokenType: "refresh_token")
+
+                                if isAccessTokenSaved && isRefreshTokenSaved {
+                                    print("Both tokens saved successfully!")
+                                    completion(true)  // Return true to indicate success
+                                } else {
+                                    print("Error saving tokens to Keychain")
+                                    completion(false)
+                                }
+                            } else {
+                                print("Error: Tokens not found in response")
+                                completion(false)
+                            }
+                        } else {
+                            print("Error: Unexpected response format")
+                            completion(false)
+                        }
+                    } catch {
+                        print("Error: Failed to parse server response - \(error.localizedDescription)")
+                        completion(false)
+                    }
+                } else {
+                    let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
+                    print("Failed to refresh token. Status code: \(statusCode)")
+                    completion(false)
+                }
+            }
+        }
+        task.resume()
+    }
+    func readposts(completion: @escaping (ProtectedResponse?) -> Void) {
+        let url = URL(string: "https://9da1-2-134-108-133.ngrok-free.app/api/post/read")!
+        
+        guard let token = getJWTFromKeychain(tokenType: "access_token") else {
+            print("Access token missing. Attempting to refresh token.")
+            refreshToken2 { success in
+                if success {
+                    self.readposts(completion: completion)
+                } else {
+                    print("Unable to refresh token. Exiting.")
+                    completion(nil)
+                }
+            }
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        
+        let task = URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("Network error: \(error.localizedDescription)")
+                    completion(nil)
+                    return
+                }
+                
+                if let httpResponse = response as? HTTPURLResponse {
+                    if httpResponse.statusCode == 401 {
+                        print("Token expired. Refreshing...")
+                        self.refreshToken2 { success in
+                            if success {
+                                self.readposts(completion: completion)
+                            } else {
+                                print("Failed to refresh token.")
+                                completion(nil)
+                            }
+                        }
+                        return
+                    } else if httpResponse.statusCode != 200 {
+                        print("Request failed with status code: \(httpResponse.statusCode)")
+                        completion(nil)
+                        return
+                    }
+                    
+                    if let data = data {
+                        do {
+                            let decoder = JSONDecoder()
+                            let protectedResponse = try decoder.decode(ProtectedResponse.self, from: data)
+                            saveToModel(email: protectedResponse.email, name: protectedResponse.name)
+                            completion(protectedResponse)
+                        } catch {
+                            print("Failed to decode response: \(error.localizedDescription)")
+                            completion(nil)
+                        }
+                    } else {
+                        print("No data received.")
+                        completion(nil)
+                    }
+                }
+            }
+        }
+        
+        // Start the network task
+        task.resume() // <-- This line is important!
+    }}
 class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private var locationManager = CLLocationManager()
     
@@ -136,7 +318,7 @@ struct PublishContent: View {
     @State private var selectedCoordinate: CLLocationCoordinate2D?
     // Function to send data to the server
     func sendCreateRequest(Description: String, CurrentPrice: Double, Latitude: Double, Longitude: Double, CreatedAt: String, MaxPeople: Int) {
-        let url = URL(string: "https://edbd-95-57-53-33.ngrok-free.app/api/post/create")!
+        let url = URL(string: "https://9da1-2-134-108-133.ngrok-free.appp/api/post/create")!
 
         let body: [String: Any] = [
             "Description": Description,
@@ -246,15 +428,15 @@ struct PublishContent: View {
             Button(action: {
             
                         // Fetch the creator details using sendProtectedRequest
-                sendProtectedRequest2(Description: description,
+                PostAPIManager.shared.sendProtectedRequest2(Description: description,
                                       CurrentPrice: Double(currentPrice) ?? 0.0,
                                       Latitude: Double(latitude) ?? 0.0,
                                       Longitude: Double(longitude) ?? 0.0,
                                       CreatedAt: getCurrentTime(),  // Assuming you want to use current time here
                                       MaxPeople: Int(maxPeople) ?? 0
                                       ) { protectedResponse in
-                            self.name = protectedResponse.name
-                            self.email = protectedResponse.email
+                    self.name = protectedResponse?.name ?? ""
+                    self.email = protectedResponse?.email ?? ""
                             
                            
                             

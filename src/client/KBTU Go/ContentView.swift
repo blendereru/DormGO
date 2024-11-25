@@ -111,6 +111,15 @@ struct MainView: View {
                     }
                     .padding()
                     Spacer()
+                }.onAppear {
+                    print("onAppear triggered")
+                    PostAPIManager.shared.readposts { response in
+                        guard let response = response else {
+                            print("Failed to fetch posts or no posts available.")
+                            return
+                        }
+                        print("Posts fetched successfully: \(response)")
+                    }
                 }
                 .tabItem {
                     Label("Rides", systemImage: "car.front.waves.up.fill")
