@@ -32,7 +32,7 @@ This project follows the MVVM (Model-View-ViewModel) architecture pattern with S
 * `/api/check-confirmation/{email}` - the endpoint that is needed to set `long-polling` connection, to check if user
 has confirmed his email. 
 ### Endpoints for authorized users `only`
-* `/api/post/create`(needs fix) - the endpoint to create a `post` and make it visible for all users.
+* `/api/post/create` - the endpoint to create a `post` and make it visible for all users.
 * `/api/post/update` - is needed to update the post settings.
 * `/api/post/delete` - is needed to delete the existing post.
 * `/api/post/read` - to read all posts.
@@ -68,8 +68,9 @@ update the `EmailSettings` section in the `appsettings.json` file:
 If you're using Gmail, use an [App Password](https://support.google.com/accounts/answer/185833?hl=en). 
 ## 🎯 ToDos
 1. [X] Set `Webhook/Long polling` to  wait for server's `JWT` after email confirmation
-2. [ ] Track user's session in `database` to ensure no suspicious action is done
+2. [X] Track user's session in `database` to ensure no suspicious action is done
 3. [ ] Ask to confirm `email` after `/api/signin` to ensure the right user is logging in.
+4. [ ] Set webhook connection with `/api/post/read` to notify all users in `real-time`
 ## 📗 License
 The project code and all the resources are distributed under the terms of [MIT license](https://github.com/blendereru/LoginForm/blob/f9ec9cd269e0b785c8a7b778e4d4f16fdb4a1427/LICENSE)
 
