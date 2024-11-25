@@ -18,7 +18,7 @@ func sendProtectedRequest2(Description: String, CurrentPrice: Double, Latitude: 
     let url = URL(string: "https://15d8-95-57-53-33.ngrok-free.app/api/post/create")!
     
     // Retrieve the JWT token from Keychain
-    guard let token = getJWTFromKeychain() else {
+    guard let token = getJWTFromKeychain(tokenType: "accesstoken") else {
         print("Error: JWT token not found in Keychain")
         return
     }
@@ -136,7 +136,7 @@ struct PublishContent: View {
     @State private var selectedCoordinate: CLLocationCoordinate2D?
     // Function to send data to the server
     func sendCreateRequest(Description: String, CurrentPrice: Double, Latitude: Double, Longitude: Double, CreatedAt: String, MaxPeople: Int) {
-        let url = URL(string: "https://15d8-95-57-53-33.ngrok-free.app/api/post/create")!
+        let url = URL(string: "https://edbd-95-57-53-33.ngrok-free.app/api/post/create")!
 
         let body: [String: Any] = [
             "Description": Description,

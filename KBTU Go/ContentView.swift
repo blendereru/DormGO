@@ -40,7 +40,7 @@ struct ContentView: View {
     init(isPreview: Bool = false) {
          if isPreview {
              isAuthenticated = true  // Simulate logged-in state for preview
-         } else if let _ = getJWTFromKeychain() {
+         } else if let _ = getJWTFromKeychain(tokenType: "accesstoken") {
              isAuthenticated = true
          }
      }
@@ -135,9 +135,9 @@ struct MainView: View {
                             .padding()
                     }
                 } .onAppear {
-                    sendProtectedRequest { protectedResponse in
-                        self.name = protectedResponse.name
-                        self.email = protectedResponse.email
+                    APIManager.shared.sendProtectedRequest{ protectedResponse in
+                        self.name = protectedResponse?.name ?? ""
+                        self.email = protectedResponse?.email ?? ""
                     }
                 }
                 .tabItem {
