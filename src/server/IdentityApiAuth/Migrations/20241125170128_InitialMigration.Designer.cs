@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace IdentityApiAuth.Migrations
 {
     [DbContext(typeof(ApplicationContext))]
-    [Migration("20241123183847_Initial")]
-    partial class Initial
+    [Migration("20241125170128_InitialMigration")]
+    partial class InitialMigration
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -115,6 +115,10 @@ namespace IdentityApiAuth.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatorId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("CurrentPrice")
                         .HasColumnType("decimal(18,2)");

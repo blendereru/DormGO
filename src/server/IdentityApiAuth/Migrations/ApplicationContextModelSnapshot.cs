@@ -113,6 +113,10 @@ namespace IdentityApiAuth.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("CreatorId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<decimal>("CurrentPrice")
                         .HasColumnType("decimal(18,2)");
 

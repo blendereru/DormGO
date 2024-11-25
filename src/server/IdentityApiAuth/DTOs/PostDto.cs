@@ -14,4 +14,5 @@ public class PostDto
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public int MaxPeople { get; set; }
+    public List<MemberDto> Members { get; set; } = new List<MemberDto>();
 }

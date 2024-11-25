@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace IdentityApiAuth.Migrations
 {
     /// <inheritdoc />
-    public partial class Initial : Migration
+    public partial class InitialMigration : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -61,7 +61,8 @@ namespace IdentityApiAuth.Migrations
                     Latitude = table.Column<decimal>(type: "decimal(9,6)", nullable: false),
                     Longitude = table.Column<decimal>(type: "decimal(9,6)", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    MaxPeople = table.Column<int>(type: "int", nullable: false)
+                    MaxPeople = table.Column<int>(type: "int", nullable: false),
+                    CreatorId = table.Column<string>(type: "nvarchar(max)", nullable: false)
                 },
                 constraints: table =>
                 {
