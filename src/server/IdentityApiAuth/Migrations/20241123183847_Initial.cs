@@ -30,6 +30,7 @@ namespace IdentityApiAuth.Migrations
                 columns: table => new
                 {
                     Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    RegistrationDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     UserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                     NormalizedUserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                     Email = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
@@ -174,6 +175,29 @@ namespace IdentityApiAuth.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "RefreshSessions",
+                columns: table => new
+                {
+                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    RefreshToken = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    UA = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    Ip = table.Column<string>(type: "nvarchar(15)", maxLength: 15, nullable: false),
+                    ExpiresIn = table.Column<long>(type: "bigint", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_RefreshSessions", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_RefreshSessions_AspNetUsers_UserId",
+                        column: x => x.UserId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "ApplicationUserPost",
                 columns: table => new
                 {
@@ -240,6 +264,11 @@ namespace IdentityApiAuth.Migrations
                 column: "NormalizedUserName",
                 unique: true,
                 filter: "[NormalizedUserName] IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RefreshSessions_UserId",
+                table: "RefreshSessions",
+                column: "UserId");
         }
 
         /// <inheritdoc />
@@ -262,6 +291,9 @@ namespace IdentityApiAuth.Migrations
 
             migrationBuilder.DropTable(
                 name: "AspNetUserTokens");
+
+            migrationBuilder.DropTable(
+                name: "RefreshSessions");
 
             migrationBuilder.DropTable(
                 name: "Posts");

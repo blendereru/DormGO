@@ -22,14 +22,14 @@ jobs:
         dotnet-version: 8.0.x
     - name: Restore dependencies
       run: |
-        cd IdentityApiAuth
+        cd src/server/IdentityApiAuth
         dotnet restore
     - name: Build
       run: |
-        cd IdentityApiAuth
+        cd src/server/IdentityApiAuth
         dotnet build --no-restore
     - name: Test
       run: |
-        cd IdentityApiAuth
+        cd src/server/IdentityApiAuth
         dotnet test --no-build --verbosity normal
 
