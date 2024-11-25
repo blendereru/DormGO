@@ -71,7 +71,7 @@ public class AccountController : Controller
                 UserId = user.Id,
                 RefreshToken = refreshToken,
                 UA = Request.Headers["User-Agent"].ToString(),
-                Ip = HttpContext.Connection.RemoteIpAddress?.ToString(),
+                Ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? HttpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault(),
                 ExpiresIn = DateTimeOffset.UtcNow.AddDays(7).ToUnixTimeMilliseconds()
             };
             _db.RefreshSessions.Add(session);
@@ -122,7 +122,7 @@ public class AccountController : Controller
             UserId = user.Id,
             RefreshToken = refreshToken,
             UA = Request.Headers["User-Agent"].ToString(),
-            Ip = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            Ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? HttpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault(),
             ExpiresIn = DateTimeOffset.UtcNow.AddDays(7).ToUnixTimeMilliseconds()
         };
         _db.RefreshSessions.Add(session);
@@ -205,7 +205,7 @@ public class AccountController : Controller
         session.RefreshToken = newRefreshToken;
         session.ExpiresIn = DateTimeOffset.UtcNow.AddDays(7).ToUnixTimeMilliseconds();
         session.UA = Request.Headers["User-Agent"].ToString();
-        session.Ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+        session.Ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? HttpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault();
         _db.RefreshSessions.Update(session);
         await _db.SaveChangesAsync();
         return Ok(new
@@ -219,7 +219,7 @@ public class AccountController : Controller
     {
         ArgumentNullException.ThrowIfNull(user, nameof(user));
         var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-        var confirmationLink = $"https://354d-95-57-53-33.ngrok-free.app{Url.Action("ConfirmEmail", "Account", new { userId = user.Id, token = token })}";
+        var confirmationLink = $"https://9da1-2-134-108-133.ngrok-free.app{Url.Action("ConfirmEmail", "Account", new { userId = user.Id, token = token })}";
         var body = $"Please confirm your email by <a href='{HtmlEncoder.Default.Encode(confirmationLink)}'>clicking here</a>.";
         await _emailSender.SendEmailAsync(user.Email!, "Confirm your email", body, true);
     }

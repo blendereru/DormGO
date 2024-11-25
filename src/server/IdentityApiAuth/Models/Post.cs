@@ -9,5 +9,6 @@ public class Post
     public double Longitude { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public int MaxPeople { get; set; }
+    public string CreatorId { get; set; }
     public IList<ApplicationUser> Members { get; set; } = new List<ApplicationUser>();
 }
