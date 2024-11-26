@@ -8,6 +8,8 @@ public class ApplicationContext : IdentityDbContext<ApplicationUser>
     public ApplicationContext(DbContextOptions<ApplicationContext> opts) : base(opts) { }
     public DbSet<Post> Posts { get; set; } = null!;
     public DbSet<RefreshSession> RefreshSessions { get; set; } = null!;
+    public DbSet<Event> Events { get; set; } = null!;
+    public DbSet<Subscription> Subscriptions { get; set; } = null!;
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

@@ -69,7 +69,6 @@ public class HomeController : Controller
         {
             return Unauthorized("The email claim is not found");
         }
-
         var user = await _userManager.FindByEmailAsync(emailClaim.Value);
         if (user == null)
         {
