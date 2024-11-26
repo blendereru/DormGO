@@ -30,7 +30,9 @@ func deleteJWTFromKeychain() -> Bool {
 
 struct ContentView: View {
     @AppStorage("isAuthenticated") private var isAuthenticated: Bool = false
-    
+    @State private var user: ProtectedResponse
+    @State private var posts: PostsResponse
+
 //    init() {
 //        // Check for JWT in Keychain
 //        if let _ = getJWTFromKeychain() {
@@ -38,17 +40,26 @@ struct ContentView: View {
 //        }
 //    }
     init(isPreview: Bool = false) {
-         if isPreview {
-             isAuthenticated = true  // Simulate logged-in state for preview
-         } else if let _ = getJWTFromKeychain(tokenType: "accesstoken") {
-             isAuthenticated = true
-         }
-     }
+           // Initialize the `user` and `posts` with default values
+           if isPreview {
+               _user = State(initialValue: ProtectedResponse(email: "preview@example.com", name: "Preview User"))
+               _posts = State(initialValue: PostsResponse(yourPosts: [], restPosts: []))  // Simulated empty posts for preview
+               isAuthenticated = true  // Simulate logged-in state for preview
+           } else if let _ = getJWTFromKeychain(tokenType: "accesstoken") {
+               _user = State(initialValue: ProtectedResponse(email: "user@example.com", name: "Authenticated User"))
+               _posts = State(initialValue: PostsResponse(yourPosts: [], restPosts: []))  // Add real posts if necessary
+               isAuthenticated = true
+           } else {
+               _user = State(initialValue: ProtectedResponse(email: "", name: ""))
+               _posts = State(initialValue: PostsResponse(yourPosts: [], restPosts: []))  // Empty posts if not authenticated
+               isAuthenticated = false
+           }
+       }
     
     var body: some View {
         Group {
             if isAuthenticated {
-                MainView(logoutAction: {
+                MainView(user:user,posts:posts, logoutAction: {
                     let success = deleteJWTFromKeychain()
                     if success {
                         print("JWT deleted successfully")
@@ -71,9 +82,16 @@ struct MainView: View {
     @State private var isSheet1Presented = false
     @State private var isSheet2Presented = false
     let columns = [GridItem(.adaptive(minimum: 150))]
-    @State private var user: ProtectedResponse?
+    @State private var user: ProtectedResponse
+    @State private var posts: PostsResponse
+    @State private var post: Post?
     var logoutAction: () -> Void  // Accept logout closure
     
+    init(user: ProtectedResponse, posts: PostsResponse, logoutAction: @escaping () -> Void) {
+        _user = State(initialValue: user)
+        _posts = State(initialValue: posts)
+        self.logoutAction = logoutAction
+    }
     var body: some View {
         VStack {
             // Main content
@@ -96,20 +114,103 @@ struct MainView: View {
                         } .padding(.trailing, 16)
                             .sheet(isPresented: $isSheet2Presented) {
                                 // Content to show in the sheet
-                                PublishContent()  
+                                PublishContent()
+                                    .onDisappear {
+                                                // This code will execute when the sheet is dismissed
+                                                print("Publish Content sheet was dismissed")
+                                                // Trigger API call to refresh posts
+                                                PostAPIManager.shared.readposts { response in
+                                                    guard let response = response else {
+                                                        print("Failed to fetch posts or no posts available.")
+                                                        return
+                                                    }
+                                                    self.posts = response
+                                                }
+                                            }
                             }
                     }
                     .padding(.top, 16)
-                    LazyVGrid(columns: columns, spacing: 16) {
-                        // Your ride buttons
-                        RideInfoButton(peopleAssembled: "", destination: "", minutesago: "", rideName: "", status: "", color: .red, company: "" ){
-                            isSheet1Presented=true
-                        }
-                        .sheet(isPresented: $isSheet1Presented){
-                            SheetContent(title: "title")
+                    if !posts.yourPosts.isEmpty {
+                        VStack(alignment: .leading, spacing: 16) {
+                            // Section Header for "Your Posts"
+                            Text("Your Posts")
+                                .font(.headline)
+                                .padding(.vertical, 8)
+
+                            // Grid for "Your Posts"
+                            LazyVGrid(columns: columns, spacing: 16) {
+                                ForEach(posts.yourPosts, id: \.createdAt) { post in
+                                    RideInfoButton(
+                                        peopleAssembled: "\(post.members.count)/\(post.maxPeople)",
+                                        destination: post.description,
+                                        minutesago: calculateMinutesAgo(from: post.createdAt),
+                                        rideName: "Price: \(post.currentPrice)₸",
+                                        status: "Active",
+                                        color: .blue,
+                                        company: post.members.first?.email ?? "Unknown"
+                                    ) {
+                                        isSheet1Presented = true
+                                    }
+                                    .sheet(isPresented: $isSheet1Presented) {
+                                        SheetContent(title: "title")
+                                            .onDisappear {
+                                                // Refresh posts after dismissing the sheet
+                                                PostAPIManager.shared.readposts { response in
+                                                    guard let response = response else {
+                                                        print("Failed to fetch posts or no posts available.")
+                                                        return
+                                                    }
+                                                    self.posts = response
+                                                }
+                                            }
+                                    }
+                                }
+                            }
+                            .padding()
                         }
                     }
-                    .padding()
+
+                    if !posts.restPosts.isEmpty {
+                        VStack(alignment: .leading, spacing: 16) {
+                            // Section Header for "Rest Posts"
+                            Text("Rest Posts")
+                                .font(.headline)
+                                .padding(.vertical, 8)
+
+                            // Grid for "Rest Posts"
+                            LazyVGrid(columns: columns, spacing: 16) {
+                                ForEach(posts.restPosts, id: \.createdAt) { post in
+                                    RideInfoButton(
+                                        peopleAssembled: "\(post.members.count)/\(post.maxPeople)",
+                                        destination: post.description,
+                                        minutesago: calculateMinutesAgo(from: post.createdAt),
+                                        rideName: "Price: \(post.currentPrice)₸",
+                                        status: "Active",
+                                        color: .yellow,
+                                        company: post.members.first?.email ?? "Unknown"
+                                    ) {
+                                        isSheet1Presented = true
+                                    }
+                                    .sheet(isPresented: $isSheet1Presented) {
+                                        SheetContent(title: "title")
+                                            .onDisappear {
+                                                // Refresh posts after dismissing the sheet
+                                                PostAPIManager.shared.readposts { response in
+                                                    guard let response = response else {
+                                                        print("Failed to fetch posts or no posts available.")
+                                                        return
+                                                    }
+                                                    self.posts = response
+                                                }
+                                            }
+                                    }
+                                }
+                            }
+                            .padding()
+                        }
+                    }
+                    
+                  
                     Spacer()
                 }.onAppear {
                     print("onAppear triggered")
@@ -118,7 +219,15 @@ struct MainView: View {
                             print("Failed to fetch posts or no posts available.")
                             return
                         }
-                        print("Posts fetched successfully: \(response)")
+                        
+                        print("Your Posts: \(response.yourPosts)")
+                        print("Rest Posts: \(response.restPosts)")
+                        
+                        // Example: Print descriptions of "yourPosts"
+                        response.yourPosts.forEach { post in
+                            print("Post Description: \(post.description)")
+                        }
+                        self.posts = response
                     }
                 }
                 .tabItem {
@@ -154,6 +263,12 @@ struct MainView: View {
                 }
             }
         }
+    }
+    private func calculateMinutesAgo(from createdAt: String) -> String {
+        let dateFormatter = ISO8601DateFormatter()
+        guard let postDate = dateFormatter.date(from: createdAt) else { return "0" }
+        let minutesAgo = Int(Date().timeIntervalSince(postDate) / 60)
+        return "\(minutesAgo)"
     }
   
 }

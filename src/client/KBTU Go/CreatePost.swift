@@ -13,10 +13,27 @@ import MapKit
 import SwiftUI
 import CoreLocation
 import Combine
+
+struct Post: Codable {
+    let description: String
+    let currentPrice: Int
+    let latitude: Double
+    let longitude: Double
+    let createdAt: String
+    let maxPeople: Int
+    let members: [ProtectedResponse]
+}
+
+// Root response model
+struct PostsResponse: Codable {
+    let yourPosts: [Post]
+    let restPosts: [Post]
+}
+
 class PostAPIManager{
     static let shared = PostAPIManager()
     func sendProtectedRequest2(Description: String, CurrentPrice: Double, Latitude: Double, Longitude: Double, CreatedAt: String, MaxPeople: Int, completion: @escaping (ProtectedResponse?) -> Void) {
-        let url = URL(string: "https://9da1-2-134-108-133.ngrok-free.app/api/post/create")!
+        let url = URL(string: "https://5df9-2-134-108-133.ngrok-free.app/api/post/create")!
         
         // Retrieve the JWT token from Keychain
         guard let token = getJWTFromKeychain(tokenType: "access_token") else {
@@ -136,7 +153,7 @@ class PostAPIManager{
         }
 
         // Prepare the request
-        let refreshURL = URL(string: "https://9da1-2-134-108-133.ngrok-free.app/api/refresh-tokens")!
+        let refreshURL = URL(string: "https://5df9-2-134-108-133.ngrok-free.app/api/refresh-tokens")!
         var request = URLRequest(url: refreshURL)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -206,8 +223,8 @@ class PostAPIManager{
         }
         task.resume()
     }
-    func readposts(completion: @escaping (ProtectedResponse?) -> Void) {
-        let url = URL(string: "https://9da1-2-134-108-133.ngrok-free.app/api/post/read")!
+    func readposts(completion: @escaping (PostsResponse?) -> Void) {
+        let url = URL(string: "https://5df9-2-134-108-133.ngrok-free.app/api/post/read")!
         
         guard let token = getJWTFromKeychain(tokenType: "access_token") else {
             print("Access token missing. Attempting to refresh token.")
@@ -254,9 +271,9 @@ class PostAPIManager{
                     if let data = data {
                         do {
                             let decoder = JSONDecoder()
-                            let protectedResponse = try decoder.decode(ProtectedResponse.self, from: data)
-                            saveToModel(email: protectedResponse.email, name: protectedResponse.name)
-                            completion(protectedResponse)
+                            let postsResponse = try decoder.decode(PostsResponse.self, from: data)
+                          //  saveToModel(email: protectedResponse.email, name: protectedResponse.name)
+                            completion(postsResponse)
                         } catch {
                             print("Failed to decode response: \(error.localizedDescription)")
                             completion(nil)
@@ -318,7 +335,7 @@ struct PublishContent: View {
     @State private var selectedCoordinate: CLLocationCoordinate2D?
     // Function to send data to the server
     func sendCreateRequest(Description: String, CurrentPrice: Double, Latitude: Double, Longitude: Double, CreatedAt: String, MaxPeople: Int) {
-        let url = URL(string: "https://9da1-2-134-108-133.ngrok-free.appp/api/post/create")!
+        let url = URL(string: "https://5df9-2-134-108-133.ngrok-free.app/api/post/create")!
 
         let body: [String: Any] = [
             "Description": Description,
