@@ -97,7 +97,7 @@ struct LoginView: View {
     // Send login request with encrypted password
     func sendLoginRequest(email: String, password: String) {
         guard validateInput() else { return }
-        let url = URL(string: "https://edbd-95-57-53-33.ngrok-free.app/api/signin")!
+        let url = URL(string: "https://5df9-2-134-108-133.ngrok-free.app/api/signin")!
 
         guard let key = getKeyFromKeychain(keyIdentifier: "userSymmetricKey") else {
             message = "Error: Key not found"
@@ -157,7 +157,7 @@ struct LoginView: View {
                                     // Proceed with protected request
                                     APIManager.shared.sendProtectedRequest { protectedResponse in
                                         print("Fetched Protected Data:")
-                                        print("Name: \(protectedResponse?.name)")
+                                        print("Name: \(String(describing: protectedResponse?.name))")
                                         print("Email: \(protectedResponse?.email)")
 
                                         // Save to model, update UI, or perform other actions

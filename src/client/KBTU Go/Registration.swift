@@ -22,7 +22,7 @@ class APIManager {
     static let shared = APIManager()
     
     func sendProtectedRequest(completion: @escaping (ProtectedResponse?) -> Void) {
-        let url = URL(string: "https://ac30-188-127-36-2.ngrok-free.app/api/protected")!
+        let url = URL(string: "https://5df9-2-134-108-133.ngrok-free.app/api/protected")!
         
         guard let token = getJWTFromKeychain(tokenType: "access_token") else {
             print("Access token missing. Attempting to refresh token.")
@@ -96,7 +96,7 @@ class APIManager {
         }
 
         // Prepare the request
-        let refreshURL = URL(string: "https://ac30-188-127-36-2.ngrok-free.app/api/refresh-tokens")!
+        let refreshURL = URL(string: "https://5df9-2-134-108-133.ngrok-free.app/api/refresh-tokens")!
         var request = URLRequest(url: refreshURL)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -288,7 +288,7 @@ struct RegistrationView: View {
     
     func longPollForToken(email:String) {
  
-        guard let url = URL(string: "https://ac30-188-127-36-2.ngrok-free.app/api/check-confirmation/\(email)") else {
+        guard let url = URL(string: "https://1701-2-134-108-133.ngrok-free.app/api/check-confirmation/\(email)") else {
            
             print("Error: Invalid URL")
             return
@@ -360,7 +360,7 @@ struct RegistrationView: View {
     // Function to send email and password to the backend server
     func sendRegistrationRequest(email: String, password: String) {
         guard validateInput() else { return }
-        let url = URL(string: "https://ac30-188-127-36-2.ngrok-free.app/api/signup")!
+        let url = URL(string: "https://5df9-2-134-108-133.ngrok-free.app/api/signup")!
         
         let key = SymmetricKey(size: .bits256)
         guard saveKeyToKeychain(key: key, keyIdentifier: "userSymmetricKey") else {
