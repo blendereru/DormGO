@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using IdentityApiAuth.Hubs;
 using IdentityApiAuth.Models;
 using Mapster;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -11,7 +12,7 @@ using Serilog.Events;
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
     .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
-    .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Information)
     .MinimumLevel.Override("Microsoft.Hosting", LogEventLevel.Information)
     .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
     .Enrich.FromLogContext()
@@ -66,6 +67,7 @@ builder.Services.AddDbContext<ApplicationContext>(opts =>
 {
     opts.UseSqlServer(builder.Configuration.GetConnectionString("IdentityConnection"));
 });
+builder.Services.AddSignalR();
 builder.Services.AddMapster();
 MapsterConfig.Configure();
 builder.Services.AddTransient<IEmailSender, EmailSender>();
@@ -74,4 +76,5 @@ app.UseSerilogRequestLogging();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<PostHub>("/api/posthub");
 app.Run();

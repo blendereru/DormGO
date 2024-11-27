@@ -1,11 +1,13 @@
 using System.Security.Claims;
 using IdentityApiAuth.DTOs;
+using IdentityApiAuth.Hubs;
 using IdentityApiAuth.Models;
 using Mapster;
 using MapsterMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace IdentityApiAuth.Controllers;
@@ -36,7 +38,7 @@ public class HomeController : Controller
         });
     }
     [HttpPost("/api/post/create")]
-    public async Task<IActionResult> CreatePost([FromBody] PostDto postDto)
+    public async Task<IActionResult> CreatePost([FromBody] PostDto postDto, [FromServices] IHubContext<PostHub> hub)
     {
         if (!ModelState.IsValid)
         {
@@ -54,11 +56,9 @@ public class HomeController : Controller
         }
         var post = _mapper.Map<Post>(postDto);
         post.CreatorId = user.Id;
-        post.Members.Add(user);
-        user.Posts.Add(post);
-        _db.Users.Update(user);
         _db.Posts.Add(post);
         await _db.SaveChangesAsync();
+        await hub.Clients.All.SendAsync("PostCreated", user.UserName, postDto);
         return Ok(new { Message = "The post was saved to db" });
     }
     [HttpGet("/api/post/read")]
