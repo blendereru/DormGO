@@ -8,6 +8,7 @@ public class ApplicationContext : IdentityDbContext<ApplicationUser>
     public ApplicationContext(DbContextOptions<ApplicationContext> opts) : base(opts) { }
     public DbSet<Post> Posts { get; set; } = null!;
     public DbSet<RefreshSession> RefreshSessions { get; set; } = null!;
+    public DbSet<UserConnection> UserConnections { get; set; } = null!;
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -30,5 +31,10 @@ public class ApplicationContext : IdentityDbContext<ApplicationUser>
         builder.Entity<Post>()
             .HasMany(p => p.Members)
             .WithMany(u => u.Posts);
+        builder.Entity<UserConnection>(x =>
+        {
+            x.HasKey(p => p.ConnectionId);
+            x.Property(p => p.Ip).HasMaxLength(15);
+        });
     }
 }
