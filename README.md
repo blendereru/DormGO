@@ -9,8 +9,8 @@ in `Apple` devices.
 ## Screenshots
 ### Home Screen & Post Creation Page
 <div style="display: flex; gap: 20px;">
-  <img src="Extra_assets/screen.jpg" width="300" />
-  <img src="Extra_assets/screen2.png" width="300" />
+  <img src="resources/screen.jpg" width="300" />
+  <img src="resources/screen2.png" width="300" />
 </div>
 
 ## 🏗️ Architecture
