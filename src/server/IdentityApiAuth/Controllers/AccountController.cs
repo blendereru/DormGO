@@ -3,10 +3,12 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text.Encodings.Web;
 using IdentityApiAuth.DTOs;
+using IdentityApiAuth.Hubs;
 using IdentityApiAuth.Models;
 using MapsterMapper;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
@@ -89,7 +91,9 @@ public class AccountController : Controller
     [HttpPost("/api/signin")]
     public async Task<IActionResult> Login([FromBody] UserDto dto)
     {
-        var user = await _userManager.FindByEmailAsync(dto.Email!);
+        var user = await _db.Users
+            .Include(u => u.RefreshSessions)
+            .FirstOrDefaultAsync(u => u.Email == dto.Email);
         if (user == null)
         {
             return Unauthorized("Invalid email");
@@ -134,7 +138,6 @@ public class AccountController : Controller
             refresh_token = refreshToken 
         });
     }
-
     [HttpPost("/api/signout")]
     public async Task<IActionResult> Logout([FromBody] RefreshTokenRequest request)
     {
@@ -152,7 +155,8 @@ public class AccountController : Controller
         return Ok("The refresh token was successfully removed");
     }
     [HttpGet("/api/confirm-email")]
-    public async Task<IActionResult> ConfirmEmail(string userId, string token)
+    public async Task<IActionResult> ConfirmEmail(string userId, string token,
+        [FromServices] IHubContext<UserHub> hub)
     {
         if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(token))
         {
@@ -169,13 +173,29 @@ public class AccountController : Controller
         {
             return BadRequest(result);
         }
-
+        var accessToken = GenerateAccessToken(user.Email!);
+        var refreshToken = GenerateRefreshToken();
+        var session = new RefreshSession()
+        {
+            UserId = user.Id,
+            RefreshToken = refreshToken,
+            UA = Request.Headers["User-Agent"].ToString(),
+            Ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? HttpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault(),
+            ExpiresIn = DateTimeOffset.UtcNow.AddDays(7).ToUnixTimeMilliseconds()
+        };
+        _db.RefreshSessions.Add(session);
+        await _db.SaveChangesAsync();
+        var request = new TokenRequest()
+        {
+            AccessToken = accessToken,
+            RefreshToken = refreshToken
+        };
+        await hub.Clients.All.SendAsync("EmailConfirmed", user.UserName, request);
         return Ok(new { Message = "Email confirmed successfully" });
     }
     [HttpPost("/api/refresh-tokens")]
     public async Task<IActionResult> RefreshTokens([FromBody] TokenRequest request)
     {
-        // Step 1: Validate the input
         if (string.IsNullOrEmpty(request.AccessToken) || string.IsNullOrEmpty(request.RefreshToken))
         {
             return BadRequest(new { Message = "Invalid request. Access token and refresh token are required." });

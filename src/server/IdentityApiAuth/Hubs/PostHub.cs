@@ -8,7 +8,6 @@ using Microsoft.EntityFrameworkCore;
 using Serilog;
 
 namespace IdentityApiAuth.Hubs;
-[Authorize]
 public class PostHub : Hub
 {
     private readonly ApplicationContext _db;
@@ -50,7 +49,7 @@ public class PostHub : Hub
                 UserId = user.Id, 
                 Ip = ip, 
                 ConnectedAt = DateTime.UtcNow 
-            }; 
+            };
             _db.UserConnections.Add(connection); 
             await _db.SaveChangesAsync(); 
             Log.Information("User connected: UserName: {UserName}, IP: {IPAddress}, ConnectionId: {ConnectionId}", userName, ip, Context.ConnectionId); 
