@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		636EB9CF2CF9E5FA003C7291 /* SignalRClient in Frameworks */ = {isa = PBXBuildFile; productRef = 636EB9CE2CF9E5FA003C7291 /* SignalRClient */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		637D7F8D2CE7D55800D37E0F /* KBTU Go.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "KBTU Go.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -23,6 +27,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				636EB9CF2CF9E5FA003C7291 /* SignalRClient in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +70,7 @@
 			);
 			name = "KBTU Go";
 			packageProductDependencies = (
+				636EB9CE2CF9E5FA003C7291 /* SignalRClient */,
 			);
 			productName = "KBTU Go";
 			productReference = 637D7F8D2CE7D55800D37E0F /* KBTU Go.app */;
@@ -94,6 +100,9 @@
 			);
 			mainGroup = 637D7F842CE7D55800D37E0F;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				636EB9CD2CF9E5FA003C7291 /* XCRemoteSwiftPackageReference "SignalR-Client-Swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 637D7F8E2CE7D55800D37E0F /* Products */;
 			projectDirPath = "";
@@ -326,6 +335,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		636EB9CD2CF9E5FA003C7291 /* XCRemoteSwiftPackageReference "SignalR-Client-Swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/moozzyk/SignalR-Client-Swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.1.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		636EB9CE2CF9E5FA003C7291 /* SignalRClient */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 636EB9CD2CF9E5FA003C7291 /* XCRemoteSwiftPackageReference "SignalR-Client-Swift" */;
+			productName = SignalRClient;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 637D7F852CE7D55800D37E0F /* Project object */;
 }
