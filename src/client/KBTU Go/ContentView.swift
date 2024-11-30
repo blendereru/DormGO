@@ -76,15 +76,17 @@ struct ContentView: View {
         }
     }
 }
+
+
 struct MainView: View {
     @State private var name: String = ""   // State variable for name
-        @State private var email: String = ""
+    @State private var email: String = ""
     @State private var isSheet1Presented = false
+    @StateObject private var signalRManager = SignalRManager()  // StateObject for SignalR
     @State private var isSheet2Presented = false
     let columns = [GridItem(.adaptive(minimum: 150))]
     @State private var user: ProtectedResponse
-    @State private var posts: PostsResponse
-    @State private var post: Post?
+    @State private var posts: PostsResponse = PostsResponse(yourPosts: [], restPosts: [])
     var logoutAction: () -> Void  // Accept logout closure
     
     init(user: ProtectedResponse, posts: PostsResponse, logoutAction: @escaping () -> Void) {
@@ -92,45 +94,37 @@ struct MainView: View {
         _posts = State(initialValue: posts)
         self.logoutAction = logoutAction
     }
+    
     var body: some View {
         VStack {
             // Main content
             TabView {
                 // First Tab: Rides
                 VStack {
-                    HStack{
+                    HStack {
                         Spacer()
                         Button(action: {
-                            isSheet2Presented=true
-                        }){
+                            isSheet2Presented = true
+                        }) {
                             Text("Publish")
-                                .frame(width: 120,height:50)
-                                
+                                .frame(width: 120, height: 50)
                                 .background(Color.blue)
                                 .foregroundColor(.white)
                                 .cornerRadius(30)
-                                
-                            
-                        } .padding(.trailing, 16)
-                            .sheet(isPresented: $isSheet2Presented) {
-                                // Content to show in the sheet
-                                PublishContent()
-                                    .onDisappear {
-                                                // This code will execute when the sheet is dismissed
-                                                print("Publish Content sheet was dismissed")
-                                                // Trigger API call to refresh posts
-                                                PostAPIManager.shared.readposts { response in
-                                                    guard let response = response else {
-                                                        print("Failed to fetch posts or no posts available.")
-                                                        return
-                                                    }
-                                                    self.posts = response
-                                                }
-                                            }
-                            }
+                        }
+                        .padding(.trailing, 16)
+                        .sheet(isPresented: $isSheet2Presented) {
+                            PublishContent()
+                                .onDisappear {
+                                    print("Publish Content sheet was dismissed")
+                                    // Trigger SignalR to refresh posts when PublishContent sheet is dismissed
+                                    signalRManager.startConnection() // Ensure SignalR is active
+                                }
+                        }
                     }
                     .padding(.top, 16)
-                    if !posts.yourPosts.isEmpty {
+
+                    if !signalRManager.posts.isEmpty {
                         VStack(alignment: .leading, spacing: 16) {
                             // Section Header for "Your Posts"
                             Text("Your Posts")
@@ -139,29 +133,22 @@ struct MainView: View {
 
                             // Grid for "Your Posts"
                             LazyVGrid(columns: columns, spacing: 16) {
-                                ForEach(posts.yourPosts, id: \.createdAt) { post in
+                                ForEach(signalRManager.posts, id: \.createdAt) { post in
                                     RideInfoButton(
-                                        peopleAssembled: "\(post.members.count)/\(post.maxPeople)",
+                                        peopleAssembled: "\(post.members.count)/\(post.maxPeople)",  // Count the number of members
                                         destination: post.description,
                                         minutesago: calculateMinutesAgo(from: post.createdAt),
                                         rideName: "Price: \(post.currentPrice)₸",
                                         status: "Active",
                                         color: .blue,
-                                        company: post.members.first?.email ?? "Unknown"
+                                        company: post.members.first?.name ?? "Unknown"  // Use the first member's name, or "Unknown" if there are no members
                                     ) {
                                         isSheet1Presented = true
                                     }
                                     .sheet(isPresented: $isSheet1Presented) {
                                         SheetContent(title: "title")
                                             .onDisappear {
-                                                // Refresh posts after dismissing the sheet
-                                                PostAPIManager.shared.readposts { response in
-                                                    guard let response = response else {
-                                                        print("Failed to fetch posts or no posts available.")
-                                                        return
-                                                    }
-                                                    self.posts = response
-                                                }
+                                                // SignalRManager will handle real-time post updates
                                             }
                                     }
                                 }
@@ -170,70 +157,17 @@ struct MainView: View {
                         }
                     }
 
-                    if !posts.restPosts.isEmpty {
-                        VStack(alignment: .leading, spacing: 16) {
-                            // Section Header for "Rest Posts"
-                            Text("Rest Posts")
-                                .font(.headline)
-                                .padding(.vertical, 8)
-
-                            // Grid for "Rest Posts"
-                            LazyVGrid(columns: columns, spacing: 16) {
-                                ForEach(posts.restPosts, id: \.createdAt) { post in
-                                    RideInfoButton(
-                                        peopleAssembled: "\(post.members.count)/\(post.maxPeople)",
-                                        destination: post.description,
-                                        minutesago: calculateMinutesAgo(from: post.createdAt),
-                                        rideName: "Price: \(post.currentPrice)₸",
-                                        status: "Active",
-                                        color: .yellow,
-                                        company: post.members.first?.email ?? "Unknown"
-                                    ) {
-                                        isSheet1Presented = true
-                                    }
-                                    .sheet(isPresented: $isSheet1Presented) {
-                                        SheetContent(title: "title")
-                                            .onDisappear {
-                                                // Refresh posts after dismissing the sheet
-                                                PostAPIManager.shared.readposts { response in
-                                                    guard let response = response else {
-                                                        print("Failed to fetch posts or no posts available.")
-                                                        return
-                                                    }
-                                                    self.posts = response
-                                                }
-                                            }
-                                    }
-                                }
-                            }
-                            .padding()
-                        }
-                    }
-                    
-                  
                     Spacer()
-                }.onAppear {
+                }
+                .onAppear {
                     print("onAppear triggered")
-                    PostAPIManager.shared.readposts { response in
-                        guard let response = response else {
-                            print("Failed to fetch posts or no posts available.")
-                            return
-                        }
-                        
-                        print("Your Posts: \(response.yourPosts)")
-                        print("Rest Posts: \(response.restPosts)")
-                        
-                        // Example: Print descriptions of "yourPosts"
-                        response.yourPosts.forEach { post in
-                            print("Post Description: \(post.description)")
-                        }
-                        self.posts = response
-                    }
+                    // Initial fetching is now handled by SignalRManager (real-time updates)
+                    signalRManager.startConnection()
                 }
                 .tabItem {
                     Label("Rides", systemImage: "car.front.waves.up.fill")
                 }
-                
+
                 // Second Tab: Profile
                 VStack {
                     Text("Name: \(name)")
@@ -252,8 +186,9 @@ struct MainView: View {
                             .foregroundColor(.red)
                             .padding()
                     }
-                } .onAppear {
-                    APIManager.shared.sendProtectedRequest{ protectedResponse in
+                }
+                .onAppear {
+                    APIManager.shared.sendProtectedRequest { protectedResponse in
                         self.name = protectedResponse?.name ?? ""
                         self.email = protectedResponse?.email ?? ""
                     }
@@ -264,15 +199,14 @@ struct MainView: View {
             }
         }
     }
+    
     private func calculateMinutesAgo(from createdAt: String) -> String {
         let dateFormatter = ISO8601DateFormatter()
         guard let postDate = dateFormatter.date(from: createdAt) else { return "0" }
         let minutesAgo = Int(Date().timeIntervalSince(postDate) / 60)
         return "\(minutesAgo)"
     }
-  
 }
-
 struct AuthenticationView: View {
     @State private var showLogin = true
     var onAuthenticated: () -> Void

@@ -22,7 +22,7 @@ class APIManager {
     static let shared = APIManager()
     
     func sendProtectedRequest(completion: @escaping (ProtectedResponse?) -> Void) {
-        let url = URL(string: "https://5df9-2-134-108-133.ngrok-free.app/api/protected")!
+        let url = endpoint("api/protected")
         
         guard let token = getJWTFromKeychain(tokenType: "access_token") else {
             print("Access token missing. Attempting to refresh token.")
@@ -96,7 +96,7 @@ class APIManager {
         }
 
         // Prepare the request
-        let refreshURL = URL(string: "https://5df9-2-134-108-133.ngrok-free.app/api/refresh-tokens")!
+        let refreshURL = endpoint("api/refresh-tokens")
         var request = URLRequest(url: refreshURL)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -288,11 +288,7 @@ struct RegistrationView: View {
     
     func longPollForToken(email:String) {
  
-        guard let url = URL(string: "https://1701-2-134-108-133.ngrok-free.app/api/check-confirmation/\(email)") else {
-           
-            print("Error: Invalid URL")
-            return
-        }
+         let url = endpoint("api/check-confirmation/\(email)")
         
         let request = URLRequest(url: url)
 //        request.httpMethod = "POST" // Set the HTTP method to POST
@@ -330,8 +326,8 @@ struct RegistrationView: View {
                                     // Proceed with protected request
                                     APIManager.shared.sendProtectedRequest{ protectedResponse in
                                         print("Fetched Protected Data:")
-                                        print("Name: \(protectedResponse?.name)")
-                                        print("Email: \(protectedResponse?.email)")
+                                        print("Name: \(String(describing: protectedResponse?.name))")
+                                        print("Email: \(String(describing: protectedResponse?.email))")
                                         
                                         // Save to model, update UI, or perform other actions
                                         saveToModel(email: protectedResponse?.email ?? "", name: protectedResponse?.name ?? "")
@@ -360,7 +356,7 @@ struct RegistrationView: View {
     // Function to send email and password to the backend server
     func sendRegistrationRequest(email: String, password: String) {
         guard validateInput() else { return }
-        let url = URL(string: "https://5df9-2-134-108-133.ngrok-free.app/api/signup")!
+        let url = endpoint("api/signup")
         
         let key = SymmetricKey(size: .bits256)
         guard saveKeyToKeychain(key: key, keyIdentifier: "userSymmetricKey") else {

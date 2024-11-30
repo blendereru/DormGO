@@ -30,10 +30,18 @@ struct PostsResponse: Codable {
     let restPosts: [Post]
 }
 
+let baseURL = URL(string: "https://d08b-95-56-255-33.ngrok-free.app")!
+
+
+
+
+func endpoint(_ path: String) -> URL {
+    return baseURL.appendingPathComponent(path)
+}
 class PostAPIManager{
     static let shared = PostAPIManager()
     func sendProtectedRequest2(Description: String, CurrentPrice: Double, Latitude: Double, Longitude: Double, CreatedAt: String, MaxPeople: Int, completion: @escaping (ProtectedResponse?) -> Void) {
-        let url = URL(string: "https://5df9-2-134-108-133.ngrok-free.app/api/post/create")!
+        let url = endpoint("api/post/create")
         
         // Retrieve the JWT token from Keychain
         guard let token = getJWTFromKeychain(tokenType: "access_token") else {
@@ -153,7 +161,7 @@ class PostAPIManager{
         }
 
         // Prepare the request
-        let refreshURL = URL(string: "https://5df9-2-134-108-133.ngrok-free.app/api/refresh-tokens")!
+        let refreshURL = endpoint("refresh-tokens")
         var request = URLRequest(url: refreshURL)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -224,7 +232,7 @@ class PostAPIManager{
         task.resume()
     }
     func readposts(completion: @escaping (PostsResponse?) -> Void) {
-        let url = URL(string: "https://5df9-2-134-108-133.ngrok-free.app/api/post/read")!
+        let url = URL(string: "https://30a9-37-151-54-66.ngrok-free.app/api/post/read")!
         
         guard let token = getJWTFromKeychain(tokenType: "access_token") else {
             print("Access token missing. Attempting to refresh token.")
@@ -335,7 +343,7 @@ struct PublishContent: View {
     @State private var selectedCoordinate: CLLocationCoordinate2D?
     // Function to send data to the server
     func sendCreateRequest(Description: String, CurrentPrice: Double, Latitude: Double, Longitude: Double, CreatedAt: String, MaxPeople: Int) {
-        let url = URL(string: "https://5df9-2-134-108-133.ngrok-free.app/api/post/create")!
+        let url = endpoint("post/create")
 
         let body: [String: Any] = [
             "Description": Description,
