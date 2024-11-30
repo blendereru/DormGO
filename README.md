@@ -24,6 +24,7 @@ This project follows the MVVM (Model-View-ViewModel) architecture pattern with S
     • Combine: Reactive programming framework for data binding.
     • CoreLocation: For location services and retrieving the user’s location.
     • MapKit: For map view and geolocation-related functionality.
+    • SignalRCleint: For websocket implementation
 ## Endpoints
 `Server-side` defines multiple `endpoints` for client to send requests to. 
 * `/api/signup` - is needed to register new user in a database
