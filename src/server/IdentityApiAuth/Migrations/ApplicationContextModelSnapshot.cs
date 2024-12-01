@@ -115,7 +115,7 @@ namespace IdentityApiAuth.Migrations
 
                     b.Property<string>("CreatorId")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<decimal>("CurrentPrice")
                         .HasColumnType("decimal(18,2)");
@@ -134,6 +134,8 @@ namespace IdentityApiAuth.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CreatorId");
 
                     b.ToTable("Posts");
                 });
@@ -189,9 +191,11 @@ namespace IdentityApiAuth.Migrations
 
                     b.Property<string>("UserId")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.HasKey("ConnectionId");
+
+                    b.HasIndex("UserId");
 
                     b.ToTable("UserConnections");
                 });
@@ -344,10 +348,32 @@ namespace IdentityApiAuth.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("IdentityApiAuth.Models.Post", b =>
+                {
+                    b.HasOne("IdentityApiAuth.Models.ApplicationUser", "Creator")
+                        .WithMany("CreatedPosts")
+                        .HasForeignKey("CreatorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Creator");
+                });
+
             modelBuilder.Entity("IdentityApiAuth.Models.RefreshSession", b =>
                 {
                     b.HasOne("IdentityApiAuth.Models.ApplicationUser", "User")
                         .WithMany("RefreshSessions")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("IdentityApiAuth.Models.UserConnection", b =>
+                {
+                    b.HasOne("IdentityApiAuth.Models.ApplicationUser", "User")
+                        .WithMany("UserConnections")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -408,7 +434,11 @@ namespace IdentityApiAuth.Migrations
 
             modelBuilder.Entity("IdentityApiAuth.Models.ApplicationUser", b =>
                 {
+                    b.Navigation("CreatedPosts");
+
                     b.Navigation("RefreshSessions");
+
+                    b.Navigation("UserConnections");
                 });
 #pragma warning restore 612, 618
         }

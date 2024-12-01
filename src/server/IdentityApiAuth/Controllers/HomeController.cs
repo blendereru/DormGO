@@ -55,7 +55,7 @@ public class HomeController : Controller
             return BadRequest($"User with email {creatorEmail.Value} not found.");
         }
         var post = _mapper.Map<Post>(postDto);
-        post.CreatorId = user.Id;
+        post.Creator = user;
         _db.Posts.Add(post);
         await _db.SaveChangesAsync();
         await hub.Clients.All.SendAsync("PostCreated", user.UserName, postDto);
@@ -76,12 +76,12 @@ public class HomeController : Controller
             return NotFound("The user is not found");
         }
         var yourPosts = await _db.Posts
-            .Where(p => p.CreatorId == user.Id)
+            .Where(p => p.Creator == user)
             .Include(p => p.Members)
             .ProjectToType<PostDto>()
             .ToListAsync();
         var restPosts = await _db.Posts
-            .Where(p => !p.Members.Any(m => m.Id == user.Id))
+            .Where(p => p.Creator != user && p.Members.Contains(user))
             .Include(p => p.Members)
             .ProjectToType<PostDto>()
             .ToListAsync();

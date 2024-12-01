@@ -31,9 +31,16 @@ public class ApplicationContext : IdentityDbContext<ApplicationUser>
         builder.Entity<Post>()
             .HasMany(p => p.Members)
             .WithMany(u => u.Posts);
+        builder.Entity<Post>()
+            .HasOne(p => p.Creator)
+            .WithMany(u => u.CreatedPosts)
+            .OnDelete(DeleteBehavior.Restrict);
         builder.Entity<UserConnection>(x =>
         {
             x.HasKey(p => p.ConnectionId);
+            x.HasOne(uc => uc.User)
+                .WithMany(u => u.UserConnections)
+                .OnDelete(DeleteBehavior.Cascade);
             x.Property(p => p.Ip).HasMaxLength(15);
         });
     }
