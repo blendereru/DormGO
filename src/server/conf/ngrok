@@ -1,0 +1,2 @@
+cd ngrok-v3-stable-windows-amd64
+ngrok http http://localhost:5093
