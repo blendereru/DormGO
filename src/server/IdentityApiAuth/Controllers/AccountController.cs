@@ -6,6 +6,8 @@ using IdentityApiAuth.DTOs;
 using IdentityApiAuth.Hubs;
 using IdentityApiAuth.Models;
 using MapsterMapper;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
@@ -42,6 +44,13 @@ public class AccountController : Controller
             }
             return BadRequest(ModelState);
         }
+        var claims = new List<Claim>
+        {
+            new Claim(ClaimTypes.NameIdentifier, user.Id)
+        };
+        var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
+            new ClaimsPrincipal(claimsIdentity));
         await SendConfirmationEmailAsync(user);
         return Ok(new { Message = "User registered successfully. Email confirmation is pending." });
     }
@@ -147,7 +156,7 @@ public class AccountController : Controller
             AccessToken = accessToken,
             RefreshToken = refreshToken
         };
-        await hub.Clients.All.SendAsync("EmailConfirmed", user.UserName, request);
+        await hub.Clients.User(user.Id).SendAsync("EmailConfirmed", user.UserName, request);
         return Ok(new { Message = "Email confirmed successfully" });
     }
     [HttpPost("/api/refresh-tokens")]

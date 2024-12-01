@@ -6,5 +6,6 @@ public class UserConnection
     public string UserId { get; set; }
     public ApplicationUser User { get; set; }
     public string Ip { get; set; }
+    public string Hub { get; set; }
     public DateTime ConnectedAt { get; set; }
 }

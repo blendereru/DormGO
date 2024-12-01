@@ -27,27 +27,28 @@ public class PostHub : Hub
             { 
                 Log.Warning("Connection aborted: Missing or empty username. ConnectionId: {ConnectionId}", Context.ConnectionId); 
                 Context.Abort();
-                return; 
+                await Task.CompletedTask;
             } 
             var ip = Context?.GetHttpContext()?.Connection.RemoteIpAddress?.ToString(); 
             if (string.IsNullOrEmpty(ip)) 
             { 
                 Log.Warning("Connection aborted: Missing IP address. UserName: {UserName}, ConnectionId: {ConnectionId}", userName, Context.ConnectionId); 
-                Context.Abort(); 
-                return; 
+                Context.Abort();
+                return;
             } 
-            var user = await _userManager.FindByNameAsync(userName); 
+            var user = await _userManager.FindByNameAsync(userName!); 
             if (user == null) 
             { 
                 Log.Warning("Connection aborted: User not found in database. UserName: {UserName}, ConnectionId: {ConnectionId}", userName, Context.ConnectionId); 
-                Context.Abort(); 
-                return; 
+                Context.Abort();
+                return;
             } 
             var connection = new UserConnection 
             { 
                 ConnectionId = Context.ConnectionId, 
-                UserId = user.Id, 
-                Ip = ip, 
+                UserId = user!.Id, 
+                Ip = ip!, 
+                Hub = "/api/posthub",
                 ConnectedAt = DateTime.UtcNow 
             };
             _db.UserConnections.Add(connection); 
