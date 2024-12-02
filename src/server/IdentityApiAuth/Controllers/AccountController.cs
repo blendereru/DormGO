@@ -6,11 +6,14 @@ using IdentityApiAuth.DTOs;
 using IdentityApiAuth.Hubs;
 using IdentityApiAuth.Models;
 using MapsterMapper;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Serilog;
 
 namespace IdentityApiAuth.Controllers;
 
@@ -42,52 +45,16 @@ public class AccountController : Controller
             }
             return BadRequest(ModelState);
         }
+        /*var claims = new List<Claim>
+        {
+            new Claim(ClaimTypes.NameIdentifier, user.Id)
+        };
+        var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
+            new ClaimsPrincipal(claimsIdentity));*/
         await SendConfirmationEmailAsync(user);
         return Ok(new { Message = "User registered successfully. Email confirmation is pending." });
     }
-    [HttpGet("/api/check-confirmation/{email}")]
-    public async Task<IActionResult> CheckEmailConfirmationStatus(string email)
-    {
-        var user = await _userManager.FindByEmailAsync(email);
-        if (user == null)
-        {
-            return NotFound("User not found");
-        }
-
-        if (await _userManager.IsEmailConfirmedAsync(user))
-        {
-            var existingSession = _db.RefreshSessions
-                .FirstOrDefault(session => session.UserId == user.Id);
-            if (existingSession != null)
-            {
-                return Ok(new 
-                { 
-                    Message = "Email already confirmed.", 
-                    Token = "Token already issued. Use the previously provided token." 
-                });
-            }
-            var jwtToken = GenerateAccessToken(user.Email!);
-            var refreshToken = GenerateRefreshToken();
-            var session = new RefreshSession()
-            {
-                UserId = user.Id,
-                RefreshToken = refreshToken,
-                UA = Request.Headers["User-Agent"].ToString(),
-                Ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? HttpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault(),
-                ExpiresIn = DateTimeOffset.UtcNow.AddDays(7).ToUnixTimeMilliseconds()
-            };
-            _db.RefreshSessions.Add(session);
-            await _db.SaveChangesAsync();
-            return Ok(new
-            {
-                Message = "Email confirmed successfully.",
-                access_token = jwtToken,
-                refresh_token = refreshToken
-            });
-        }
-        return Ok(new { Message = "Email not confirmed yet." });
-    }
-
     [HttpPost("/api/signin")]
     public async Task<IActionResult> Login([FromBody] UserDto dto)
     {
@@ -190,7 +157,22 @@ public class AccountController : Controller
             AccessToken = accessToken,
             RefreshToken = refreshToken
         };
-        await hub.Clients.All.SendAsync("EmailConfirmed", user.UserName, request);
+        var connections = await _db.UserConnections
+            .Where(c => c.UserId == userId)
+            .Select(c => c.ConnectionId)
+            .ToListAsync();
+
+        if (connections.Any())
+        {
+            foreach (var connectionId in connections)
+            {
+                await hub.Clients.Client(connectionId).SendAsync("EmailConfirmed", user.UserName, request);
+            }
+        }
+        else
+        {
+            Log.Warning("Unable to notify user {UserId}: No active connections found.", userId);
+        }
         return Ok(new { Message = "Email confirmed successfully" });
     }
     [HttpPost("/api/refresh-tokens")]
@@ -239,7 +221,7 @@ public class AccountController : Controller
     {
         ArgumentNullException.ThrowIfNull(user, nameof(user));
         var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-        var confirmationLink = $"https://9da1-2-134-108-133.ngrok-free.app{Url.Action("ConfirmEmail", "Account", new { userId = user.Id, token = token })}";
+        var confirmationLink = Url.Action("ConfirmEmail", "Account", new { userId = user.Id, token = token }, protocol: HttpContext.Request.Scheme);
         var body = $"Please confirm your email by <a href='{HtmlEncoder.Default.Encode(confirmationLink)}'>clicking here</a>.";
         await _emailSender.SendEmailAsync(user.Email!, "Confirm your email", body, true);
     }

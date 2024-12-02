@@ -63,7 +63,8 @@ builder.Services.AddAuthentication(opts =>
     {
         googleOptions.ClientId = builder.Configuration["GoogleServices:ClientId"]!;
         googleOptions.ClientSecret = builder.Configuration["GoogleServices:ClientSecret"]!;
-    });
+    })
+    .AddCookie();
 builder.Services.AddDbContext<ApplicationContext>(opts =>
 {
     opts.UseSqlServer(builder.Configuration.GetConnectionString("IdentityConnection"));
@@ -77,5 +78,6 @@ app.UseSerilogRequestLogging();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<UserHub>("/api/userhub");
 app.MapHub<PostHub>("/api/posthub");
 app.Run();
