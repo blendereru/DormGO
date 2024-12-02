@@ -21,24 +21,24 @@ public class UserHub : Hub
         try
         {
             var connectionId = Context.ConnectionId;
-            var userId = Context?.User?.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userId))
+            var userName = Context.GetHttpContext()?.Request.Query["userName"];
+            if (string.IsNullOrEmpty(userName))
             {
-                Log.Warning("Connection aborted: Missing user id. ConnectionId: {ConnectionId}", Context.ConnectionId);
+                Log.Warning("Connection aborted: Missing user name. ConnectionId: {ConnectionId}", Context.ConnectionId);
                 Context.Abort();
                 return;
             }
             var ip = Context?.GetHttpContext()?.Connection.RemoteIpAddress?.ToString(); 
             if (string.IsNullOrEmpty(ip)) 
             { 
-                Log.Warning("Connection aborted: Missing IP address. UserId: {UserId}, ConnectionId: {ConnectionId}", userId, Context.ConnectionId); 
+                Log.Warning("Connection aborted: Missing IP address. UserId: {UserName}, ConnectionId: {ConnectionId}", userName, Context.ConnectionId); 
                 Context.Abort();
                 return;
             } 
-            var user = await _userManager.FindByIdAsync(userId); 
+            var user = await _userManager.FindByNameAsync(userName!); 
             if (user == null) 
             { 
-                Log.Warning("Connection aborted: User not found in database. UserId: {UserId}, ConnectionId: {ConnectionId}", userId, Context.ConnectionId); 
+                Log.Warning("Connection aborted: User not found in database. UserId: {UserId}, ConnectionId: {ConnectionId}", userName, Context.ConnectionId); 
                 Context.Abort();
                 return;
             } 

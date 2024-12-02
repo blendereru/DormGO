@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Serilog;
 
 namespace IdentityApiAuth.Controllers;
 
@@ -44,13 +45,13 @@ public class AccountController : Controller
             }
             return BadRequest(ModelState);
         }
-        var claims = new List<Claim>
+        /*var claims = new List<Claim>
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id)
         };
         var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
         await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
-            new ClaimsPrincipal(claimsIdentity));
+            new ClaimsPrincipal(claimsIdentity));*/
         await SendConfirmationEmailAsync(user);
         return Ok(new { Message = "User registered successfully. Email confirmation is pending." });
     }
@@ -156,7 +157,22 @@ public class AccountController : Controller
             AccessToken = accessToken,
             RefreshToken = refreshToken
         };
-        await hub.Clients.User(user.Id).SendAsync("EmailConfirmed", user.UserName, request);
+        var connections = await _db.UserConnections
+            .Where(c => c.UserId == userId)
+            .Select(c => c.ConnectionId)
+            .ToListAsync();
+
+        if (connections.Any())
+        {
+            foreach (var connectionId in connections)
+            {
+                await hub.Clients.Client(connectionId).SendAsync("EmailConfirmed", user.UserName, request);
+            }
+        }
+        else
+        {
+            Log.Warning("Unable to notify user {UserId}: No active connections found.", userId);
+        }
         return Ok(new { Message = "Email confirmed successfully" });
     }
     [HttpPost("/api/refresh-tokens")]
@@ -205,7 +221,6 @@ public class AccountController : Controller
     {
         ArgumentNullException.ThrowIfNull(user, nameof(user));
         var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-        // var confirmationLink = $"https://9da1-2-134-108-133.ngrok-free.app{Url.Action("ConfirmEmail", "Account", new { userId = user.Id, token = token })}";
         var confirmationLink = Url.Action("ConfirmEmail", "Account", new { userId = user.Id, token = token }, protocol: HttpContext.Request.Scheme);
         var body = $"Please confirm your email by <a href='{HtmlEncoder.Default.Encode(confirmationLink)}'>clicking here</a>.";
         await _emailSender.SendEmailAsync(user.Email!, "Confirm your email", body, true);
