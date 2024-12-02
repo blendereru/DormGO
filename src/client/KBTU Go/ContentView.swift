@@ -79,8 +79,10 @@ struct ContentView: View {
 
 
 struct MainView: View {
+  
     @State private var name: String = ""   // State variable for name
     @State private var email: String = ""
+    
     @State private var isSheet1Presented = false
     @StateObject private var signalRManager = SignalRManager()  // StateObject for SignalR
     @State private var isSheet2Presented = false

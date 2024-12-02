@@ -267,6 +267,7 @@ func isValidPassword(_ password: String) -> Bool {
 
 struct RegistrationView: View {
     @State private var email = ""
+    let confirmationManager = ConfirmationManager()
     @State private var password = ""
     @State private var message = ""
     @State private var jwt: String? = nil // Store JWT token here
@@ -355,6 +356,7 @@ struct RegistrationView: View {
     }
     // Function to send email and password to the backend server
     func sendRegistrationRequest(email: String, password: String) {
+      
         guard validateInput() else { return }
         let url = endpoint("api/signup")
         
@@ -405,10 +407,29 @@ struct RegistrationView: View {
                         if let responseObject = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
                             if responseObject["success"] as? Bool == true {
                                 message = "Registration successful. Waiting for token..."
-                                longPollForToken(email: email) // Start polling for the token
+                              // longPollForToken(email: email) // Start polling for the token
+                                // Initialize ConfirmationManager with the email
+                                // Wait for the registration to be completed before connecting to the server
+                                confirmationManager.setEmail(email)
+                                                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                                                        
+                                                        confirmationManager.connectToServer()
+                                                    }
+                                                        
+                                                        // Connect to the server and listen for confirmation tokens
+                                            
+                                                        
+                                                        // After connection, request confirmation
+                                                 //       confirmationManager.requestConfirmation()
+                                
                             } else {
                                 message = "Registration failed: \(responseObject["error"] as? String ?? "Unknown error")"
-                                longPollForToken(email:email)
+                                // Wait for the registration to be completed before connecting to the server
+                                confirmationManager.setEmail(email)
+                                                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                                                  
+                                                        confirmationManager.connectToServer()
+                                                    }
                             }
                         } else {
                             message = "Unexpected response format."
