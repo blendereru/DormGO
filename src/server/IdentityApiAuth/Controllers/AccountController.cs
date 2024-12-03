@@ -43,13 +43,6 @@ public class AccountController : Controller
             }
             return BadRequest(ModelState);
         }
-        /*var claims = new List<Claim>
-        {
-            new Claim(ClaimTypes.NameIdentifier, user.Id)
-        };
-        var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
-            new ClaimsPrincipal(claimsIdentity));*/
         await SendConfirmationEmailAsync(user);
         return Ok(new { Message = "User registered successfully. Email confirmation is pending." });
     }
@@ -159,7 +152,6 @@ public class AccountController : Controller
             .Where(c => c.UserId == userId)
             .Select(c => c.ConnectionId)
             .ToListAsync();
-
         if (connections.Any())
         {
             foreach (var connectionId in connections)

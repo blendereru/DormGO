@@ -62,10 +62,49 @@ public class PostHub : Hub
             Context.Abort(); 
         } 
     }
-    public async Task NotifyPostCreated(string userName, PostDto post)
+    public async Task NotifyPostCreated(string userId, PostDto post)
     {
-        await Clients.All.SendAsync("PostCreated", userName, post);
+        if (string.IsNullOrEmpty(userId))
+        {
+            Log.Warning("NotifyPostCreated: userId is null or empty. Skipping notification.");
+            return;
+        }
+        try
+        {
+            await Clients.User(userId).SendAsync("PostCreated", true, post);
+            await Clients.AllExcept(Context.UserIdentifier).SendAsync("PostCreated", false, post);
+            Log.Information("PostCreated notification sent. UserId: {UserId}, PostId: {PostId}", userId, post.PostId);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error occurred while notifying post creation. UserId: {UserId}, PostId: {PostId}", userId, post.PostId);
+        }
     }
+    public async Task NotifyPostUpdated(PostDto post)
+    {
+        try
+        {
+            await Clients.All.SendAsync("PostUpdated", post);
+            Log.Information("PostUpdated notification sent for PostId: {PostId}", post.PostId);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error occurred while notifying post update. PostId: {PostId}", post.PostId);
+        }
+    }
+    public async Task NotifyPostDeleted(string postId)
+    {
+        try
+        {
+            await Clients.All.SendAsync("PostDeleted", postId);
+            Log.Information("PostDeleted notification sent for PostId: {PostId}", postId);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error occurred while notifying post deletion. PostId: {PostId}", postId);
+        }
+    }
+
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
         try
