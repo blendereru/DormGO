@@ -14,7 +14,7 @@ Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
     .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Information)
     .MinimumLevel.Override("Microsoft.Hosting", LogEventLevel.Information)
-    .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Information )
     .Enrich.FromLogContext()
     .WriteTo.Console()
     .CreateLogger();
@@ -24,7 +24,13 @@ builder.Services.AddIdentityCore<ApplicationUser>()
     .AddEntityFrameworkStores<ApplicationContext>()
     .AddDefaultTokenProviders();
 builder.Host.UseSerilog();
-
+builder.Services.AddCors(opts =>
+{
+    opts.AddDefaultPolicy(policyBuilder =>
+    {
+        policyBuilder.AllowAnyOrigin();
+    });
+});
 builder.Services.AddAuthentication(opts =>
     {
         opts.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -63,8 +69,7 @@ builder.Services.AddAuthentication(opts =>
     {
         googleOptions.ClientId = builder.Configuration["GoogleServices:ClientId"]!;
         googleOptions.ClientSecret = builder.Configuration["GoogleServices:ClientSecret"]!;
-    })
-    .AddCookie();
+    });
 builder.Services.AddDbContext<ApplicationContext>(opts =>
 {
     opts.UseSqlServer(builder.Configuration.GetConnectionString("IdentityConnection"));
@@ -74,6 +79,7 @@ builder.Services.AddMapster();
 MapsterConfig.Configure();
 builder.Services.AddTransient<IEmailSender, EmailSender>();
 var app = builder.Build();
+app.UseCors();
 app.UseSerilogRequestLogging();
 app.UseAuthentication();
 app.UseAuthorization();
@@ -81,3 +87,4 @@ app.MapControllers();
 app.MapHub<UserHub>("/api/userhub");
 app.MapHub<PostHub>("/api/posthub");
 app.Run();
+public partial class Program {}

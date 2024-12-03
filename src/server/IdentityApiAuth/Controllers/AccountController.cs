@@ -6,8 +6,6 @@ using IdentityApiAuth.DTOs;
 using IdentityApiAuth.Hubs;
 using IdentityApiAuth.Models;
 using MapsterMapper;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;

@@ -21,7 +21,7 @@ public class UserHub : Hub
         try
         {
             var connectionId = Context.ConnectionId;
-            var userName = Context.GetHttpContext()?.Request.Query["userName"];
+            var userName = Context.GetHttpContext()?.Request.Query["userName"].ToString();
             if (string.IsNullOrEmpty(userName))
             {
                 Log.Warning("Connection aborted: Missing user name. ConnectionId: {ConnectionId}", Context.ConnectionId);
@@ -35,7 +35,7 @@ public class UserHub : Hub
                 Context.Abort();
                 return;
             } 
-            var user = await _userManager.FindByNameAsync(userName!); 
+            var user = await _userManager.FindByEmailAsync(userName); 
             if (user == null) 
             { 
                 Log.Warning("Connection aborted: User not found in database. UserId: {UserId}, ConnectionId: {ConnectionId}", userName, Context.ConnectionId); 
@@ -44,8 +44,8 @@ public class UserHub : Hub
             } 
             var connection = new UserConnection 
             { 
-                ConnectionId = Context.ConnectionId, 
-                UserId = user!.Id, 
+                ConnectionId = connectionId, 
+                UserId = user.Id, 
                 Ip = ip!, 
                 Hub = "/api/userhub",
                 ConnectedAt = DateTime.UtcNow 
