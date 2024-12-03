@@ -27,18 +27,18 @@ This project follows the MVVM (Model-View-ViewModel) architecture pattern with S
     • SignalRCleint: For websocket implementation
 ## Endpoints
 `Server-side` defines multiple `endpoints` for client to send requests to. 
-* `/api/signup` - is needed to register new user in a database
+* `HttpPost /api/signup` - is needed to register new user in a database
 * `/api/userhub?userName=<your_userName>` - this is where the client and the server set connection with hub(SignalR).
 This endpoint is needed to notify the client when the user confirms his email.
 * `/api/confirm-email` - is needed to confirm user's email.
-* `/api/signin` - is needed to log an existing user in the system. Doesn't allow to sign in until the `email` is confirmed.
+* `HttpPost /api/signin` - is needed to log an existing user in the system. Doesn't allow to sign in until the `email` is confirmed.
 ### Endpoints for authorized users `only`
-* `/api/post/create` - the endpoint to create a `post` and make it visible for all users.
-* `/api/post/update` - is needed to update the post settings.
-* `/api/post/read/{id}` - is needed to retrieve the information about specific post.
-* `/api/post/join/{id}` - is needed to join the specific post. Marks the current user as a `member`.
-* `/api/post/delete` - is needed to delete the existing post.
-* `/api/post/read` - to read all posts.
+* `HttpPost /api/post/create` - the endpoint to create a `post` and make it visible for all users.
+* `HttpPost /api/post/update/{id}` - is needed to update the post info.
+* `HttpGet /api/post/read/{id}` - is needed to retrieve the information about specific post.
+* `HttpPost /api/post/join/{id}` - is needed to join the specific post. Marks the current user as a `member`.
+* `HttpPost /api/post/delete/{id}` - is needed to delete the specified post.
+* `HttpGet /api/post/read` - to read all posts.
 * `/api/posthub` - is needed to notify `all the connected clients` about the post that was created.
 
 ## 🚨 Requirements
