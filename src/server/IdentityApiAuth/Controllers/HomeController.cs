@@ -58,8 +58,9 @@ public class HomeController : Controller
         post.Creator = user;
         _db.Posts.Add(post);
         await _db.SaveChangesAsync();
-        await hub.Clients.User(user.UserName).SendAsync("PostCreated", true, postDto);
-        await hub.Clients.AllExcept(user.UserName).SendAsync("PostCreated", false, postDto);
+        var postDtoMapped = post.Adapt<PostDto>();
+        await hub.Clients.User(user.Id).SendAsync("PostCreated", true, postDtoMapped);
+        await hub.Clients.AllExcept(user.Id).SendAsync("PostCreated", false, postDtoMapped);
         return Ok(new { Message = "The post was saved to the database" });
     }
     [HttpGet("/api/post/read")]
