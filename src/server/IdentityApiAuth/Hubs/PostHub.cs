@@ -1,7 +1,6 @@
 using System.Security.Claims;
 using IdentityApiAuth.DTOs;
 using IdentityApiAuth.Models;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;

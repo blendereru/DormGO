@@ -16,27 +16,38 @@ public class HomeController : Controller
 {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ApplicationContext _db;
+    private readonly IHubContext<PostHub> _hub;
     private readonly IMapper _mapper;
     public HomeController(UserManager<ApplicationUser> userManager, ApplicationContext db,
-        IMapper mapper)
+        IHubContext<PostHub> hub, IMapper mapper)
     {
         _userManager = userManager;
         _db = db;
+        _hub = hub;
         _mapper = mapper;
     }
-    [HttpGet("/api/protected")]
-    public IActionResult Index()
+    [HttpGet("/api/profile/read")]
+    public async Task<IActionResult> Index()
     {
-        var emailClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email);
-        var nameClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Name);
-        var roleClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role);
-        return Json(new
+        var emailClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value;
+        var nameClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Name)?.Value;
+        if (string.IsNullOrEmpty(emailClaim))
         {
-            Email = emailClaim?.Value,
-            Name = nameClaim?.Value,
-            Role = roleClaim?.Value
+            return Unauthorized("The email claim is missing from the token.");
+        }
+        var user = await _userManager.FindByEmailAsync(emailClaim);
+        if (user == null)
+        {
+            return NotFound("The user with the provided email is not found.");
+        }
+        return Ok(new
+        {
+            Email = emailClaim,
+            Name = nameClaim ?? user.UserName,
+            RegisteredAt = user.RegistrationDate
         });
     }
+
     [HttpPost("/api/post/create")]
     public async Task<IActionResult> CreatePost([FromBody] PostDto postDto, [FromServices] IHubContext<PostHub> hub)
     {
@@ -164,7 +175,7 @@ public class HomeController : Controller
     }
 
     [HttpPost("/api/post/update/{id}")]
-    public async Task<IActionResult> UpdatePost(string id, [FromBody] PostDto postDto, [FromServices] IHubContext<PostHub> hub)
+    public async Task<IActionResult> UpdatePost(string id, [FromBody] PostDto postDto)
     {
         if (!ModelState.IsValid)
         {
@@ -189,7 +200,7 @@ public class HomeController : Controller
         }
         if (post.CreatorId != user.Id)
         {
-            return Forbid("You are not authorized to update this post.");
+            return Unauthorized("You are not authorized to update this post.");
         }
         postDto.Adapt(post);
         if (postDto.Members.Any())
@@ -204,11 +215,11 @@ public class HomeController : Controller
         _db.Posts.Update(post);
         await _db.SaveChangesAsync();
         var updatedPostDto = post.Adapt<PostDto>();
-        await hub.Clients.All.SendAsync("PostUpdated", updatedPostDto);
+        await _hub.Clients.All.SendAsync("PostUpdated", updatedPostDto);
         return Ok(new { Message = "The post was successfully updated.", Post = updatedPostDto });
     }
     [HttpPost("/api/post/delete/{id}")]
-    public async Task<IActionResult> RemovePost(string id, [FromServices] IHubContext<PostHub> hub)
+    public async Task<IActionResult> RemovePost(string id)
     {
         var userEmail = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value;
         if (string.IsNullOrEmpty(userEmail))
@@ -229,11 +240,11 @@ public class HomeController : Controller
         }
         if (post.CreatorId != user.Id)
         {
-            return Forbid("You are not authorized to delete this post.");
+            return Unauthorized("You are not authorized to delete this post.");
         }
         _db.Posts.Remove(post);
         await _db.SaveChangesAsync();
-        await hub.Clients.All.SendAsync("PostDeleted", post.Id);
+        await _hub.Clients.All.SendAsync("PostDeleted", post.Id);
         return Ok(new { Message = "The post was successfully removed." });
     }
 }
