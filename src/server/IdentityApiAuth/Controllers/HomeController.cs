@@ -49,7 +49,7 @@ public class HomeController : Controller
     }
 
     [HttpPost("/api/post/create")]
-    public async Task<IActionResult> CreatePost([FromBody] PostDto postDto, [FromServices] IHubContext<PostHub> hub)
+    public async Task<IActionResult> CreatePost([FromBody] PostDto postDto)
     {
         if (!ModelState.IsValid)
         {
@@ -70,8 +70,8 @@ public class HomeController : Controller
         _db.Posts.Add(post);
         await _db.SaveChangesAsync();
         var postDtoMapped = post.Adapt<PostDto>();
-        await hub.Clients.User(user.Id).SendAsync("PostCreated", true, postDtoMapped);
-        await hub.Clients.AllExcept(user.Id).SendAsync("PostCreated", false, postDtoMapped);
+        await _hub.Clients.User(user.Id).SendAsync("PostCreated", true, postDtoMapped);
+        await _hub.Clients.AllExcept(user.Id).SendAsync("PostCreated", false, postDtoMapped);
         return Ok(new { Message = "The post was saved to the database" });
     }
     [HttpGet("/api/post/read")]
