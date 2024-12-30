@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using IdentityApiAuth.Data;
 using IdentityApiAuth.DTOs;
 using IdentityApiAuth.Hubs;
 using IdentityApiAuth.Models;

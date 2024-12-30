@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using IdentityApiAuth.Data;
 using IdentityApiAuth.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;

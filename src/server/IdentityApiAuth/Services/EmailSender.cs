@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Mail;
 
-namespace IdentityApiAuth.Models;
+namespace IdentityApiAuth.Services;
 
 public class EmailSender : IEmailSender
 {
