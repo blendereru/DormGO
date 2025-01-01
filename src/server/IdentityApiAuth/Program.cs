@@ -27,13 +27,7 @@ builder.Services.AddIdentityCore<ApplicationUser>()
     .AddEntityFrameworkStores<ApplicationContext>()
     .AddDefaultTokenProviders();
 builder.Host.UseSerilog();
-builder.Services.AddCors(opts =>
-{
-    opts.AddDefaultPolicy(policyBuilder =>
-    {
-        policyBuilder.AllowAnyOrigin();
-    });
-});
+builder.Configuration.AddEnvironmentVariables();
 builder.Services.AddAuthentication(opts =>
     {
         opts.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -82,7 +76,6 @@ builder.Services.AddMapster();
 MapsterConfig.Configure();
 builder.Services.AddTransient<IEmailSender, EmailSender>();
 var app = builder.Build();
-app.UseCors();
 app.UseSerilogRequestLogging();
 app.UseAuthentication();
 app.UseAuthorization();
