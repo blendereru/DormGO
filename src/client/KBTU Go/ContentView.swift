@@ -227,88 +227,98 @@ struct MainView: View {
             TabView {
                 // Rides Tab
                 ScrollView { // Make the Rides tab scrollable
-                                   VStack {
-                                       HStack {
-                                           Spacer()
-                                           Button(action: {
-                                               isSheet2Presented = true
-                                           }) {
-                                               Text("Publish")
-                                                   .frame(width: 120, height: 50)
-                                                   .background(Color.blue)
-                                                   .foregroundColor(.white)
-                                                   .cornerRadius(30)
-                                           }
-                                           .padding(.trailing, 16)
-                                           .sheet(isPresented: $isSheet2Presented) {
-                                               PublishContent()
-                                                   .onDisappear {
-                                                       signalRManager.startConnection()
-                                                       PostAPIManager.shared.readposts { response in
-                                                           guard let response = response else {
-                                                               return
-                                                           }
-                                                           self.posts = response
-                                                       }
-                                                   }
-                                           }
-                                       }
-                                       .padding(.top, 16)
+                    VStack {
+                        HStack {
+                            Spacer()
+                            Button(action: {
+                                isSheet2Presented = true
+                            }) {
+                                Text("Publish")
+                                    .frame(width: 120, height: 50)
+                                    .background(Color.blue)
+                                    .foregroundColor(.white)
+                                    .cornerRadius(30)
+                            }
+                            .padding(.trailing, 16)
+                            .sheet(isPresented: $isSheet2Presented) {
+                                PublishContent()
+                                    .onDisappear {
+                                        
+                                        signalRManager.startConnection()
+                                        PostAPIManager.shared.readposts { response in
+                                            guard let response = response else {
+                                                return
+                                            }
+                                            self.posts = response
+                                        }
+                                    }
+                            }
+                        }
+                        .padding(.top, 16)
 
-                                       // Combine and sort posts, ensuring that 'your posts' come first
-                                       let unifiedPosts: [UnifiedPost] = posts.yourPosts.map { yourPost in
-                                           UnifiedPost(
-                                               id: yourPost.PostId ?? UUID().uuidString,
-                                               members: yourPost.members,
-                                               maxPeople: yourPost.maxPeople,
-                                               description: yourPost.description,
-                                               createdAt: yourPost.createdAt,
-                                               currentPrice: Double(yourPost.currentPrice),
-                                               source: "yourPost" // Indicate the source
-                                           )
-                                       } + posts.restPosts.map { restPost in
-                                           UnifiedPost(
-                                               id: restPost.PostId ?? UUID().uuidString,
-                                               members: restPost.members,
-                                               maxPeople: restPost.maxPeople,
-                                               description: restPost.description,
-                                               createdAt: restPost.createdAt,
-                                               currentPrice: Double(restPost.currentPrice),
-                                               source: "rest"
-                                           )
-                                       } + signalRManager.posts.map { signalRPost in
-                                           UnifiedPost(
-                                               id: signalRPost.PostId ?? UUID().uuidString,
-                                               members: signalRPost.members,
-                                               maxPeople: signalRPost.maxPeople,
-                                               description: signalRPost.description,
-                                               createdAt: signalRPost.createdAt,
-                                               currentPrice: signalRPost.currentPrice,
-                                               source: "signalR"
-                                           )
-                                       }
+                        // Combine and sort posts, ensuring that 'your posts' come first
+                        let unifiedPosts: [UnifiedPost] = posts.yourPosts.map { yourPost in
+                            UnifiedPost(
+                                id: yourPost.PostId ?? UUID().uuidString,
+                                members: yourPost.members,
+                                maxPeople: yourPost.maxPeople,
+                                description: yourPost.description,
+                                createdAt: yourPost.createdAt,
+                                currentPrice: Double(yourPost.currentPrice),
+                                source: "yourPost"
+                            )
+                        } + posts.restPosts.map { restPost in
+                            UnifiedPost(
+                                id: restPost.PostId ?? UUID().uuidString,
+                                members: restPost.members,
+                                maxPeople: restPost.maxPeople,
+                                description: restPost.description,
+                                createdAt: restPost.createdAt,
+                                currentPrice: Double(restPost.currentPrice),
+                                source: "rest"
+                            )
+                        } + signalRManager.posts.map { signalRPost in
+                            UnifiedPost(
+                                id: signalRPost.PostId ?? UUID().uuidString,
+                                members: signalRPost.members,
+                                maxPeople: signalRPost.maxPeople,
+                                description: signalRPost.description,
+                                createdAt: signalRPost.createdAt,
+                                currentPrice: signalRPost.currentPrice,
+                                source: "signalR"
+                            )
+                        }
 
-                                       if !unifiedPosts.isEmpty {
-                                           // Separate user posts and rest posts
-                                           YourPostsSection(
-                                               posts: unifiedPosts.filter { $0.source == "yourPost" },
-                                               columns: columns,
-                                               isSheetPresented: $isSheet1Presented
-                                           )
+                        if !unifiedPosts.isEmpty {
+                            // Separate user posts and rest posts
+                            YourPostsSection(
+                                posts: unifiedPosts.filter { $0.source == "yourPost" },
+                                columns: columns,
+                                isSheetPresented: $isSheet1Presented
+                            )
 
-                                           YourPostsSection(
-                                               posts: unifiedPosts.filter { $0.source == "rest" },
-                                               columns: columns,
-                                               isSheetPresented: $isSheet1Presented
-                                           )
-                                       }
+                            YourPostsSection(
+                                posts: unifiedPosts.filter { $0.source == "rest" },
+                                columns: columns,
+                                isSheetPresented: $isSheet1Presented
+                            )
+                        }
 
-                                       Spacer()
-                                   }
-                               }
-                    
+                        Spacer()
+                    }
+                }
                 .tabItem {
                     Label("Rides", systemImage: "car.front.waves.up.fill")
+                }
+                .onAppear {
+                    signalRManager.startConnection()
+                    PostAPIManager.shared.readposts { response in
+                        guard let response = response else {
+                            return
+                        }
+                        self.posts = response
+                    }
+
                 }
 
                 // Profile Tab
@@ -320,11 +330,11 @@ struct MainView: View {
                 .tabItem {
                     Label("Profile", systemImage: "person.crop.circle")
                 }
+                .onAppear {
+                    name = user.name
+                    email = user.email
+                }
             }
-        }
-        .onAppear {
-            name = user.name
-            email = user.email
         }
     }
 }
