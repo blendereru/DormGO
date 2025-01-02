@@ -1,5 +1,4 @@
 # LoginForm
-<a href="https://github.com/blendereru/LoginForm/blob/6bafb0d7e5eea91c3371e97b5972ffca8d46fe94/.github/workflows/dotnet.yml"><img src="https://img.shields.io/badge/build-passing-02a62d?style=flat&logo=github&link=https://github.com/blendereru/LoginForm/blob/6bafb0d7e5eea91c3371e97b5972ffca8d46fe94/.github/workflows/dotnet.yml" alt="build" /></a>
 <a href="https://dotnet.microsoft.com/en-us/"><img src="https://img.shields.io/badge/version-8.0-600aa6?style=flat&logo=dotnet&link=https://dotnet.microsoft.com/en-us/" alt="version" /></a>
 <a href="https://www.swift.org/"><img src="https://img.shields.io/badge/Swift-5.0-e35424?style=flat&logo=swift&logoColor=white&link=https://www.swift.org/" alt="Swift" /></a>
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
