@@ -18,13 +18,15 @@ func getUserDetails() -> User {
     return User(name: "Raiymbek Omarov", email: "raiymbek@example.com")
 }
 
-func deleteJWTFromKeychain() -> Bool {
+func deleteJWTFromKeychain(tokenType: String) -> Bool {
     let query: [String: Any] = [
         kSecClass as String: kSecClassGenericPassword,
-        kSecAttrAccount as String: "userJWT"  // Same identifier
+        kSecAttrAccount as String: tokenType
     ]
     
     let status = SecItemDelete(query as CFDictionary)
+    print("Keychain status after deleting token: \(status)") // Debugging log
+    
     return status == errSecSuccess
 }
 
@@ -45,7 +47,7 @@ struct ContentView: View {
                _user = State(initialValue: ProtectedResponse(email: "preview@example.com", name: "Preview User"))
                _posts = State(initialValue: PostsResponse(yourPosts: [], restPosts: []))  // Simulated empty posts for preview
                isAuthenticated = true  // Simulate logged-in state for preview
-           } else if let _ = getJWTFromKeychain(tokenType: "accesstoken") {
+           } else if let _ = getJWTFromKeychain(tokenType: "access_token") {
                _user = State(initialValue: ProtectedResponse(email: "user@example.com", name: "Authenticated User"))
                _posts = State(initialValue: PostsResponse(yourPosts: [], restPosts: []))  // Add real posts if necessary
                isAuthenticated = true
@@ -59,13 +61,18 @@ struct ContentView: View {
     var body: some View {
         Group {
             if isAuthenticated {
-                MainView(user:user,posts:posts, logoutAction: {
-                    let success = deleteJWTFromKeychain()
-                    if success {
-                        print("JWT deleted successfully")
+                MainView(user: user, posts: posts, logoutAction: {
+                    // Delete both the access and refresh tokens
+                    let accessTokenDeleted = deleteJWTFromKeychain(tokenType: "access_token")
+                    let refreshTokenDeleted = deleteJWTFromKeychain(tokenType: "refresh_token")
+                    
+                    if accessTokenDeleted && refreshTokenDeleted {
+                        print("Both access and refresh tokens have been deleted successfully.")
                     } else {
-                        print("Failed to delete JWT")
+                        print("Failed to delete tokens.")
                     }
+                    
+                    // Set isAuthenticated to false to log the user out
                     isAuthenticated = false
                 })
             } else {
@@ -77,19 +84,137 @@ struct ContentView: View {
     }
 }
 
+struct UnifiedPost: Identifiable {
+    let id: String
+    let members: [ProtectedResponse]
+    let maxPeople: Int
+    let description: String
+    let createdAt: String
+    let currentPrice: Double
+    let source: String // "rest" or "signalR"
+}
+
+struct YourPostsSection: View {
+    let posts: [UnifiedPost]
+    let columns: [GridItem]
+    @Binding var isSheetPresented: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            if !posts.isEmpty {
+                Text(posts.first?.source == "yourPost" ? "Your Posts" : "Rest Posts")
+                    .font(.headline)
+                    .padding(.vertical, 8)
+
+                LazyVGrid(columns: columns, spacing: 16) {
+                    ForEach(posts) { post in
+                        RideInfoButton(
+                            peopleAssembled: "\(post.members.count)/\(post.maxPeople)",
+                            destination: post.description,
+                            minutesago: calculateMinutesAgo(from: post.createdAt),
+                            rideName: "Price: \(post.currentPrice)₸",
+                            status: "Active",
+                            color: post.source == "rest" ? .yellow : .blue,
+                            company: post.members.first?.name ?? "Unknown"
+                        ) {
+                            isSheetPresented = true
+                        }
+                        .sheet(isPresented: $isSheetPresented) {
+                            SheetContent(title: "title")
+                        }
+                    }
+                }
+                .padding()
+            }
+        }
+    }
+
+    private func calculateMinutesAgo(from createdAt: String) -> String {
+        let dateFormatter = ISO8601DateFormatter()
+        guard let postDate = dateFormatter.date(from: createdAt) else { return "0" }
+        let minutesAgo = Int(Date().timeIntervalSince(postDate) / 60)
+        return "\(minutesAgo)"
+    }
+}
+struct PostGrid: View {
+    let posts: [UnifiedPost] // Combined posts
+    let columns: [GridItem]
+    @Binding var isSheetPresented: Bool
+
+    var body: some View {
+        LazyVGrid(columns: columns, spacing: 16) {
+            ForEach(posts, id: \.id) { post in
+                RideInfoButton(
+                    peopleAssembled: "\(post.members.count)/\(post.maxPeople)",
+                    destination: post.description,
+                    minutesago: calculateMinutesAgo(from: post.createdAt),
+                    rideName: "Price: \(post.currentPrice)₸",
+                    status: "Active",
+                    color: post.source == "rest" ? .yellow : .blue,
+                    company: post.members.first?.name ?? "Unknown"
+                ) {
+                    isSheetPresented = true
+                }
+                .sheet(isPresented: $isSheetPresented) {
+                    SheetContent(title: "title")
+                        .onDisappear {
+                            // Handle sheet dismissal
+                        }
+                }
+            }
+        }
+    }
+    private func calculateMinutesAgo(from createdAt: String) -> String {
+        let dateFormatter = ISO8601DateFormatter()
+        guard let postDate = dateFormatter.date(from: createdAt) else { return "0" }
+        let minutesAgo = Int(Date().timeIntervalSince(postDate) / 60)
+        return "\(minutesAgo)"
+    }
+
+}
+
+
+struct ProfileView: View {
+    @Binding var name: String
+    @Binding var email: String
+    let logoutAction: () -> Void
+
+    var body: some View {
+        VStack {
+            Text("Name: \(name)")
+                .font(.title)
+                .padding()
+            Text("Email: \(email)")
+                .font(.subheadline)
+                .foregroundColor(.gray)
+                .padding()
+            
+            Button(action: logoutAction) {
+                Text("Log Out")
+                    .font(.headline)
+                    .foregroundColor(.red)
+                    .padding()
+            }
+        }
+        .onAppear {
+            APIManager.shared.sendProtectedRequest { protectedResponse in
+                self.name = protectedResponse?.name ?? ""
+                self.email = protectedResponse?.email ?? ""
+            }
+        }
+    }
+}
 
 struct MainView: View {
-  
-    @State private var name: String = ""   // State variable for name
-    @State private var email: String = ""
-    
+    @State private var name: String = "" // State variable for name
+    @State private var email: String = "" // State variable for email
     @State private var isSheet1Presented = false
-    @StateObject private var signalRManager = SignalRManager()  // StateObject for SignalR
+    @StateObject private var signalRManager = SignalRManager() // StateObject for SignalR
     @State private var isSheet2Presented = false
     let columns = [GridItem(.adaptive(minimum: 150))]
     @State private var user: ProtectedResponse
     @State private var posts: PostsResponse = PostsResponse(yourPosts: [], restPosts: [])
-    var logoutAction: () -> Void  // Accept logout closure
+    var logoutAction: () -> Void // Accept logout closure
     
     init(user: ProtectedResponse, posts: PostsResponse, logoutAction: @escaping () -> Void) {
         _user = State(initialValue: user)
@@ -99,114 +224,108 @@ struct MainView: View {
     
     var body: some View {
         VStack {
-            // Main content
             TabView {
-                // First Tab: Rides
-                VStack {
-                    HStack {
-                        Spacer()
-                        Button(action: {
-                            isSheet2Presented = true
-                        }) {
-                            Text("Publish")
-                                .frame(width: 120, height: 50)
-                                .background(Color.blue)
-                                .foregroundColor(.white)
-                                .cornerRadius(30)
-                        }
-                        .padding(.trailing, 16)
-                        .sheet(isPresented: $isSheet2Presented) {
-                            PublishContent()
-                                .onDisappear {
-                                    print("Publish Content sheet was dismissed")
-                                    // Trigger SignalR to refresh posts when PublishContent sheet is dismissed
-                                    signalRManager.startConnection() // Ensure SignalR is active
-                                }
-                        }
-                    }
-                    .padding(.top, 16)
+                // Rides Tab
+                ScrollView { // Make the Rides tab scrollable
+                                   VStack {
+                                       HStack {
+                                           Spacer()
+                                           Button(action: {
+                                               isSheet2Presented = true
+                                           }) {
+                                               Text("Publish")
+                                                   .frame(width: 120, height: 50)
+                                                   .background(Color.blue)
+                                                   .foregroundColor(.white)
+                                                   .cornerRadius(30)
+                                           }
+                                           .padding(.trailing, 16)
+                                           .sheet(isPresented: $isSheet2Presented) {
+                                               PublishContent()
+                                                   .onDisappear {
+                                                       signalRManager.startConnection()
+                                                       PostAPIManager.shared.readposts { response in
+                                                           guard let response = response else {
+                                                               return
+                                                           }
+                                                           self.posts = response
+                                                       }
+                                                   }
+                                           }
+                                       }
+                                       .padding(.top, 16)
 
-                    if !signalRManager.posts.isEmpty {
-                        VStack(alignment: .leading, spacing: 16) {
-                            // Section Header for "Your Posts"
-                            Text("Your Posts")
-                                .font(.headline)
-                                .padding(.vertical, 8)
+                                       // Combine and sort posts, ensuring that 'your posts' come first
+                                       let unifiedPosts: [UnifiedPost] = posts.yourPosts.map { yourPost in
+                                           UnifiedPost(
+                                               id: yourPost.PostId ?? UUID().uuidString,
+                                               members: yourPost.members,
+                                               maxPeople: yourPost.maxPeople,
+                                               description: yourPost.description,
+                                               createdAt: yourPost.createdAt,
+                                               currentPrice: Double(yourPost.currentPrice),
+                                               source: "yourPost" // Indicate the source
+                                           )
+                                       } + posts.restPosts.map { restPost in
+                                           UnifiedPost(
+                                               id: restPost.PostId ?? UUID().uuidString,
+                                               members: restPost.members,
+                                               maxPeople: restPost.maxPeople,
+                                               description: restPost.description,
+                                               createdAt: restPost.createdAt,
+                                               currentPrice: Double(restPost.currentPrice),
+                                               source: "rest"
+                                           )
+                                       } + signalRManager.posts.map { signalRPost in
+                                           UnifiedPost(
+                                               id: signalRPost.PostId ?? UUID().uuidString,
+                                               members: signalRPost.members,
+                                               maxPeople: signalRPost.maxPeople,
+                                               description: signalRPost.description,
+                                               createdAt: signalRPost.createdAt,
+                                               currentPrice: signalRPost.currentPrice,
+                                               source: "signalR"
+                                           )
+                                       }
 
-                            // Grid for "Your Posts"
-                            LazyVGrid(columns: columns, spacing: 16) {
-                                ForEach(signalRManager.posts, id: \.createdAt) { post in
-                                    RideInfoButton(
-                                        peopleAssembled: "\(post.members.count)/\(post.maxPeople)",  // Count the number of members
-                                        destination: post.description,
-                                        minutesago: calculateMinutesAgo(from: post.createdAt),
-                                        rideName: "Price: \(post.currentPrice)₸",
-                                        status: "Active",
-                                        color: .blue,
-                                        company: post.members.first?.name ?? "Unknown"  // Use the first member's name, or "Unknown" if there are no members
-                                    ) {
-                                        isSheet1Presented = true
-                                    }
-                                    .sheet(isPresented: $isSheet1Presented) {
-                                        SheetContent(title: "title")
-                                            .onDisappear {
-                                                // SignalRManager will handle real-time post updates
-                                            }
-                                    }
-                                }
-                            }
-                            .padding()
-                        }
-                    }
+                                       if !unifiedPosts.isEmpty {
+                                           // Separate user posts and rest posts
+                                           YourPostsSection(
+                                               posts: unifiedPosts.filter { $0.source == "yourPost" },
+                                               columns: columns,
+                                               isSheetPresented: $isSheet1Presented
+                                           )
 
-                    Spacer()
-                }
-                .onAppear {
-                    print("onAppear triggered")
-                    // Initial fetching is now handled by SignalRManager (real-time updates)
-                    signalRManager.startConnection()
-                }
+                                           YourPostsSection(
+                                               posts: unifiedPosts.filter { $0.source == "rest" },
+                                               columns: columns,
+                                               isSheetPresented: $isSheet1Presented
+                                           )
+                                       }
+
+                                       Spacer()
+                                   }
+                               }
+                    
                 .tabItem {
                     Label("Rides", systemImage: "car.front.waves.up.fill")
                 }
 
-                // Second Tab: Profile
-                VStack {
-                    Text("Name: \(name)")
-                        .font(.title)
-                        .padding()
-                    Text("Email: \(email)")
-                        .font(.subheadline)
-                        .foregroundColor(.gray)
-                        .padding()
-                    
-                    Button(action: {
-                        logoutAction()  // Log out action
-                    }) {
-                        Text("Log Out")
-                            .font(.headline)
-                            .foregroundColor(.red)
-                            .padding()
-                    }
-                }
-                .onAppear {
-                    APIManager.shared.sendProtectedRequest { protectedResponse in
-                        self.name = protectedResponse?.name ?? ""
-                        self.email = protectedResponse?.email ?? ""
-                    }
-                }
+                // Profile Tab
+                ProfileView(
+                    name: $name,
+                    email: $email,
+                    logoutAction: logoutAction
+                )
                 .tabItem {
                     Label("Profile", systemImage: "person.crop.circle")
                 }
             }
         }
-    }
-    
-    private func calculateMinutesAgo(from createdAt: String) -> String {
-        let dateFormatter = ISO8601DateFormatter()
-        guard let postDate = dateFormatter.date(from: createdAt) else { return "0" }
-        let minutesAgo = Int(Date().timeIntervalSince(postDate) / 60)
-        return "\(minutesAgo)"
+        .onAppear {
+            name = user.name
+            email = user.email
+        }
     }
 }
 struct AuthenticationView: View {

@@ -15,6 +15,7 @@ import CoreLocation
 import Combine
 
 struct Post: Codable {
+    let PostId: String?
     let description: String
     let currentPrice: Int
     let latitude: Double
@@ -30,7 +31,7 @@ struct PostsResponse: Codable {
     let restPosts: [Post]
 }
 
-let baseURL = URL(string: "https://09c0-95-59-45-33.ngrok-free.app")!
+let baseURL = URL(string: "https://dormgo.azurewebsites.net")!
 
 
 
@@ -232,7 +233,7 @@ class PostAPIManager{
         task.resume()
     }
     func readposts(completion: @escaping (PostsResponse?) -> Void) {
-        let url = URL(string: "https://30a9-37-151-54-66.ngrok-free.app/api/post/read")!
+        let url = endpoint("api/post/read")
         
         guard let token = getJWTFromKeychain(tokenType: "access_token") else {
             print("Access token missing. Attempting to refresh token.")
@@ -343,7 +344,7 @@ struct PublishContent: View {
     @State private var selectedCoordinate: CLLocationCoordinate2D?
     // Function to send data to the server
     func sendCreateRequest(Description: String, CurrentPrice: Double, Latitude: Double, Longitude: Double, CreatedAt: String, MaxPeople: Int) {
-        let url = endpoint("post/create")
+        let url = endpoint("api/post/create")
 
         let body: [String: Any] = [
             "Description": Description,

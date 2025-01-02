@@ -15,33 +15,41 @@ func getFixedNonce() -> Data {
     return Data(repeating: 0, count: 12) // Fixed nonce (unsafe for production but useful for testing)
 }
 
-
-func saveJWTToKeychain(token: String, tokenType:String) -> Bool {
-    let tokenData = token.data(using: .utf8)!
-    
+func clearKeychainItem(tokenType: String) {
     let query: [String: Any] = [
         kSecClass as String: kSecClassGenericPassword,
-        kSecAttrAccount as String: tokenType,  // Unique identifier for JWT
+        kSecAttrAccount as String: tokenType
+    ]
+    let status = SecItemDelete(query as CFDictionary)
+    print("Keychain clear status: \(status)")
+}
+
+func saveJWTToKeychain(token: String, tokenType: String) -> Bool {
+    let tokenData = token.data(using: .utf8)!
+    let query: [String: Any] = [
+        kSecClass as String: kSecClassGenericPassword,
+        kSecAttrAccount as String: tokenType,
         kSecValueData as String: tokenData
     ]
     
     let status = SecItemAdd(query as CFDictionary, nil)
+    print("Keychain status after adding token: \(status)") // Debugging log
     
     if status == errSecSuccess {
         return true
     } else if status == errSecDuplicateItem {
-        // Update if the item already exists
         let attributesToUpdate: [String: Any] = [kSecValueData as String: tokenData]
         let updateStatus = SecItemUpdate(query as CFDictionary, attributesToUpdate as CFDictionary)
+        print("Keychain status after updating token: \(updateStatus)") // Debugging log
         return updateStatus == errSecSuccess
     }
+    
     return false
 }
-
 func getJWTFromKeychain(tokenType: String) -> String? {
     let query: [String: Any] = [
         kSecClass as String: kSecClassGenericPassword,
-        kSecAttrAccount as String: tokenType,  // Token type to fetch (accessToken, refreshToken)
+        kSecAttrAccount as String: tokenType,
         kSecReturnData as String: true,
         kSecMatchLimit as String: kSecMatchLimitOne
     ]
@@ -51,8 +59,10 @@ func getJWTFromKeychain(tokenType: String) -> String? {
     
     if status == errSecSuccess, let data = result as? Data {
         return String(data: data, encoding: .utf8)
+    } else {
+        print("Keychain retrieval status: \(status)")
+        return nil
     }
-    return nil
 }
 struct LoginView: View {
     @State private var email = ""
@@ -145,6 +155,8 @@ struct LoginView: View {
                         print("Parsed Response: \(String(describing: responseObject))") // Debug print to check the parsed data
                         
                         if let responseObject = responseObject {
+                            clearKeychainItem(tokenType: "access_token")
+                            clearKeychainItem(tokenType: "refresh_token")
                             if let accessToken = responseObject["access_token"] as? String,
                                let refreshToken = responseObject["refresh_token"] as? String {
                                 // Save both tokens to Keychain
