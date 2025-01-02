@@ -1,4 +1,5 @@
 # LoginForm
+[![CI/CD](https://github.com/blendereru/LoginForm/actions/workflows/release.yml/badge.svg)](https://github.com/blendereru/LoginForm/actions/workflows/release.yml)
 <a href="https://dotnet.microsoft.com/en-us/"><img src="https://img.shields.io/badge/version-8.0-600aa6?style=flat&logo=dotnet&link=https://dotnet.microsoft.com/en-us/" alt="version" /></a>
 <a href="https://www.swift.org/"><img src="https://img.shields.io/badge/Swift-5.0-e35424?style=flat&logo=swift&logoColor=white&link=https://www.swift.org/" alt="Swift" /></a>
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
