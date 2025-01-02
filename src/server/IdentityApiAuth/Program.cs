@@ -1,6 +1,9 @@
 using System.Security.Claims;
+using IdentityApiAuth;
+using IdentityApiAuth.Data;
 using IdentityApiAuth.Hubs;
 using IdentityApiAuth.Models;
+using IdentityApiAuth.Services;
 using Mapster;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -14,7 +17,7 @@ Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
     .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Information)
     .MinimumLevel.Override("Microsoft.Hosting", LogEventLevel.Information)
-    .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Information )
     .Enrich.FromLogContext()
     .WriteTo.Console()
     .CreateLogger();
@@ -24,7 +27,7 @@ builder.Services.AddIdentityCore<ApplicationUser>()
     .AddEntityFrameworkStores<ApplicationContext>()
     .AddDefaultTokenProviders();
 builder.Host.UseSerilog();
-
+builder.Configuration.AddEnvironmentVariables();
 builder.Services.AddAuthentication(opts =>
     {
         opts.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -58,13 +61,7 @@ builder.Services.AddAuthentication(opts =>
                 return Task.CompletedTask;
             }
         };
-    })
-    .AddGoogle(googleOptions =>
-    {
-        googleOptions.ClientId = builder.Configuration["GoogleServices:ClientId"]!;
-        googleOptions.ClientSecret = builder.Configuration["GoogleServices:ClientSecret"]!;
-    })
-    .AddCookie();
+    });
 builder.Services.AddDbContext<ApplicationContext>(opts =>
 {
     opts.UseSqlServer(builder.Configuration.GetConnectionString("IdentityConnection"));
@@ -81,3 +78,4 @@ app.MapControllers();
 app.MapHub<UserHub>("/api/userhub");
 app.MapHub<PostHub>("/api/posthub");
 app.Run();
+public partial class Program {}

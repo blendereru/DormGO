@@ -2,12 +2,12 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text.Encodings.Web;
+using IdentityApiAuth.Data;
 using IdentityApiAuth.DTOs;
 using IdentityApiAuth.Hubs;
 using IdentityApiAuth.Models;
+using IdentityApiAuth.Services;
 using MapsterMapper;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
@@ -45,13 +45,6 @@ public class AccountController : Controller
             }
             return BadRequest(ModelState);
         }
-        /*var claims = new List<Claim>
-        {
-            new Claim(ClaimTypes.NameIdentifier, user.Id)
-        };
-        var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
-            new ClaimsPrincipal(claimsIdentity));*/
         await SendConfirmationEmailAsync(user);
         return Ok(new { Message = "User registered successfully. Email confirmation is pending." });
     }
@@ -85,7 +78,7 @@ public class AccountController : Controller
             _db.RefreshSessions.RemoveRange(sessionsToRemove);
             await _db.SaveChangesAsync();
         }
-        var accessToken = GenerateAccessToken(user.Email!);
+        var accessToken = GenerateAccessToken(user);
         var refreshToken = GenerateRefreshToken();
     
         var session = new RefreshSession
@@ -140,7 +133,7 @@ public class AccountController : Controller
         {
             return BadRequest(result);
         }
-        var accessToken = GenerateAccessToken(user.Email!);
+        var accessToken = GenerateAccessToken(user);
         var refreshToken = GenerateRefreshToken();
         var session = new RefreshSession()
         {
@@ -161,7 +154,6 @@ public class AccountController : Controller
             .Where(c => c.UserId == userId)
             .Select(c => c.ConnectionId)
             .ToListAsync();
-
         if (connections.Any())
         {
             foreach (var connectionId in connections)
@@ -202,7 +194,13 @@ public class AccountController : Controller
         {
             return Unauthorized(new { Message = "Invalid refresh token." });
         }
-        var newAccessToken = GenerateAccessToken(userEmail);
+
+        var user = await _userManager.FindByEmailAsync(userEmail);
+        if (user == null)
+        {
+            return Unauthorized(new { Message = "User is not found" });
+        }
+        var newAccessToken = GenerateAccessToken(user);
         var newRefreshToken = GenerateRefreshToken();
         session.RefreshToken = newRefreshToken;
         session.ExpiresIn = DateTimeOffset.UtcNow.AddDays(7).ToUnixTimeMilliseconds();
@@ -226,12 +224,13 @@ public class AccountController : Controller
         await _emailSender.SendEmailAsync(user.Email!, "Confirm your email", body, true);
     }
     [NonAction]
-    private string GenerateAccessToken(string email)
+    private string GenerateAccessToken(ApplicationUser user)
     {
         var claims = new List<Claim>()
         {
-            new Claim(ClaimTypes.Name, email),
-            new Claim(ClaimTypes.Email, email),
+            new Claim(ClaimTypes.NameIdentifier, user.Id),
+            new Claim(ClaimTypes.Name, user.UserName),
+            new Claim(ClaimTypes.Email, user.Email),
             new Claim(ClaimTypes.Role, "User")
         };
         var jwt = new JwtSecurityToken(

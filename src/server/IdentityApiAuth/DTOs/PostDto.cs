@@ -5,6 +5,7 @@ namespace IdentityApiAuth.DTOs;
 
 public class PostDto
 {
+    public string? PostId { get; set; }
     public string Description { get; set; }
     public decimal CurrentPrice { get; set; }
 
@@ -15,6 +16,6 @@ public class PostDto
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public int MaxPeople { get; set; }
-    public MemberDto Creator { get; set; }
+    public MemberDto? Creator { get; set; }
     public List<MemberDto> Members { get; set; } = new List<MemberDto>();
 }

@@ -1,4 +1,4 @@
-namespace IdentityApiAuth.Models;
+namespace IdentityApiAuth.Services;
 
 public interface IEmailSender
 {

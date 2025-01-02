@@ -13,8 +13,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace IdentityApiAuth.Migrations
 {
     [DbContext(typeof(ApplicationContext))]
-    [Migration("20241201173924_AddHubColumnForTracking")]
-    partial class AddHubColumnForTracking
+    [Migration("20241203175046_AddUpdateAtColumnToPosts")]
+    partial class AddUpdateAtColumnToPosts
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -136,6 +136,9 @@ namespace IdentityApiAuth.Migrations
 
                     b.Property<int>("MaxPeople")
                         .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 

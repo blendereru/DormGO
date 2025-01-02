@@ -1,7 +1,8 @@
+using IdentityApiAuth.Models;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
-namespace IdentityApiAuth.Models;
+namespace IdentityApiAuth.Data;
 
 public class ApplicationContext : IdentityDbContext<ApplicationUser>
 {
