@@ -54,10 +54,3 @@ jobs:
           slot-name: 'Production'
           package: .
           publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE }}
-        env:
-          ConnectionStrings__IdentityConnection: ${{ secrets.DB_CONNECTION_STRING }}
-          EmailSettings__MailServer: 'smtp.gmail.com'
-          EmailSettings__MailPort: 587
-          EmailSettings__SenderName: 'dormgo-project'
-          EmailSettings__FromEmail: 'sanzar30062000@gmail.com'
-          EmailSettings__Password: ${{ secrets.EMAILSETTINGS_PASSWORD }}

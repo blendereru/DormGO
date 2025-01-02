@@ -61,11 +61,6 @@ builder.Services.AddAuthentication(opts =>
                 return Task.CompletedTask;
             }
         };
-    })
-    .AddGoogle(googleOptions =>
-    {
-        googleOptions.ClientId = builder.Configuration["GoogleServices:ClientId"]!;
-        googleOptions.ClientSecret = builder.Configuration["GoogleServices:ClientSecret"]!;
     });
 builder.Services.AddDbContext<ApplicationContext>(opts =>
 {
