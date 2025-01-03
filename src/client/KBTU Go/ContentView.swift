@@ -259,7 +259,7 @@ struct MainView: View {
                         // Combine and sort posts, ensuring that 'your posts' come first
                         let unifiedPosts: [UnifiedPost] = posts.yourPosts.map { yourPost in
                             UnifiedPost(
-                                id: yourPost.PostId ?? UUID().uuidString,
+                                id: yourPost.postId ?? UUID().uuidString,
                                 members: yourPost.members,
                                 maxPeople: yourPost.maxPeople,
                                 description: yourPost.description,
@@ -269,7 +269,7 @@ struct MainView: View {
                             )
                         } + posts.restPosts.map { restPost in
                             UnifiedPost(
-                                id: restPost.PostId ?? UUID().uuidString,
+                                id: restPost.postId ?? UUID().uuidString,
                                 members: restPost.members,
                                 maxPeople: restPost.maxPeople,
                                 description: restPost.description,
@@ -279,7 +279,7 @@ struct MainView: View {
                             )
                         } + signalRManager.posts.map { signalRPost in
                             UnifiedPost(
-                                id: signalRPost.PostId ?? UUID().uuidString,
+                                id: signalRPost.postId ?? UUID().uuidString,
                                 members: signalRPost.members,
                                 maxPeople: signalRPost.maxPeople,
                                 description: signalRPost.description,
@@ -317,8 +317,8 @@ struct MainView: View {
                             return
                         }
                         self.posts = response
+                        print("Posts fetched successfully: \(response)") // Add this line here
                     }
-
                 }
 
                 // Profile Tab

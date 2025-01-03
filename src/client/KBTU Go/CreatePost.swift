@@ -15,7 +15,7 @@ import CoreLocation
 import Combine
 
 struct Post: Codable {
-    let PostId: String?
+    let postId: String?
     let description: String
     let currentPrice: Int
     let latitude: Double
@@ -162,7 +162,7 @@ class PostAPIManager{
         }
 
         // Prepare the request
-        let refreshURL = endpoint("refresh-tokens")
+        let refreshURL = endpoint("api/refresh-tokens")
         var request = URLRequest(url: refreshURL)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
