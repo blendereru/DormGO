@@ -1,11 +1,11 @@
-# LoginForm
-[![CI/CD](https://github.com/blendereru/LoginForm/actions/workflows/release.yml/badge.svg)](https://github.com/blendereru/LoginForm/actions/workflows/release.yml)
+# DormGO
+[![CI/CD](https://github.com/blendereru/DormGO/actions/workflows/release.yml/badge.svg)](https://github.com/blendereru/DormGO/actions/workflows/release.yml)
 <a href="https://dotnet.microsoft.com/en-us/"><img src="https://img.shields.io/badge/version-8.0-600aa6?style=flat&logo=dotnet&link=https://dotnet.microsoft.com/en-us/" alt="version" /></a>
 <a href="https://www.swift.org/"><img src="https://img.shields.io/badge/Swift-5.0-e35424?style=flat&logo=swift&logoColor=white&link=https://www.swift.org/" alt="Swift" /></a>
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-The process of sign-in, sign-up in mobile-app. It uses `Swift` and `ASP.NET Core` for client and server interaction, and is available
-in `Apple` devices. 
+The mobile application that allows people to spend less money to a transport. People who are aiming to the
+same destination can gather with each other in the app, and divide the money thus saving their money.
 ## Demos
 ### Home Screen & Post Creation Page
 <div style="display: flex; gap: 20px;">
