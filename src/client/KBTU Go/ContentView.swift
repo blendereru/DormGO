@@ -130,12 +130,43 @@ struct YourPostsSection: View {
     }
 
     private func calculateMinutesAgo(from createdAt: String) -> String {
-        let dateFormatter = ISO8601DateFormatter()
-        guard let postDate = dateFormatter.date(from: createdAt) else { return "0" }
-        let minutesAgo = Int(Date().timeIntervalSince(postDate) / 60)
-        return "\(minutesAgo)"
-    }
-}
+        // Try ISO8601DateFormatter first
+        let isoDateFormatter = ISO8601DateFormatter()
+        isoDateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        isoDateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+        
+        if let postDate = isoDateFormatter.date(from: createdAt) {
+            let timeInterval = Date().timeIntervalSince(postDate)
+            let minutesAgo = Int(timeInterval / 60)
+            return "\(minutesAgo)"
+        }
+        
+        // Fallback to DateFormatter for optional fractional seconds
+        let fallbackFormatter = DateFormatter()
+        
+        // Try parsing with or without fractional seconds
+        fallbackFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss" // Without fractional seconds
+        fallbackFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+        
+        if let postDate = fallbackFormatter.date(from: createdAt) {
+            let timeInterval = Date().timeIntervalSince(postDate)
+            let minutesAgo = Int(timeInterval / 60)
+            return "\(minutesAgo)"
+        }
+        
+        // If parsing fails, try with fractional seconds format
+        fallbackFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS" // With fractional seconds
+        
+        if let postDate = fallbackFormatter.date(from: createdAt) {
+            let timeInterval = Date().timeIntervalSince(postDate)
+            let minutesAgo = Int(timeInterval / 60)
+            return "\(minutesAgo)"
+        }
+        
+        // Log failure and return 0
+        print("Failed to parse date: \(createdAt)")
+        return "0"
+    }}
 struct PostGrid: View {
     let posts: [UnifiedPost] // Combined posts
     let columns: [GridItem]
@@ -165,12 +196,43 @@ struct PostGrid: View {
         }
     }
     private func calculateMinutesAgo(from createdAt: String) -> String {
-        let dateFormatter = ISO8601DateFormatter()
-        guard let postDate = dateFormatter.date(from: createdAt) else { return "0" }
-        let minutesAgo = Int(Date().timeIntervalSince(postDate) / 60)
-        return "\(minutesAgo)"
+        // Try ISO8601DateFormatter first
+        let isoDateFormatter = ISO8601DateFormatter()
+        isoDateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        isoDateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+        
+        if let postDate = isoDateFormatter.date(from: createdAt) {
+            let timeInterval = Date().timeIntervalSince(postDate)
+            let minutesAgo = Int(timeInterval / 60)
+            return "\(minutesAgo)"
+        }
+        
+        // Fallback to DateFormatter for optional fractional seconds
+        let fallbackFormatter = DateFormatter()
+        
+        // Try parsing with or without fractional seconds
+        fallbackFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss" // Without fractional seconds
+        fallbackFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+        
+        if let postDate = fallbackFormatter.date(from: createdAt) {
+            let timeInterval = Date().timeIntervalSince(postDate)
+            let minutesAgo = Int(timeInterval / 60)
+            return "\(minutesAgo)"
+        }
+        
+        // If parsing fails, try with fractional seconds format
+        fallbackFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS" // With fractional seconds
+        
+        if let postDate = fallbackFormatter.date(from: createdAt) {
+            let timeInterval = Date().timeIntervalSince(postDate)
+            let minutesAgo = Int(timeInterval / 60)
+            return "\(minutesAgo)"
+        }
+        
+        // Log failure and return 0
+        print("Failed to parse date: \(createdAt)")
+        return "0"
     }
-
 }
 
 
