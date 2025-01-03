@@ -50,14 +50,14 @@ class PostAPIManager{
             refreshToken2 { success in
                 if success {
                     self.sendProtectedRequest2(
-                                          Description: Description,
-                                          CurrentPrice: CurrentPrice,
-                                          Latitude: Latitude,
-                                          Longitude: Longitude,
-                                          CreatedAt: CreatedAt,
-                                          MaxPeople: MaxPeople,
-                                          completion: completion
-                                      )
+                        Description: Description,
+                        CurrentPrice: CurrentPrice,
+                        Latitude: Latitude,
+                        Longitude: Longitude,
+                        CreatedAt: CreatedAt,
+                        MaxPeople: MaxPeople,
+                        completion: completion
+                    )
                 } else {
                     print("Unable to refresh token. Exiting.")
                     completion(nil)
@@ -131,7 +131,7 @@ class PostAPIManager{
                         }
                         return
                     }
-
+                    
                     if let data = data, let responseString = String(data: data, encoding: .utf8) {
                         print("Response Body: \(responseString)")
                         do {
@@ -160,21 +160,21 @@ class PostAPIManager{
             completion(false)
             return
         }
-
+        
         // Prepare the request
         let refreshURL = endpoint("api/refresh-tokens")
         var request = URLRequest(url: refreshURL)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
+        
         let body: [String: Any] = [
             "refreshToken": refreshToken,
             "accessToken": accessToken
         ]
-
+        
         // Set the HTTP body
         request.httpBody = try? JSONSerialization.data(withJSONObject: body, options: [])
-
+        
         // Make the request to refresh the token
         let task = URLSession.shared.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
@@ -183,27 +183,27 @@ class PostAPIManager{
                     completion(false)
                     return
                 }
-
+                
                 if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
                     guard let data = data else {
                         print("Error: No data received")
                         completion(false)
                         return
                     }
-
+                    
                     do {
                         if let responseObject = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
                             // Extract tokens from the response
                             if let newAccessToken = responseObject["access_token"] as? String,
                                let newRefreshToken = responseObject["refresh_token"] as? String {
-
+                                
                                 print("Access Token received: \(newAccessToken)")
                                 print("Refresh Token received: \(newRefreshToken)")
-
+                                
                                 // Save tokens to Keychain
                                 let isAccessTokenSaved = saveJWTToKeychain(token: newAccessToken, tokenType: "access_token")
                                 let isRefreshTokenSaved = saveJWTToKeychain(token: newRefreshToken, tokenType: "refresh_token")
-
+                                
                                 if isAccessTokenSaved && isRefreshTokenSaved {
                                     print("Both tokens saved successfully!")
                                     completion(true)  // Return true to indicate success
@@ -281,7 +281,7 @@ class PostAPIManager{
                         do {
                             let decoder = JSONDecoder()
                             let postsResponse = try decoder.decode(PostsResponse.self, from: data)
-                          //  saveToModel(email: protectedResponse.email, name: protectedResponse.name)
+                            //  saveToModel(email: protectedResponse.email, name: protectedResponse.name)
                             completion(postsResponse)
                         } catch {
                             print("Failed to decode response: \(error.localizedDescription)")
@@ -297,7 +297,73 @@ class PostAPIManager{
         
         // Start the network task
         task.resume() // <-- This line is important!
-    }}
+    }
+    func readPost(postId: String, completion: @escaping (Post?) -> Void) {
+        let url = endpoint("api/post/read/\(postId)") // Adjust the URL to get a specific post
+        
+        guard let token = getJWTFromKeychain(tokenType: "access_token") else {
+            print("Access token missing. Attempting to refresh token.")
+            refreshToken2 { success in
+                if success {
+                    self.readPost(postId: postId, completion: completion)
+                } else {
+                    print("Unable to refresh token. Exiting.")
+                    completion(nil)
+                }
+            }
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        
+        let task = URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("Network error: \(error.localizedDescription)")
+                    completion(nil)
+                    return
+                }
+                
+                if let httpResponse = response as? HTTPURLResponse {
+                    if httpResponse.statusCode == 401 {
+                        print("Token expired. Refreshing...")
+                        self.refreshToken2 { success in
+                            if success {
+                                self.readPost(postId: postId, completion: completion)
+                            } else {
+                                print("Failed to refresh token.")
+                                completion(nil)
+                            }
+                        }
+                        return
+                    } else if httpResponse.statusCode != 200 {
+                        print("Request failed with status code: \(httpResponse.statusCode)")
+                        completion(nil)
+                        return
+                    }
+                    
+                    if let data = data {
+                        do {
+                            let decoder = JSONDecoder()
+                            let post = try decoder.decode(Post.self, from: data) // Decode a single Post
+                            completion(post)
+                        } catch {
+                            print("Failed to decode response: \(error.localizedDescription)")
+                            completion(nil)
+                        }
+                    } else {
+                        print("No data received.")
+                        completion(nil)
+                    }
+                }
+            }
+        }
+        
+        // Start the network task
+        task.resume()
+    }
+}
 class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private var locationManager = CLLocationManager()
     

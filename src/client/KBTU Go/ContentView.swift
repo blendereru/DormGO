@@ -94,11 +94,16 @@ struct UnifiedPost: Identifiable {
     let source: String // "rest" or "signalR"
 }
 
+class PostSelectionManager: ObservableObject {
+    @Published var selectedPost: Post?
+    @Published var isSheetPresented: Bool = false
+}
 struct YourPostsSection: View {
     let posts: [UnifiedPost]
     let columns: [GridItem]
-    @Binding var isSheetPresented: Bool
-
+//    @Binding var isSheetPresented: Bool
+//    @State private var selectedPost: Post?
+    @StateObject private var postSelectionManager = PostSelectionManager()
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             if !posts.isEmpty {
@@ -117,10 +122,19 @@ struct YourPostsSection: View {
                             color: post.source == "rest" ? .yellow : .blue,
                             company: post.members.first?.name ?? "Unknown"
                         ) {
-                            isSheetPresented = true
+                            PostAPIManager.shared.readPost(postId: post.id) { postDetails in
+                                DispatchQueue.main.async {
+                                    if let postDetails = postDetails {
+                                        postSelectionManager.selectedPost = postDetails
+                                        postSelectionManager.isSheetPresented = true
+                                    }
+                                }
+                            }
                         }
-                        .sheet(isPresented: $isSheetPresented) {
-                            SheetContent(title: "title")
+                        .sheet(isPresented: $postSelectionManager.isSheetPresented) {
+                            if let selectedPost = postSelectionManager.selectedPost {
+                                SheetContent(post: selectedPost)
+                            }
                         }
                     }
                 }
@@ -167,73 +181,73 @@ struct YourPostsSection: View {
         print("Failed to parse date: \(createdAt)")
         return "0"
     }}
-struct PostGrid: View {
-    let posts: [UnifiedPost] // Combined posts
-    let columns: [GridItem]
-    @Binding var isSheetPresented: Bool
-
-    var body: some View {
-        LazyVGrid(columns: columns, spacing: 16) {
-            ForEach(posts, id: \.id) { post in
-                RideInfoButton(
-                    peopleAssembled: "\(post.members.count)/\(post.maxPeople)",
-                    destination: post.description,
-                    minutesago: calculateMinutesAgo(from: post.createdAt),
-                    rideName: "Price: \(post.currentPrice)₸",
-                    status: "Active",
-                    color: post.source == "rest" ? .yellow : .blue,
-                    company: post.members.first?.name ?? "Unknown"
-                ) {
-                    isSheetPresented = true
-                }
-                .sheet(isPresented: $isSheetPresented) {
-                    SheetContent(title: "title")
-                        .onDisappear {
-                            // Handle sheet dismissal
-                        }
-                }
-            }
-        }
-    }
-    private func calculateMinutesAgo(from createdAt: String) -> String {
-        // Try ISO8601DateFormatter first
-        let isoDateFormatter = ISO8601DateFormatter()
-        isoDateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        isoDateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
-        
-        if let postDate = isoDateFormatter.date(from: createdAt) {
-            let timeInterval = Date().timeIntervalSince(postDate)
-            let minutesAgo = Int(timeInterval / 60)
-            return "\(minutesAgo)"
-        }
-        
-        // Fallback to DateFormatter for optional fractional seconds
-        let fallbackFormatter = DateFormatter()
-        
-        // Try parsing with or without fractional seconds
-        fallbackFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss" // Without fractional seconds
-        fallbackFormatter.timeZone = TimeZone(secondsFromGMT: 0)
-        
-        if let postDate = fallbackFormatter.date(from: createdAt) {
-            let timeInterval = Date().timeIntervalSince(postDate)
-            let minutesAgo = Int(timeInterval / 60)
-            return "\(minutesAgo)"
-        }
-        
-        // If parsing fails, try with fractional seconds format
-        fallbackFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS" // With fractional seconds
-        
-        if let postDate = fallbackFormatter.date(from: createdAt) {
-            let timeInterval = Date().timeIntervalSince(postDate)
-            let minutesAgo = Int(timeInterval / 60)
-            return "\(minutesAgo)"
-        }
-        
-        // Log failure and return 0
-        print("Failed to parse date: \(createdAt)")
-        return "0"
-    }
-}
+//struct PostGrid: View {
+//    let posts: [UnifiedPost] // Combined posts
+//    let columns: [GridItem]
+//    @Binding var isSheetPresented: Bool
+//
+//    var body: some View {
+//        LazyVGrid(columns: columns, spacing: 16) {
+//            ForEach(posts, id: \.id) { post in
+//                RideInfoButton(
+//                    peopleAssembled: "\(post.members.count)/\(post.maxPeople)",
+//                    destination: post.description,
+//                    minutesago: calculateMinutesAgo(from: post.createdAt),
+//                    rideName: "Price: \(post.currentPrice)₸",
+//                    status: "Active",
+//                    color: post.source == "rest" ? .yellow : .blue,
+//                    company: post.members.first?.name ?? "Unknown"
+//                ) {
+//                    isSheetPresented = true
+//                }
+////                .sheet(isPresented: $isSheetPresented) {
+////                    SheetContent(post: )
+////                        .onDisappear {
+////                            // Handle sheet dismissal
+////                        }
+////                }
+//            }
+//        }
+//    }
+//    private func calculateMinutesAgo(from createdAt: String) -> String {
+//        // Try ISO8601DateFormatter first
+//        let isoDateFormatter = ISO8601DateFormatter()
+//        isoDateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+//        isoDateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+//        
+//        if let postDate = isoDateFormatter.date(from: createdAt) {
+//            let timeInterval = Date().timeIntervalSince(postDate)
+//            let minutesAgo = Int(timeInterval / 60)
+//            return "\(minutesAgo)"
+//        }
+//        
+//        // Fallback to DateFormatter for optional fractional seconds
+//        let fallbackFormatter = DateFormatter()
+//        
+//        // Try parsing with or without fractional seconds
+//        fallbackFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss" // Without fractional seconds
+//        fallbackFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+//        
+//        if let postDate = fallbackFormatter.date(from: createdAt) {
+//            let timeInterval = Date().timeIntervalSince(postDate)
+//            let minutesAgo = Int(timeInterval / 60)
+//            return "\(minutesAgo)"
+//        }
+//        
+//        // If parsing fails, try with fractional seconds format
+//        fallbackFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS" // With fractional seconds
+//        
+//        if let postDate = fallbackFormatter.date(from: createdAt) {
+//            let timeInterval = Date().timeIntervalSince(postDate)
+//            let minutesAgo = Int(timeInterval / 60)
+//            return "\(minutesAgo)"
+//        }
+//        
+//        // Log failure and return 0
+//        print("Failed to parse date: \(createdAt)")
+//        return "0"
+//    }
+//}
 
 
 struct ProfileView: View {
@@ -355,14 +369,14 @@ struct MainView: View {
                             // Separate user posts and rest posts
                             YourPostsSection(
                                 posts: unifiedPosts.filter { $0.source == "yourPost" },
-                                columns: columns,
-                                isSheetPresented: $isSheet1Presented
+                                columns: columns
+                                //   isSheetPresented: $isSheet1Presented
                             )
 
                             YourPostsSection(
                                 posts: unifiedPosts.filter { $0.source == "rest" },
-                                columns: columns,
-                                isSheetPresented: $isSheet1Presented
+                                columns: columns
+                              //  isSheetPresented: $isSheet1Presented
                             )
                         }
 
@@ -477,12 +491,21 @@ struct RideInfoButton: View {
 }
 
 struct SheetContent: View {
-    let title: String
+    let post: Post
 
     var body: some View {
         VStack {
-            Text(title)
-                .font(.largeTitle)
+            Text(post.description)
+                .font(.title)
+                .padding()
+
+            Text("Price: \(post.currentPrice)₸")
+                .font(.subheadline)
+                .foregroundColor(.gray)
+                .padding()
+
+            // Add more details from the `Post` model as needed
+
             Spacer()
         }
         .padding()
