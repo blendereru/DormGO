@@ -259,7 +259,7 @@ struct MainView: View {
                         // Combine and sort posts, ensuring that 'your posts' come first
                         let unifiedPosts: [UnifiedPost] = posts.yourPosts.map { yourPost in
                             UnifiedPost(
-                                id: yourPost.postId ?? UUID().uuidString,
+                                id: yourPost.postId ,
                                 members: yourPost.members,
                                 maxPeople: yourPost.maxPeople,
                                 description: yourPost.description,
@@ -269,7 +269,7 @@ struct MainView: View {
                             )
                         } + posts.restPosts.map { restPost in
                             UnifiedPost(
-                                id: restPost.postId ?? UUID().uuidString,
+                                id: restPost.postId ,
                                 members: restPost.members,
                                 maxPeople: restPost.maxPeople,
                                 description: restPost.description,
@@ -279,7 +279,7 @@ struct MainView: View {
                             )
                         } + signalRManager.posts.map { signalRPost in
                             UnifiedPost(
-                                id: signalRPost.postId ?? UUID().uuidString,
+                                id: signalRPost.postId ,
                                 members: signalRPost.members,
                                 maxPeople: signalRPost.maxPeople,
                                 description: signalRPost.description,

@@ -15,7 +15,7 @@ import CoreLocation
 import Combine
 
 struct Post: Codable {
-    let postId: String?
+    let postId: String
     let description: String
     let currentPrice: Int
     let latitude: Double

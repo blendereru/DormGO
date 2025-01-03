@@ -10,7 +10,7 @@ import Foundation
 
 
 struct PostDetails: Codable {
-    let postId: String?
+    let postId: String
     let description: String
     let currentPrice: Double
     let latitude: Double
