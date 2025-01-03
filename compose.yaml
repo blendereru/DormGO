@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   app:
-    build: src/server/IdentityApiAuth
+    build: src/server/DormGO
     image: identity-api-auth:latest
     container_name: identity-api-auth-container
     ports:
@@ -18,7 +18,7 @@ services:
     container_name: sql_server_container
     environment:
       - ACCEPT_EULA=Y
-      - SA_PASSWORD=22604813Kz@
+      - SA_PASSWORD=<your_password>
     ports:
       - "1433:1433"
     volumes:

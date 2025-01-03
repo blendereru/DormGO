@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - ./src/server/IdentityApiAuth/**
+      - ./src/server/DormGO/**
       - .github/workflows/release.yml
   workflow_dispatch:
 
@@ -22,11 +22,11 @@ jobs:
           dotnet-version: '8.x'
 
       - name: Build with dotnet
-        run: dotnet build ./src/server/IdentityApiAuth/IdentityApiAuth.csproj --configuration Release
+        run: dotnet build ./src/server/DormGO/DormGO.csproj --configuration Release
 
       - name: dotnet publish
-        run: dotnet publish ./src/server/IdentityApiAuth/IdentityApiAuth.csproj -c Release -o ${{env.DOTNET_ROOT}}/myapp
-      
+        run: dotnet publish ./src/server/DormGO/DormGO.csproj -c Release -o ${{env.DOTNET_ROOT}}/myapp
+
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:

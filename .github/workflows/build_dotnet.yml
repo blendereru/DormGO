@@ -12,7 +12,7 @@ on:
 jobs:
   build:
 
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
     - uses: actions/checkout@v4
@@ -22,14 +22,14 @@ jobs:
         dotnet-version: 8.0.x
     - name: Restore dependencies
       run: |
-        cd src/server/IdentityApiAuth
+        cd src/server/DormGO
         dotnet restore
     - name: Build
       run: |
-        cd src/server/IdentityApiAuth
+        cd src/server/DormGO
         dotnet build --no-restore
     - name: Test
       run: |
-        cd src/server/IdentityApiAuth
+        cd src/server/DormGO
         dotnet test --no-build --verbosity normal
 
