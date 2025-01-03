@@ -26,7 +26,7 @@ jobs:
 
       - name: dotnet publish
         run: dotnet publish ./src/server/DormGO/DormGO.csproj -c Release -o ${{env.DOTNET_ROOT}}/myapp
-      
+
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
@@ -54,8 +54,14 @@ jobs:
           slot-name: 'Production'
           package: .
           publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE }}
-          
-      - name: Apply Database migrations
+
+      - name: Install dotnet-ef tool
+        run: dotnet tool install --global dotnet-ef
+
+      - name: Add dotnet tools to PATH
+        run: echo "::add-path::${HOME}/.dotnet/tools"
+
+      - name: Apply Database Migrations
         run: |
           cd ./src/server/DormGO
           dotnet ef database update
