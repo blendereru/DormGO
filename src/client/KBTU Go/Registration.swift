@@ -22,7 +22,7 @@ class APIManager {
     static let shared = APIManager()
     
     func sendProtectedRequest(completion: @escaping (ProtectedResponse?) -> Void) {
-        let url = endpoint("api/protected")
+        let url = endpoint("/api/profile/read")
         
         guard let token = getJWTFromKeychain(tokenType: "access_token") else {
             print("Access token missing. Attempting to refresh token.")
