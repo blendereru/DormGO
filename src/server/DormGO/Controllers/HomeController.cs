@@ -219,6 +219,35 @@ public class HomeController : Controller
         await _hub.Clients.All.SendAsync("PostUpdated", updatedPostDto);
         return Ok(new { Message = "The post was successfully updated.", Post = updatedPostDto });
     }
+
+    [HttpPost("/api/post/unjoin/{id}")]
+    public async Task<IActionResult> UnjoinPost(string id)
+    {
+        var emailClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value;
+        if (string.IsNullOrEmpty(emailClaim))
+        {
+            return Unauthorized("User's email not found in the JWT token.");
+        }
+        var user = await _userManager.FindByEmailAsync(emailClaim);
+        if (user == null)
+        {
+            return NotFound("The user does not exist.");
+        }
+        var post = await _db.Posts
+            .Include(p => p.Members)
+            .FirstOrDefaultAsync(p => p.Id == id);
+        if (post == null)
+        {
+            return NotFound("The post with the specified ID was not found.");
+        }
+        if (!post.Members.Any(m => m.Id == user.Id))
+        {
+            return BadRequest("The user is not a member of the post.");
+        }
+        post.Members.Remove(user);
+        await _db.SaveChangesAsync();
+        return Ok(new { Message = "The user was successfully removed from the post's members." });
+    }
     [HttpPost("/api/post/delete/{id}")]
     public async Task<IActionResult> RemovePost(string id)
     {
