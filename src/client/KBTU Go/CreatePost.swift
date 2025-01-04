@@ -152,6 +152,73 @@ class PostAPIManager{
         
         task.resume()
     }
+    func join(postId: String) {
+        // Construct the URL with the postId
+        let url = endpoint("api/post/join/\(postId)")
+
+        // Retrieve the JWT token from Keychain
+        guard let token = getJWTFromKeychain(tokenType: "access_token") else {
+            print("Access token missing. Attempting to refresh token.")
+            refreshToken2 { success in
+                if success {
+                    self.join(postId: postId) // Retry after refreshing the token
+                } else {
+                    print("Unable to refresh token. Exiting.")
+                }
+            }
+            return
+        }
+
+        print("JWT Token: \(token)")
+
+        // Prepare the request
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type") // In case the server expects JSON headers
+
+        // Send the request
+        let task = URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("Error: \(error.localizedDescription)")
+                    return
+                }
+
+                if let httpResponse = response as? HTTPURLResponse {
+                    print("HTTP Status Code: \(httpResponse.statusCode)")
+
+                    if httpResponse.statusCode == 401 {
+                        print("Token expired. Refreshing...")
+                        self.refreshToken2 { success in
+                            if success {
+                                self.join(postId: postId) // Retry with a refreshed token
+                            } else {
+                                print("Failed to refresh token.")
+                            }
+                        }
+                        return
+                    }
+
+                    if let data = data, let responseString = String(data: data, encoding: .utf8) {
+                        print("Response Body: \(responseString)")
+                        // Handle the response, e.g., success message, or additional info
+                        if httpResponse.statusCode == 200 {
+                            // Successfully joined the post
+                            print("Successfully joined the post.")
+                        } else {
+                            // Handle other status codes as needed
+                            print("Error: \(responseString)")
+                        }
+                    } else {
+                        print("No data received")
+                    }
+                }
+            }
+        }
+
+        task.resume()
+    }
     func refreshToken2(completion: @escaping (Bool) -> Void) {
         // Retrieve tokens from Keychain first
         guard let refreshToken = getJWTFromKeychain(tokenType: "refresh_token"),

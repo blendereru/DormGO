@@ -47,11 +47,17 @@ class SignalRManager: ObservableObject {
     }
 
     private func setupListeners() {
-        hubConnection?.on(method: "PostCreated", callback: { [weak self] (userName: String, postDto: PostDetails) in
-            print("Received PostCreated event from user: \(userName)")
-
-            DispatchQueue.main.async {
-                self?.posts.append(postDto)
+        hubConnection?.on(method: "PostCreated", callback: { [weak self] (type: Bool, postDto: PostDetails) in
+            let timestamp = Date()
+            print("Received post at \(timestamp) with type: \(type)")  // Log the time and type
+            
+            if !type {
+                print("Post appended: \(postDto)")
+                DispatchQueue.main.async {
+                    self?.posts.append(postDto)
+                }
+            } else {
+                print("Post ignored due to type being true")
             }
         })
     }

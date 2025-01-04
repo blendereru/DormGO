@@ -105,7 +105,8 @@ struct YourPostsSection: View {
 //    @State private var selectedPost: Post?
     @StateObject private var postSelectionManager = PostSelectionManager()
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        print("Posts passed to YourPostsSection:", posts.map { $0.source })
+       return  VStack(alignment: .leading, spacing: 16) {
             if !posts.isEmpty {
                 Text(posts.first?.source == "yourPost" ? "Your Posts" : "Rest Posts")
                     .font(.headline)
@@ -320,7 +321,7 @@ struct MainView: View {
                                 PublishContent()
                                     .onDisappear {
                                         
-                                        signalRManager.startConnection()
+                                      //  signalRManager.startConnection()
                                         PostAPIManager.shared.readposts { response in
                                             guard let response = response else {
                                                 return
@@ -360,10 +361,11 @@ struct MainView: View {
                                 maxPeople: signalRPost.maxPeople,
                                 description: signalRPost.description,
                                 createdAt: signalRPost.createdAt,
-                                currentPrice: signalRPost.currentPrice,
+                                currentPrice: Double(signalRPost.currentPrice),
                                 source: "signalR"
                             )
                         }
+                      
 
                         if !unifiedPosts.isEmpty {
                             // Separate user posts and rest posts
@@ -373,11 +375,11 @@ struct MainView: View {
                                 //   isSheetPresented: $isSheet1Presented
                             )
 
+                           
                             YourPostsSection(
-                                posts: unifiedPosts.filter { $0.source == "rest" },
-                                columns: columns
-                              //  isSheetPresented: $isSheet1Presented
-                            )
+                                                     posts: unifiedPosts.filter { $0.source == "rest" || $0.source == "signalR" },
+                                                     columns: columns
+                                                 )
                         }
 
                         Spacer()
@@ -492,7 +494,7 @@ struct RideInfoButton: View {
 
 struct SheetContent: View {
     let post: Post
-
+    let shared = PostAPIManager()
     var body: some View {
         VStack {
             Text(post.description)
@@ -504,15 +506,25 @@ struct SheetContent: View {
                 .foregroundColor(.gray)
                 .padding()
 
-            // Add more details from the `Post` model as needed
+            // Join button
+            Button(action: {
+                shared.join(postId: post.postId)
+            }) {
+                Text("Join")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(Color.blue)
+                    .cornerRadius(8)
+            }
+            .padding()
 
             Spacer()
         }
         .padding()
     }
 }
-
-
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
         ContentView(isPreview: true)  // Pass `true` to simulate being logged in
