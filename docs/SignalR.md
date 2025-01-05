@@ -16,9 +16,28 @@ Server sends updates to the client over an `HTTP` connection using the `text/eve
 remain open for streaming messages until explicitly closed by either side.
 * `Long polling` - no persistent connection is applied. Client periodically polls server for updates, until it sends
 him one.
+### How is connection established ?
+SignalR uses an HTTP connection for the initial handshake before establishing a more persistent connection. 
+1) The client (e.g., a browser or a SignalR client) starts the process by making an HTTP GET request to the server. This request contains specific headers that indicate the client’s desire to switch protocols from HTTP to WebSocket.
+2) The client sends an HTTP request with specific headers to indicate it wants to upgrade the connection to WebSocket:
+```
+GET /chatHub HTTP/1.1
+Host: example.com
+Connection: Upgrade
+Upgrade: websocket
+Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==
+Sec-WebSocket-Version: 13
+```
+3) Upon receiving the client's request, the server verifies the connection upgrade request.
+4) If the server accepts the upgrade request, it responds with an HTTP 101 Switching Protocols status code. This indicates that the server is willing to switch to the WebSocket protocol as requested by the client. Example:
+```
+HTTP/1.1 101 Switching Protocols
+Upgrade: websocket
+Connection: Upgrade
+Sec-WebSocket-Accept: x3JJHMbDL1EzLkh9BqD1gJFO9E8W74C1VIX64z2FVVY=
+```
 ### About hubs
-`Hub` is the essential component in connection setting. Once an endpoint is set upon hub, both client and server can
-can send and receive the methods defined. `Hubs` abstract the complexity of writing different implementations for each
+`Hub` is the essential component in connection setting. Once an endpoint is set upon hub, both client and server can send and receive the methods defined. `Hubs` abstract the complexity of writing different implementations for each
 transport type.
 ### Difference between `Client()` and `User()` in `HubContext`
 `Hubs` provide built-in methods to manage client connections. `ConnectionIDs` uniquely identify each connected client.
@@ -49,5 +68,6 @@ user's claims:
 ```csharp
 Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 ```
+
 
 
