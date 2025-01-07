@@ -59,10 +59,12 @@ func getJWTFromKeychain(tokenType: String) -> String? {
     
     if status == errSecSuccess, let data = result as? Data {
         return String(data: data, encoding: .utf8)
+    } else if status == errSecItemNotFound {
+        print("Keychain item not found for token type: \(tokenType). Status: \(status)")
     } else {
-        print("Keychain retrieval status: \(status)")
-        return nil
+        print("Unexpected Keychain error: \(status)")
     }
+    return nil
 }
 struct LoginView: View {
     @State private var email = ""

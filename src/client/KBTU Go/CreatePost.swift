@@ -25,6 +25,9 @@ struct Post: Codable {
     let members: [ProtectedResponse]
 }
 
+struct PostsResponse_other: Codable {
+    let postsWhereMember: [Post]
+}
 // Root response model
 struct PostsResponse: Codable {
     let yourPosts: [Post]
@@ -152,9 +155,258 @@ class PostAPIManager{
         
         task.resume()
     }
+    func update(postId: String ,Description: String, CurrentPrice: Double, Latitude: Double, Longitude: Double, CreatedAt: String, MaxPeople: Int,Members:[ProtectedResponse], completion: @escaping (ProtectedResponse?) -> Void) {
+        let url = endpoint("api/post/update/\(postId)")
+        
+        // Retrieve the JWT token from Keychain
+        guard let token = getJWTFromKeychain(tokenType: "access_token") else {
+            print("Access token missing. Attempting to refresh token.")
+            refreshToken2 { success in
+                if success {
+                    self.update(
+                        postId: postId,
+                        Description: Description,
+                        CurrentPrice: CurrentPrice,
+                        Latitude: Latitude,
+                        Longitude: Longitude,
+                        CreatedAt: CreatedAt,
+                        MaxPeople: MaxPeople,
+                        Members: Members,
+                        completion: completion
+                    )
+                } else {
+                    print("Unable to refresh token. Exiting.")
+                    completion(nil)
+                }
+            }
+            return
+        }
+        print("JWT Token: \(token)")
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"  // Make sure the method is POST
+        
+        // Set the JWT token in the Authorization header
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        // Use the dynamic body passed into the function
+        let body: [String: Any] = [
+            "PostId": postId,
+            "Description": Description,
+            "CurrentPrice": CurrentPrice,
+            "Latitude": Latitude,
+            "Longitude": Longitude,
+            "CreatedAt": CreatedAt,
+            "MaxPeople": MaxPeople,
+            "Members": Members // Assuming toDictionary is implemented
+        ]
+
+        
+        // Convert body to JSON data
+        guard let jsonData = try? JSONSerialization.data(withJSONObject: body, options: []) else {
+            print("Error: Unable to convert body to JSON")
+            return
+        }
+        
+        request.httpBody = jsonData
+        
+        // Print the headers to terminal
+        if let allHeaders = request.allHTTPHeaderFields {
+            print("Request Headers: \(allHeaders)")
+        }
+        
+        let task = URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("Error: \(error.localizedDescription)")
+                    return
+                }
+                
+                if let httpResponse = response as? HTTPURLResponse {
+                    print("HTTP Status Code: \(httpResponse.statusCode)")
+                    
+                    if let headers = httpResponse.allHeaderFields as? [String: String] {
+                        print("Response Headers: \(headers)")
+                    }
+                    if httpResponse.statusCode == 401 {
+                        print("Token expired. Refreshing...")
+                        self.refreshToken2 { success in
+                            if success {
+                                self.sendProtectedRequest2(
+                                    Description: Description,
+                                    CurrentPrice: CurrentPrice,
+                                    Latitude: Latitude,
+                                    Longitude: Longitude,
+                                    CreatedAt: CreatedAt,
+                                    MaxPeople: MaxPeople,
+                                    completion: completion
+                                )
+                            } else {
+                                print("Failed to refresh token.")
+                                completion(nil)
+                            }
+                        }
+                        return
+                    }
+                    
+                    if let data = data, let responseString = String(data: data, encoding: .utf8) {
+                        print("Response Body: \(responseString)")
+                        do {
+                            let decoder = JSONDecoder()
+                            let protectedResponse = try decoder.decode(ProtectedResponse.self, from: data)
+                            print("Email: \(protectedResponse.email)")
+                            print("Name: \(protectedResponse.name)")
+                            completion(protectedResponse)
+                        } catch {
+                            print("Error decoding JSON: \(error.localizedDescription)")
+                        }
+                    } else {
+                        print("No data received")
+                    }
+                }
+            }
+        }
+        
+        task.resume()
+    }
+    func deletePost(postId: String) {
+        // Construct the URL with the postId
+        let url = endpoint("api/post/delete/\(postId)")
+
+        // Retrieve the JWT token from Keychain
+        guard let token = getJWTFromKeychain(tokenType: "access_token") else {
+            print("Access token missing. Attempting to refresh token.")
+            refreshToken2 { success in
+                if success {
+                    self.deletePost(postId: postId) // Retry after refreshing the token
+                } else {
+                    print("Unable to refresh token. Exiting.")
+                }
+            }
+            return
+        }
+
+        print("JWT Token: \(token)")
+
+        // Prepare the request
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type") // In case the server expects JSON headers
+
+        // Send the request
+        let task = URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("Error: \(error.localizedDescription)")
+                    return
+                }
+
+                if let httpResponse = response as? HTTPURLResponse {
+                    print("HTTP Status Code: \(httpResponse.statusCode)")
+
+                    if httpResponse.statusCode == 401 {
+                        print("Token expired. Refreshing...")
+                        self.refreshToken2 { success in
+                            if success {
+                                self.deletePost(postId: postId) // Retry with a refreshed token
+                            } else {
+                                print("Failed to refresh token.")
+                            }
+                        }
+                        return
+                    }
+
+                    if let data = data, let responseString = String(data: data, encoding: .utf8) {
+                        print("Response Body: \(responseString)")
+                        // Handle the response, e.g., success message, or additional info
+                        if httpResponse.statusCode == 200 {
+                            // Successfully deleted the post
+                            print("Successfully deleted the post.")
+                        } else {
+                            // Handle other status codes as needed
+                            print("Error: \(responseString)")
+                        }
+                    } else {
+                        print("No data received")
+                    }
+                }
+            }
+        }
+
+        task.resume()
+    }
     func join(postId: String) {
         // Construct the URL with the postId
         let url = endpoint("api/post/join/\(postId)")
+
+        // Retrieve the JWT token from Keychain
+        guard let token = getJWTFromKeychain(tokenType: "access_token") else {
+            print("Access token missing. Attempting to refresh token.")
+            refreshToken2 { success in
+                if success {
+                    self.join(postId: postId) // Retry after refreshing the token
+                } else {
+                    print("Unable to refresh token. Exiting.")
+                }
+            }
+            return
+        }
+
+        print("JWT Token: \(token)")
+
+        // Prepare the request
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type") // In case the server expects JSON headers
+
+        // Send the request
+        let task = URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("Error: \(error.localizedDescription)")
+                    return
+                }
+
+                if let httpResponse = response as? HTTPURLResponse {
+                    print("HTTP Status Code: \(httpResponse.statusCode)")
+
+                    if httpResponse.statusCode == 401 {
+                        print("Token expired. Refreshing...")
+                        self.refreshToken2 { success in
+                            if success {
+                                self.join(postId: postId) // Retry with a refreshed token
+                            } else {
+                                print("Failed to refresh token.")
+                            }
+                        }
+                        return
+                    }
+
+                    if let data = data, let responseString = String(data: data, encoding: .utf8) {
+                        print("Response Body: \(responseString)")
+                        // Handle the response, e.g., success message, or additional info
+                        if httpResponse.statusCode == 200 {
+                            // Successfully joined the post
+                            print("Successfully joined the post.")
+                        } else {
+                            // Handle other status codes as needed
+                            print("Error: \(responseString)")
+                        }
+                    } else {
+                        print("No data received")
+                    }
+                }
+            }
+        }
+
+        task.resume()
+    }
+    func unjoin(postId: String) {
+        // Construct the URL with the postId
+        let url = endpoint("api/post/unjoin/\(postId)")
 
         // Retrieve the JWT token from Keychain
         guard let token = getJWTFromKeychain(tokenType: "access_token") else {
@@ -364,6 +616,71 @@ class PostAPIManager{
         
         // Start the network task
         task.resume() // <-- This line is important!
+    }
+    func read_other(completion: @escaping (PostsResponse_other?) -> Void) {
+        let url = endpoint("/api/post/read/others")
+        
+        guard let token = getJWTFromKeychain(tokenType: "access_token") else {
+            print("Access token missing. Attempting to refresh token.")
+            refreshToken2 { success in
+                if success {
+                    self.read_other(completion: completion)
+                } else {
+                    print("Unable to refresh token. Exiting.")
+                    completion(nil)
+                }
+            }
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        
+        let task = URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("Network error: \(error.localizedDescription)")
+                    completion(nil)
+                    return
+                }
+                
+                if let httpResponse = response as? HTTPURLResponse {
+                    if httpResponse.statusCode == 401 {
+                        print("Token expired. Refreshing...")
+                        self.refreshToken2 { success in
+                            if success {
+                                self.read_other(completion: completion)
+                            } else {
+                                print("Failed to refresh token.")
+                                completion(nil)
+                            }
+                        }
+                        return
+                    } else if httpResponse.statusCode != 200 {
+                        print("Request failed with status code: \(httpResponse.statusCode)")
+                        completion(nil)
+                        return
+                    }
+                    
+                    if let data = data {
+                        do {
+                            let decoder = JSONDecoder()
+                            let posts = try decoder.decode(PostsResponse_other.self, from: data)
+                            completion(posts)
+                        } catch {
+                            print("Failed to decode response: \(error.localizedDescription)")
+                            completion(nil)
+                        }
+                    } else {
+                        print("No data received.")
+                        completion(nil)
+                    }
+                }
+            }
+        }
+        
+        // Start the network task
+        task.resume()
     }
     func readPost(postId: String, completion: @escaping (Post?) -> Void) {
         let url = endpoint("api/post/read/\(postId)") // Adjust the URL to get a specific post
@@ -614,6 +931,191 @@ struct PublishContent: View {
                                                   CreatedAt: createdAt,
                                                   MaxPeople: maxP
                                              )
+                            }
+                        }
+                    }) {
+                Text("Create Post")
+                    .padding()
+                    .background(Color.blue)
+                    .foregroundColor(.white)
+                    .cornerRadius(8)
+            }
+            .padding()
+            
+            Text(message)
+                .padding()
+                .foregroundColor(.red)
+        }
+        .padding()
+    }
+}
+struct UpdateContent: View {
+    let  postId: String
+    @State private var message = ""
+    @StateObject private var locationManager = LocationManager()
+    // State variables to bind to the form fields
+    @State private var description = ""
+    @State private var currentPrice = ""
+    @State private var latitude = ""
+    @State private var longitude = ""
+    @State private var createdAt = ""
+    @State private var maxPeople = ""
+    @State private var cancellables = Set<AnyCancellable>()
+    let members: [ProtectedResponse] = []
+    @State private var name = ""
+    @State private var email = ""
+    
+    @State private var region = MKCoordinateRegion(
+         center: CLLocationCoordinate2D(latitude: 43.25566911748583,  longitude: 76.94311304177864),
+         span: MKCoordinateSpan(latitudeDelta: 0.002, longitudeDelta: 0.002)
+     )
+    
+    @State private var selectedCoordinate: CLLocationCoordinate2D?
+    // Function to send data to the server
+    func sendUpdateRequest(postId: String ,Description: String, CurrentPrice: Double, Latitude: Double, Longitude: Double, CreatedAt: String, MaxPeople: Int, Members: [ProtectedResponse]) {
+        let url = endpoint("api/post/update/\(postId)")
+
+        let body: [String: Any] = [
+            "PostId": postId,
+            "Description": Description,
+            "CurrentPrice": CurrentPrice,
+            "Latitude": Latitude,
+            "Longitude": Longitude,
+            "CreatedAt": CreatedAt,
+            "MaxPeople": MaxPeople,
+            "Members": Members // Assuming toDictionary is implemented
+        ]
+        
+        guard let jsonData = try? JSONSerialization.data(withJSONObject: body, options: []) else {
+            message = "Error: Unable to convert the provided details into JSON format."
+            return
+        }
+
+        // Debugging: Print the JSON payload before sending
+        if let jsonString = String(data: jsonData, encoding: .utf8) {
+            print("JSON Payload: \(jsonString)")
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.httpBody = jsonData
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    message = "Error: \(error.localizedDescription). Please check your internet connection and try again."
+                    return
+                }
+                
+                if let data = data {
+                    do {
+                        if let responseObject = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
+                            if responseObject["success"] as? Bool == true {
+                                message = "Post update successful."
+                            } else {
+                                message = "Post update failed: \(responseObject["error"] as? String ?? "Unknown error")."
+                            }
+                        } else {
+                            message = "Unexpected response format received."
+                        }
+                    } catch {
+                        message = "Error parsing server response."
+                    }
+                } else {
+                    message = "No response from the server."
+                }
+            }
+        }.resume()
+    }
+    func getCurrentTime() -> String {
+         let formatter = DateFormatter()
+         formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
+         return formatter.string(from: Date())
+     }
+    
+    var body: some View {
+        VStack {
+            
+            TextField("Description", text: $description)
+              //  .padding()
+                .extensionTextFieldView(roundedCornes: 6, startColor: .white, endColor: .blue)
+                .padding()
+                
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+            
+            TextField("Current Price", text: $currentPrice)
+                .padding()
+                .keyboardType(.decimalPad)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+            
+            MapView(region: $region, selectedCoordinate: $selectedCoordinate, latitude: $latitude, longitude: $longitude)
+                         .frame(height: 300)
+                         .cornerRadius(20) // Set the corner radius to make the map rounded
+                             .shadow(radius: 10)
+                         .onAppear {
+                             if let currentLocation = locationManager.currentLocation {
+                                 // If location is already available, update the map region immediately.
+                                 region.center = currentLocation
+                                 latitude = String(currentLocation.latitude)
+                                 longitude = String(currentLocation.longitude)
+                             } else {
+                                 // Actively watch for the location to be updated
+                                 locationManager.$currentLocation
+                                     .receive(on: RunLoop.main)
+                                     .sink { location in
+                                         if let location = location {
+                                             region.center = location
+                                             latitude = String(location.latitude)
+                                             longitude = String(location.longitude)
+                                         }
+                                     }
+                                     .store(in: &cancellables)
+                             }
+                         }
+            
+            TextField("Max People", text: $maxPeople)
+                .padding()
+                .keyboardType(.numberPad)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+            
+           
+            Button(action: {
+                createdAt = getCurrentTime()
+            
+                        // Fetch the creator details using sendProtectedRequest
+                PostAPIManager.shared.update(postId:postId,Description: description,
+                                      CurrentPrice: Double(currentPrice) ?? 0.0,
+                                      Latitude: Double(latitude) ?? 0.0,
+                                      Longitude: Double(longitude) ?? 0.0,
+                                      CreatedAt: getCurrentTime(),  // Assuming you want to use current time here
+                                      MaxPeople: Int(maxPeople) ?? 0,
+                                             Members: members
+                                            
+                                      ) { protectedResponse in
+                    self.name = protectedResponse?.name ?? ""
+                    self.email = protectedResponse?.email ?? ""
+                            
+                           
+                            
+                            // Convert text inputs to the required data types
+                            if let price = Double(currentPrice),
+                               let lat = Double(latitude),
+                               let lon = Double(longitude),
+                               let maxP = Int(maxPeople){
+                            
+                                
+                                // Call sendCreateRequest with creator data
+                                sendUpdateRequest(postId:postId,
+                                                  Description: description,
+                                                  CurrentPrice: price,
+                                                  Latitude: lat,
+                                                  Longitude: lon,
+                                                  CreatedAt: createdAt,
+                                                  MaxPeople: maxP,
+                                                  Members:  members
+                                             )
+                                
                             }
                         }
                     }) {

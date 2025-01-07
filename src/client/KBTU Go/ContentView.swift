@@ -91,7 +91,7 @@ struct UnifiedPost: Identifiable {
     let description: String
     let createdAt: String
     let currentPrice: Double
-    let source: String // "rest" or "signalR"
+    let source: String// "rest" or "signalR"
 }
 
 class PostSelectionManager: ObservableObject {
@@ -101,14 +101,14 @@ class PostSelectionManager: ObservableObject {
 struct YourPostsSection: View {
     let posts: [UnifiedPost]
     let columns: [GridItem]
-//    @Binding var isSheetPresented: Bool
-//    @State private var selectedPost: Post?
     @StateObject private var postSelectionManager = PostSelectionManager()
+    
     var body: some View {
         print("Posts passed to YourPostsSection:", posts.map { $0.source })
-       return  VStack(alignment: .leading, spacing: 16) {
+        return VStack(alignment: .leading, spacing: 16) {
             if !posts.isEmpty {
-                Text(posts.first?.source == "yourPost" ? "Your Posts" : "Rest Posts")
+                Text(posts.first?.source == "yourPost" ? "Your Posts" :
+                     posts.first?.source == "joined" ? "Joined" : "Rest Posts")
                     .font(.headline)
                     .padding(.vertical, 8)
 
@@ -134,7 +134,11 @@ struct YourPostsSection: View {
                         }
                         .sheet(isPresented: $postSelectionManager.isSheetPresented) {
                             if let selectedPost = postSelectionManager.selectedPost {
-                                SheetContent(post: selectedPost)
+                                if post.source == "joined" {
+                                    SheetContent_joined(post: selectedPost)  
+                                } else {
+                                    SheetContent(post: selectedPost, isUserPost: post.source == "yourPost")
+                                }
                             }
                         }
                     }
@@ -145,7 +149,6 @@ struct YourPostsSection: View {
     }
 
     private func calculateMinutesAgo(from createdAt: String) -> String {
-        // Try ISO8601DateFormatter first
         let isoDateFormatter = ISO8601DateFormatter()
         isoDateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         isoDateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
@@ -156,11 +159,8 @@ struct YourPostsSection: View {
             return "\(minutesAgo)"
         }
         
-        // Fallback to DateFormatter for optional fractional seconds
         let fallbackFormatter = DateFormatter()
-        
-        // Try parsing with or without fractional seconds
-        fallbackFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss" // Without fractional seconds
+        fallbackFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
         fallbackFormatter.timeZone = TimeZone(secondsFromGMT: 0)
         
         if let postDate = fallbackFormatter.date(from: createdAt) {
@@ -169,8 +169,7 @@ struct YourPostsSection: View {
             return "\(minutesAgo)"
         }
         
-        // If parsing fails, try with fractional seconds format
-        fallbackFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS" // With fractional seconds
+        fallbackFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS"
         
         if let postDate = fallbackFormatter.date(from: createdAt) {
             let timeInterval = Date().timeIntervalSince(postDate)
@@ -178,10 +177,10 @@ struct YourPostsSection: View {
             return "\(minutesAgo)"
         }
         
-        // Log failure and return 0
         print("Failed to parse date: \(createdAt)")
         return "0"
-    }}
+    }
+}
 //struct PostGrid: View {
 //    let posts: [UnifiedPost] // Combined posts
 //    let columns: [GridItem]
@@ -257,22 +256,46 @@ struct ProfileView: View {
     let logoutAction: () -> Void
 
     var body: some View {
-        VStack {
-            Text("Name: \(name)")
-                .font(.title)
-                .padding()
-            Text("Email: \(email)")
-                .font(.subheadline)
-                .foregroundColor(.gray)
-                .padding()
-            
+        VStack(spacing: 20) {
+            // Title Text
+            Text("Profile")
+                .font(.largeTitle)
+                .fontWeight(.bold)
+                .padding(.top, 40)
+
+            // Name and Email Information
+            VStack(spacing: 10) {
+                Text("Name: \(name)")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.primary)
+                    .padding(.horizontal)
+
+                Text("Email: \(email)")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal)
+            }
+
+            Spacer()
+
+            // Logout Button with more style
             Button(action: logoutAction) {
                 Text("Log Out")
                     .font(.headline)
-                    .foregroundColor(.red)
+                    .foregroundColor(.white)
                     .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(Color.red)
+                    .cornerRadius(10)
+                    .shadow(radius: 5)
             }
+            .padding(.horizontal)
+
         }
+        .padding()
+      
+
         .onAppear {
             APIManager.shared.sendProtectedRequest { protectedResponse in
                 self.name = protectedResponse?.name ?? ""
@@ -291,6 +314,7 @@ struct MainView: View {
     let columns = [GridItem(.adaptive(minimum: 150))]
     @State private var user: ProtectedResponse
     @State private var posts: PostsResponse = PostsResponse(yourPosts: [], restPosts: [])
+    @State private var joinedposts:PostsResponse_other = PostsResponse_other(postsWhereMember : [])
     var logoutAction: () -> Void // Accept logout closure
     
     init(user: ProtectedResponse, posts: PostsResponse, logoutAction: @escaping () -> Void) {
@@ -398,6 +422,45 @@ struct MainView: View {
                         print("Posts fetched successfully: \(response)") // Add this line here
                     }
                 }
+                
+                ScrollView{
+                    VStack{
+                        let unifiedPosts: [UnifiedPost] = joinedposts.postsWhereMember.map { yourPost in
+                            UnifiedPost(
+                                id: yourPost.postId ,
+                                members: yourPost.members,
+                                maxPeople: yourPost.maxPeople,
+                                description: yourPost.description,
+                                createdAt: yourPost.createdAt,
+                                currentPrice: Double(yourPost.currentPrice),
+                                source: "joined"
+                            )
+                            
+                        }
+                        if !unifiedPosts.isEmpty {
+                            // Separate user posts and rest posts
+                            YourPostsSection(
+                                posts: unifiedPosts.filter { $0.source == "joined" },
+                                columns: columns
+                                //   isSheetPresented: $isSheet1Presented
+                            )
+
+                           
+                         
+                        }
+                    }
+                    }.tabItem {
+                        Label("Joined", systemImage: "car.side.arrowtriangle.down.fill")
+                    }.onAppear{
+                        PostAPIManager.shared.read_other { response in
+                            guard let response = response else {
+                                return
+                            }
+                            self.joinedposts = response
+                            print("Posts fetched successfully: \(response)") // Add this line here
+                        }
+                    }
+                
 
                 // Profile Tab
                 ProfileView(
@@ -494,35 +557,136 @@ struct RideInfoButton: View {
 
 struct SheetContent: View {
     let post: Post
+    let isUserPost: Bool
+    @State private var isPublishSheetPresented: Bool = false
     let shared = PostAPIManager()
+
     var body: some View {
-        VStack {
-            Text(post.description)
-                .font(.title)
-                .padding()
-
-            Text("Price: \(post.currentPrice)₸")
-                .font(.subheadline)
-                .foregroundColor(.gray)
-                .padding()
-
-            // Join button
-            Button(action: {
-                shared.join(postId: post.postId)
-            }) {
-                Text("Join")
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(Color.blue)
-                    .cornerRadius(8)
+        VStack(spacing: 16) {
+            postDetailsSection
+            if !isUserPost {
+                actionButtonsSection
             }
-            .padding()
+           
+
+            if isUserPost {
+                userPostButtonsSection
+            }
 
             Spacer()
         }
         .padding()
+    }
+
+    // MARK: - Post Details Section
+    private var postDetailsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(post.description)
+                .font(.title)
+                .padding(.bottom, 4)
+
+            Text("Price: \(post.currentPrice)₸")
+                .font(.subheadline)
+                .foregroundColor(.gray)
+        }
+        .padding(.horizontal)
+    }
+
+    // MARK: - Action Buttons Section
+    
+    private var actionButtonsSection: some View {
+        VStack(spacing: 8) {
+            Button(action: {
+                shared.join(postId: post.postId)
+            }) {
+                ActionButton(title: "Join", backgroundColor: .blue)
+            }
+
+         
+        }
+    }
+
+    // MARK: - User Post Buttons Section
+    private var userPostButtonsSection: some View {
+        VStack(spacing: 8) {
+            Button(action: {
+                shared.deletePost(postId: post.postId)
+            }) {
+                ActionButton(title: "Delete", backgroundColor: .red)
+            }
+
+            Button(action: {
+                isPublishSheetPresented.toggle()
+            }) {
+                ActionButton(title: "Update", backgroundColor: .green)
+            }
+            .sheet(isPresented: $isPublishSheetPresented) {
+                UpdateContent(postId: post.postId)
+            }
+        }
+    }
+}
+struct SheetContent_joined: View {
+    let post: Post
+   // let isUserPost: Bool
+    @State private var isPublishSheetPresented: Bool = false
+    let shared = PostAPIManager()
+
+    var body: some View {
+        VStack(spacing: 16) {
+            postDetailsSection
+
+            actionButtonsSection
+
+        
+
+            Spacer()
+        }
+        .padding()
+    }
+
+    // MARK: - Post Details Section
+    private var postDetailsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(post.description)
+                .font(.title)
+                .padding(.bottom, 4)
+
+            Text("Price: \(post.currentPrice)₸")
+                .font(.subheadline)
+                .foregroundColor(.gray)
+        }
+        .padding(.horizontal)
+    }
+
+    // MARK: - Action Buttons Section
+    private var actionButtonsSection: some View {
+        VStack(spacing: 8) {
+          
+
+            Button(action: {
+                shared.unjoin(postId: post.postId)
+            }) {
+                ActionButton(title: "Unjoin", backgroundColor: .blue)
+            }
+        }
+    }
+
+    // MARK: - User Post Buttons Section
+}
+// MARK: - ActionButton Component
+struct ActionButton: View {
+    let title: String
+    let backgroundColor: Color
+
+    var body: some View {
+        Text(title)
+            .font(.headline)
+            .foregroundColor(.white)
+            .padding()
+            .frame(maxWidth: .infinity)
+            .background(backgroundColor)
+            .cornerRadius(8)
     }
 }
 struct ContentView_Previews: PreviewProvider {

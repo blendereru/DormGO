@@ -34,12 +34,18 @@ class SignalRManager: ObservableObject {
             }
             .withLogging(minLogLevel: .info)
             .build()
-        
+
         setupListeners() // Register listeners for SignalR events
     }
 
     func startConnection() {
-        hubConnection?.start()
+        refreshTokenIfNeeded { [weak self] success in
+            if success {
+                self?.hubConnection?.start()
+            } else {
+                print("Failed to refresh token. Cannot start SignalR connection.")
+            }
+        }
     }
 
     func stopConnection() {
@@ -50,7 +56,7 @@ class SignalRManager: ObservableObject {
         hubConnection?.on(method: "PostCreated", callback: { [weak self] (type: Bool, postDto: PostDetails) in
             let timestamp = Date()
             print("Received post at \(timestamp) with type: \(type)")  // Log the time and type
-            
+
             if !type {
                 print("Post appended: \(postDto)")
                 DispatchQueue.main.async {
@@ -62,6 +68,47 @@ class SignalRManager: ObservableObject {
         })
     }
 
+    private func refreshTokenIfNeeded(completion: @escaping (Bool) -> Void) {
+        print("Refreshing token right away...")
+
+        // Always attempt to refresh the token
+        refreshToken { success in
+            completion(success)
+        }
+    }
+
+    private func refreshToken(completion: @escaping (Bool) -> Void) {
+        PostAPIManager().refreshToken2 { [weak self] success in
+            if success {
+                print("Token refreshed successfully. Restarting connection.")
+                self?.restartConnection()
+                completion(true)
+            } else {
+                print("Failed to refresh token. Cannot restart connection.")
+                completion(false)
+            }
+        }
+    }
+
+    private func restartConnection() {
+        if let newToken = getJWTFromKeychain(tokenType: "access_token") {
+            hubConnection?.stop()
+            hubConnection = HubConnectionBuilder(url: endpoint("api/posthub"))
+                .withHttpConnectionOptions { options in
+                    options.accessTokenProvider = { newToken }
+                }
+                .withLogging(minLogLevel: .info)
+                .build()
+
+            setupListeners()
+            hubConnection?.start()  // Reconnect after token refresh
+        }
+    }
+
+    private func isTokenExpired(_ token: String) -> Bool {
+        // Token expiration check logic (e.g., decoding token and checking expiry)
+        return false  // Replace with actual expiration check
+    }
 }
 
 let signalRManager = SignalRManager()
