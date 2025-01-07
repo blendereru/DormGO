@@ -66,13 +66,17 @@ public class HomeController : Controller
         {
             return BadRequest($"User with email {creatorEmail.Value} not found.");
         }
+        var connectionIds = await _db.UserConnections
+            .Where(c => c.UserId == user.Id && c.Hub == "/api/posthub")
+            .Select(uc => uc.ConnectionId)
+            .ToListAsync();
         var post = _mapper.Map<Post>(postDto);
         post.Creator = user;
         _db.Posts.Add(post);
         await _db.SaveChangesAsync();
         var postDtoMapped = post.Adapt<PostDto>();
         await _hub.Clients.User(user.Id).SendAsync("PostCreated", true, postDtoMapped);
-        await _hub.Clients.AllExcept(user.Id).SendAsync("PostCreated", false, postDtoMapped);
+        await _hub.Clients.AllExcept(connectionIds).SendAsync("PostCreated", false, postDtoMapped);
         return Ok(new { Message = "The post was saved to the database" });
     }
     [HttpGet("/api/post/read")]

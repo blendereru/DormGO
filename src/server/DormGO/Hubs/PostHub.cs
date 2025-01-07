@@ -2,12 +2,14 @@ using System.Security.Claims;
 using DormGO.Data;
 using DormGO.DTOs;
 using DormGO.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 
 namespace DormGO.Hubs;
+[Authorize]
 public class PostHub : Hub
 {
     private readonly ApplicationContext _db;
@@ -18,49 +20,51 @@ public class PostHub : Hub
         _db = db;
         _userManager = userManager;
     }
-    public override async Task OnConnectedAsync() 
+
+    public override async Task OnConnectedAsync()
     {
         try
-        { 
-            var userName = Context?.User?.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Name)?.Value; 
-            if (string.IsNullOrEmpty(userName)) 
-            { 
-                Log.Warning("Connection aborted: Missing or empty username. ConnectionId: {ConnectionId}", Context.ConnectionId); 
-                Context.Abort();
-                await Task.CompletedTask;
-            } 
-            var ip = Context?.GetHttpContext()?.Connection.RemoteIpAddress?.ToString(); 
-            if (string.IsNullOrEmpty(ip)) 
-            { 
-                Log.Warning("Connection aborted: Missing IP address. UserName: {UserName}, ConnectionId: {ConnectionId}", userName, Context.ConnectionId); 
+        {
+            var userId = Context?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                Log.Warning("Connection aborted: Missing or empty user ID. ConnectionId: {ConnectionId}", Context.ConnectionId);
                 Context.Abort();
                 return;
-            } 
-            var user = await _userManager.FindByNameAsync(userName!); 
-            if (user == null) 
-            { 
-                Log.Warning("Connection aborted: User not found in database. UserName: {UserName}, ConnectionId: {ConnectionId}", userName, Context.ConnectionId); 
+            }
+            await Groups.AddToGroupAsync(Context.ConnectionId, userId);
+            var ip = Context?.GetHttpContext()?.Connection.RemoteIpAddress?.ToString();
+            if (string.IsNullOrEmpty(ip))
+            {
+                Log.Warning("Connection aborted: Missing IP address. UserId: {UserId}, ConnectionId: {ConnectionId}", userId, Context.ConnectionId);
                 Context.Abort();
                 return;
-            } 
-            var connection = new UserConnection 
-            { 
-                ConnectionId = Context.ConnectionId, 
-                UserId = user!.Id, 
-                Ip = ip!, 
+            }
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null)
+            {
+                Log.Warning("Connection aborted: User not found in database. UserId: {UserId}, ConnectionId: {ConnectionId}", userId, Context.ConnectionId);
+                Context.Abort();
+                return;
+            }
+            var connection = new UserConnection
+            {
+                ConnectionId = Context.ConnectionId,
+                UserId = userId,
+                Ip = ip!,
                 Hub = "/api/posthub",
-                ConnectedAt = DateTime.UtcNow 
+                ConnectedAt = DateTime.UtcNow
             };
-            _db.UserConnections.Add(connection); 
-            await _db.SaveChangesAsync(); 
-            Log.Information("User connected: UserName: {UserName}, IP: {IPAddress}, ConnectionId: {ConnectionId}", userName, ip, Context.ConnectionId); 
-            await base.OnConnectedAsync(); 
+            _db.UserConnections.Add(connection);
+            await _db.SaveChangesAsync();
+            Log.Information("User connected: UserId: {UserId}, IP: {IPAddress}, ConnectionId: {ConnectionId}", userId, ip, Context.ConnectionId);
+            await base.OnConnectedAsync();
         }
-        catch (Exception ex) 
-        { 
-            Log.Error(ex, "Error occurred during OnConnectedAsync. ConnectionId: {ConnectionId}", Context.ConnectionId); 
-            Context.Abort(); 
-        } 
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error occurred during OnConnectedAsync. ConnectionId: {ConnectionId}", Context.ConnectionId);
+            Context.Abort();
+        }
     }
     public async Task NotifyPostCreated(string userId, PostDto post)
     {
@@ -71,8 +75,8 @@ public class PostHub : Hub
         }
         try
         {
-            await Clients.User(userId).SendAsync("PostCreated", true, post);
-            await Clients.AllExcept(Context.UserIdentifier).SendAsync("PostCreated", false, post);
+            await Clients.Group(userId).SendAsync("PostCreated", true, post);
+            await Clients.AllExcept(Context.ConnectionId).SendAsync("PostCreated", false, post);
             Log.Information("PostCreated notification sent. UserId: {UserId}, PostId: {PostId}", userId, post.PostId);
         }
         catch (Exception ex)
@@ -110,6 +114,12 @@ public class PostHub : Hub
         try
         {
             var connectionId = Context.ConnectionId;
+            var userId = Context?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (!string.IsNullOrEmpty(userId))
+            {
+                await Groups.RemoveFromGroupAsync(connectionId, userId);
+            }
             var userConnection = await _db.UserConnections.FirstOrDefaultAsync(uc => uc.ConnectionId == connectionId);
             if (userConnection != null)
             {
@@ -121,7 +131,6 @@ public class PostHub : Hub
             {
                 Log.Warning("Connection not found in the database during disconnection. ConnectionId: {ConnectionId}", connectionId);
             }
-
             if (exception != null)
             {
                 Log.Error(exception, "An error occurred during disconnection. ConnectionId: {ConnectionId}", connectionId);
