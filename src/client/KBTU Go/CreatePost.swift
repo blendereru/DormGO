@@ -1210,7 +1210,44 @@ struct MapView: UIViewRepresentable {
             uiView.addAnnotation(currentLocationAnnotation)
         }
     }}
-
+struct MapView2: UIViewRepresentable {
+    var latitude: Double
+    var longitude: Double
+    
+    class Coordinator: NSObject, MKMapViewDelegate {
+        var parent: MapView2
+        
+        init(parent: MapView2) {
+            self.parent = parent
+        }
+    }
+    
+    func makeCoordinator() -> Coordinator {
+        return Coordinator(parent: self)
+    }
+    
+    func makeUIView(context: Context) -> MKMapView {
+        let mapView = MKMapView()
+        mapView.delegate = context.coordinator
+        
+        // Set a region to show the specific coordinate
+        let coordinate = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+        let region = MKCoordinateRegion(center: coordinate, latitudinalMeters: 1000, longitudinalMeters: 1000)
+        mapView.setRegion(region, animated: false)
+        mapView.mapType = .satellite
+        // Add an annotation for the specific coordinate
+        let annotation = MKPointAnnotation()
+        annotation.coordinate = coordinate
+        annotation.title = ""
+        mapView.addAnnotation(annotation)
+        
+        return mapView
+    }
+    
+    func updateUIView(_ uiView: MKMapView, context: Context) {
+        // Update the annotation if necessary (in this case, we don't need to update anything)
+    }
+}
 //extension MapView.Coordinator {
 //    @objc func handleTap(_ gesture: UITapGestureRecognizer) {
 //        let location = gesture.location(in: gesture.view)

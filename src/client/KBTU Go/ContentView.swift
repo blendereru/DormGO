@@ -584,7 +584,12 @@ struct SheetContent: View {
             Text(post.description)
                 .font(.title)
                 .padding(.bottom, 4)
-
+            
+            MapView2(latitude: post.latitude, longitude: post.longitude)
+                            .frame(height: 300)
+                            .cornerRadius(20) // Set the corner radius to make the map rounded
+                            .shadow(radius: 5)
+            
             Text("Price: \(post.currentPrice)₸")
                 .font(.subheadline)
                 .foregroundColor(.gray)
@@ -651,7 +656,10 @@ struct SheetContent_joined: View {
             Text(post.description)
                 .font(.title)
                 .padding(.bottom, 4)
-
+            MapView2(latitude: post.latitude, longitude: post.longitude)
+                            .frame(height: 300)
+                            .cornerRadius(20) // Set the corner radius to make the map rounded
+                            .shadow(radius: 10)
             Text("Price: \(post.currentPrice)₸")
                 .font(.subheadline)
                 .foregroundColor(.gray)
