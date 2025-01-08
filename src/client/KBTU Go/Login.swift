@@ -143,6 +143,46 @@ struct LoginView: View {
                 }
                 
                 if let data = data {
+                    
+                    do {
+                                           // Attempt to parse the response data
+                                           let responseObject = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any]
+                                           print("Parsed Response: \(String(describing: responseObject))") // Debug print to check the parsed data
+                                           
+                                           if let responseObject = responseObject {
+                                               clearKeychainItem(tokenType: "access_token")
+                                               clearKeychainItem(tokenType: "refresh_token")
+                                               if let accessToken = responseObject["access_token"] as? String,
+                                                  let refreshToken = responseObject["refresh_token"] as? String {
+                                                   // Save both tokens to Keychain
+                                                   if saveJWTToKeychain(token: accessToken, tokenType: "access_token"),
+                                                      saveJWTToKeychain(token: refreshToken, tokenType: "refresh_token") {
+                                                       message = "Login successful! JWT and refresh token saved securely."
+                                                       jwt = accessToken // Update state with the access token
+                                                       onLoginSuccess()
+                                                       // Proceed with protected request
+                                                       APIManager.shared.sendProtectedRequest { protectedResponse in
+                                                           print("Fetched Protected Data:")
+                                                           print("Name: \(String(describing: protectedResponse?.name))")
+                                                           print("Email: \(String(describing: protectedResponse?.email))")
+                                                           // Save to model, update UI, or perform other actions
+                                                           saveToModel(email: protectedResponse?.email ?? "", name: protectedResponse?.name ?? "")
+                                                       }
+                                                   } else {
+                                                       message = "Login successful, but failed to save JWT and refresh token."
+                                                   }
+                                               } else {
+                                                   // If tokens are not found, print the response and show an error message
+                                                   if let errorMessage = responseObject["message"] as? String {
+                                                       message = "Login failed: \(errorMessage)"
+                                                   } else {
+                                                       message = "Login failed: Tokens not found."
+                                                   }
+                                               }
+                                           }
+                    } catch {
+                        message = "Error: Unable to parse server response. Error details: \(error.localizedDescription)"
+                    }
                     // Capture and show the raw server response
                     if let rawResponse = String(data: data, encoding: .utf8) {
                         print("Raw server response: \(rawResponse)") // Debug log
