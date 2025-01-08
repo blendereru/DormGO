@@ -22,6 +22,7 @@ struct Post: Codable {
     let longitude: Double
     let createdAt: String
     let maxPeople: Int
+    let creator : ProtectedResponse
     let members: [ProtectedResponse]
 }
 
@@ -201,7 +202,13 @@ class PostAPIManager{
             "MaxPeople": MaxPeople,
             "Members": Members // Assuming toDictionary is implemented
         ]
-
+        // Print the JSON in a readable format
+        if let jsonData = try? JSONSerialization.data(withJSONObject: body, options: .prettyPrinted),
+           let jsonString = String(data: jsonData, encoding: .utf8) {
+            print("Request Body (JSON): \(jsonString)")
+        } else {
+            print("Error: Unable to convert body to JSON")
+        }
         
         // Convert body to JSON data
         guard let jsonData = try? JSONSerialization.data(withJSONObject: body, options: []) else {
@@ -251,6 +258,7 @@ class PostAPIManager{
                     }
                     
                     if let data = data, let responseString = String(data: data, encoding: .utf8) {
+                        
                         print("Response Body: \(responseString)")
                         do {
                             let decoder = JSONDecoder()
