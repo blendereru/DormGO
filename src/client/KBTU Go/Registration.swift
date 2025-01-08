@@ -269,6 +269,7 @@ func isValidPassword(_ password: String) -> Bool {
 // MARK: - Registration View
 
 struct RegistrationView: View {
+    @State private var showConfirmation = false
     @State private var email = ""
     let confirmationManager = ConfirmationManager()
     @State private var password = ""
@@ -418,6 +419,7 @@ struct RegistrationView: View {
                                                         
                                                         confirmationManager.connectToServer()
                                                     }
+                                showConfirmation = true
                                                         
                                                         // Connect to the server and listen for confirmation tokens
                                             
@@ -426,13 +428,14 @@ struct RegistrationView: View {
                                                  //       confirmationManager.requestConfirmation()
                                 
                             } else {
-                                message = "Registration failed: \(responseObject["error"] as? String ?? "Unknown error")"
+                                message = "Confirm email in the confirmation link sent to \(email)."
                                 // Wait for the registration to be completed before connecting to the server
                                 confirmationManager.setEmail(email)
                                                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                                                   
                                                         confirmationManager.connectToServer()
                                                     }
+                                showConfirmation = true
                             }
                         } else {
                             message = "Unexpected response format."
@@ -446,34 +449,68 @@ struct RegistrationView: View {
     }
     
     var body: some View {
-        VStack {
-            Text("Registration")
-                .font(.largeTitle)
-            
-            TextField("Email", text: $email)
-                .textFieldStyle(RoundedBorderTextFieldStyle())
-                .padding()
-            
-            SecureField("Password", text: $password)
-                .textFieldStyle(RoundedBorderTextFieldStyle())
-                .padding()
-            
-            Button(action: {
-                sendRegistrationRequest(email: email, password: password)
-          
-            }) {
-                Text("Register")
-                    .fontWeight(.bold)
+        NavigationView {
+            VStack {
+                Text("Registration")
+                    .font(.largeTitle)
+
+                TextField("Email", text: $email)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
                     .padding()
-                    .background(Color.blue)
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
+
+                SecureField("Password", text: $password)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .padding()
+
+                Button(action: {
+                    sendRegistrationRequest(email: email, password: password)
+                }) {
+                    Text("Register")
+                        .fontWeight(.bold)
+                        .padding()
+                        .background(Color.blue)
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
+                }
+                .padding()
+
+                Text(message)
+                    .padding()
+                    .foregroundColor(.green)
+
+                NavigationLink(
+                    destination: ConfirmationView(
+                        message: $message,
+                        confirmationManager: confirmationManager
+                    ),
+                    isActive: $showConfirmation
+                ) {
+                    EmptyView()
+                }
             }
             .padding()
-            
-            Text(message)
+        }
+    }
+}
+
+struct ConfirmationView: View {
+    @Binding var message: String
+    @StateObject var confirmationManager: ConfirmationManager
+
+    var body: some View {
+        VStack {
+            Text("Confirmation Pending")
+                .font(.title)
                 .padding()
-                .foregroundColor(.green)
+
+            Text(message)
+                .font(.body)
+                .padding()
+
+            ProgressView("Waiting for confirmation...")
+                .padding()
+
+         
         }
         .padding()
     }
