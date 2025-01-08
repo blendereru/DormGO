@@ -23,7 +23,7 @@ struct PostDetails: Codable {
 class SignalRManager: ObservableObject {
     private var hubConnection: HubConnection?
     @Published var posts: [PostDetails] = [] // State to hold the posts
-
+    @Published var posts_update: [PostDetails] = []
     init() {
         let hubUrl = endpoint("api/posthub")
         hubConnection = HubConnectionBuilder(url: hubUrl)
@@ -66,7 +66,39 @@ class SignalRManager: ObservableObject {
                 print("Post ignored due to type being true")
             }
         })
-    }
+        
+        hubConnection?.on(method: "PostUpdated", callback: { [weak self] (type: Bool, postDto: PostDetails) in
+            let timestamp = Date()
+            print("Received post update at \(timestamp) with type: \(type)") // Log the time and type
+
+            if !type {
+                DispatchQueue.main.async {
+                    if let index = self?.posts.firstIndex(where: { $0.postId == postDto.postId }) {
+                        // Update the existing post
+                        self?.posts[index] = postDto
+                        print("Post updated: \(postDto)")
+                    } else {
+                        print("Post not found; skipping update.")
+                    }
+                }
+            } else {
+                print("Post ignored due to type being true")
+            }
+        })
+        
+        hubConnection?.on(method: "PostDeleted", callback: { [weak self] (postId: String) in
+            let timestamp = Date()
+            print("Post deleted notification received at \(timestamp) for PostId: \(postId)")
+
+            DispatchQueue.main.async {
+                if let index = self?.posts.firstIndex(where: { $0.postId == postId }) {
+                    self?.posts.remove(at: index)
+                    print("Post deleted: \(postId)")
+                } else {
+                    print("Post not found; skipping deletion.")
+                }
+            }
+        })    }
 
     private func refreshTokenIfNeeded(completion: @escaping (Bool) -> Void) {
         print("Refreshing token right away...")

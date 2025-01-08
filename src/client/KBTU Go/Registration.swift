@@ -253,7 +253,7 @@ func decryptPassword(_ encryptedPassword: String, using key: SymmetricKey) -> St
 
 func isValidEmail(_ email: String) -> Bool {
     // Check if the email ends with @kbtu.kz
-    return email.lowercased().hasSuffix("@kbtu.kz")
+    return email.lowercased().hasSuffix("") //@kbtu.kz
 }
 
 func isValidPassword(_ password: String) -> Bool {
