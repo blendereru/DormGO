@@ -626,7 +626,11 @@ struct SheetContent: View {
                 ActionButton(title: "Update", backgroundColor: .green)
             }
             .sheet(isPresented: $isPublishSheetPresented) {
-                UpdateContent(postId: post.postId)
+              
+                UpdateContent(postId: post.postId, member: post.members) .onAppear {
+                    // Print the members when the sheet appears
+                    print("Members being passed to UpdateContent: \(post.members)")
+                }
             }
         }
     }

@@ -35,7 +35,7 @@ struct PostsResponse: Codable {
     let restPosts: [Post]
 }
 
-let baseURL = URL(string: "https://dormgo.azurewebsites.net")!
+let baseURL = URL(string: "https://dormgo.azurewebsites.net")! // https://dormgo.azurewebsites.net
 
 
 
@@ -190,7 +190,7 @@ class PostAPIManager{
         // Set the JWT token in the Authorization header
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
+        let membersDict = Members.map { $0.toDictionary() }
         // Use the dynamic body passed into the function
         let body: [String: Any] = [
             "PostId": postId,
@@ -200,7 +200,7 @@ class PostAPIManager{
             "Longitude": Longitude,
             "CreatedAt": CreatedAt,
             "MaxPeople": MaxPeople,
-            "Members": Members // Assuming toDictionary is implemented
+            "Members": membersDict // Assuming toDictionary is implemented
         ]
         // Print the JSON in a readable format
         if let jsonData = try? JSONSerialization.data(withJSONObject: body, options: .prettyPrinted),
@@ -480,7 +480,7 @@ class PostAPIManager{
         task.resume()
     }
     func refreshToken2(completion: @escaping (Bool) -> Void) {
-        // Retrieve tokens from Keychain first
+        // Retrieve tokens from Keychain
         guard let refreshToken = getJWTFromKeychain(tokenType: "refresh_token"),
               let accessToken = getJWTFromKeychain(tokenType: "access_token") else {
             print("Token(s) missing.")
@@ -511,17 +511,19 @@ class PostAPIManager{
                     return
                 }
                 
-                if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
-                    guard let data = data else {
-                        print("Error: No data received")
-                        completion(false)
-                        return
-                    }
-                    
-                    do {
-                        if let responseObject = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
-                            // Extract tokens from the response
-                            if let newAccessToken = responseObject["access_token"] as? String,
+                if let httpResponse = response as? HTTPURLResponse {
+                    switch httpResponse.statusCode {
+                    case 200:
+                        // Successfully refreshed the token
+                        guard let data = data else {
+                            print("Error: No data received")
+                            completion(false)
+                            return
+                        }
+                        
+                        do {
+                            if let responseObject = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
+                               let newAccessToken = responseObject["access_token"] as? String,
                                let newRefreshToken = responseObject["refresh_token"] as? String {
                                 
                                 print("Access Token received: \(newAccessToken)")
@@ -533,7 +535,7 @@ class PostAPIManager{
                                 
                                 if isAccessTokenSaved && isRefreshTokenSaved {
                                     print("Both tokens saved successfully!")
-                                    completion(true)  // Return true to indicate success
+                                    completion(true)
                                 } else {
                                     print("Error saving tokens to Keychain")
                                     completion(false)
@@ -542,17 +544,31 @@ class PostAPIManager{
                                 print("Error: Tokens not found in response")
                                 completion(false)
                             }
-                        } else {
-                            print("Error: Unexpected response format")
+                        } catch {
+                            print("Error: Failed to parse server response - \(error.localizedDescription)")
                             completion(false)
                         }
-                    } catch {
-                        print("Error: Failed to parse server response - \(error.localizedDescription)")
+                        
+                    case 401:
+                        // Refresh token is invalid or expired, log the user out
+                        print("Unauthorized: Refresh token is invalid or expired.")
+                        
+                        // Delete tokens from Keychain
+                        clearKeychainItem(tokenType: "access_token")
+                        clearKeychainItem(tokenType: "refresh_token")
+                        
+                        // Update `isAuthenticated`
+                        UserDefaults.standard.set(false, forKey: "isAuthenticated")
+                        
+                        completion(false)
+                        
+                    default:
+                        // Handle other HTTP status codes
+                        print("Failed to refresh token. Status code: \(httpResponse.statusCode)")
                         completion(false)
                     }
                 } else {
-                    let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
-                    print("Failed to refresh token. Status code: \(statusCode)")
+                    print("Error: Unexpected response.")
                     completion(false)
                 }
             }
@@ -959,6 +975,7 @@ struct PublishContent: View {
 }
 struct UpdateContent: View {
     let  postId: String
+    let member: [ProtectedResponse]
     @State private var message = ""
     @StateObject private var locationManager = LocationManager()
     // State variables to bind to the form fields
@@ -969,7 +986,7 @@ struct UpdateContent: View {
     @State private var createdAt = ""
     @State private var maxPeople = ""
     @State private var cancellables = Set<AnyCancellable>()
-    let members: [ProtectedResponse] = []
+
     @State private var name = ""
     @State private var email = ""
     
@@ -1000,9 +1017,9 @@ struct UpdateContent: View {
         }
 
         // Debugging: Print the JSON payload before sending
-        if let jsonString = String(data: jsonData, encoding: .utf8) {
-            print("JSON Payload: \(jsonString)")
-        }
+//        if let jsonString = String(data: jsonData, encoding: .utf8) {
+//            print("JSON Payload: \(jsonString)")
+//        }
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -1098,7 +1115,7 @@ struct UpdateContent: View {
                                       Longitude: Double(longitude) ?? 0.0,
                                       CreatedAt: getCurrentTime(),  // Assuming you want to use current time here
                                       MaxPeople: Int(maxPeople) ?? 0,
-                                             Members: members
+                                             Members: member
                                             
                                       ) { protectedResponse in
                     self.name = protectedResponse?.name ?? ""
@@ -1121,7 +1138,7 @@ struct UpdateContent: View {
                                                   Longitude: lon,
                                                   CreatedAt: createdAt,
                                                   MaxPeople: maxP,
-                                                  Members:  members
+                                                  Members:  member
                                              )
                                 
                             }

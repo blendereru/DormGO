@@ -12,9 +12,13 @@ import CryptoKit
 struct ProtectedResponse: Codable {
     let email: String
     let name: String
+  
     func toDictionary() -> [String: Any] {
-            return ["Name": name, "Email": email]
-        }
+           return [
+               "name": name,
+               "email": email
+           ]
+       }
 }
 
 struct TokenResponse: Codable {
