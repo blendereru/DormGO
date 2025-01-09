@@ -19,7 +19,8 @@ public static class MapsterConfig
             .Map(dest => dest.Members, src => src.Members.Adapt<List<MemberDto>>());
         TypeAdapterConfig<UserDto, ApplicationUser>.NewConfig()
             .Map(dest => dest.Email, src => src.Email)
-            .Map(dest => dest.UserName, src => src.Email);
+            .Map(dest => dest.UserName, src => src.Email)
+            .Map(dest => dest.Fingerprint, src => src.VisitorId);
         TypeAdapterConfig<ApplicationUser, MemberDto>.NewConfig()
             .Map(dest => dest.Email, src => src.Email)
             .Map(dest => dest.Name, src => src.UserName);

@@ -2,13 +2,12 @@ using System.ComponentModel.DataAnnotations;
 
 namespace DormGO.DTOs;
 
-public class UserDto
+public class RefreshTokenDto
 {
     [Required]
-    [EmailAddress]
-    public string Email { get; set; }
+    public string AccessToken { get; set; }
     [Required]
-    public string Password { get; set; }
+    public string RefreshToken { get; set; }
     [Required]
     public string VisitorId { get; set; }
 }

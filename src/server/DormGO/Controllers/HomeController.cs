@@ -198,6 +198,7 @@ public class HomeController : Controller
         }
         var post = await _db.Posts
             .Include(p => p.Members)
+            .Include(p => p.Creator)
             .FirstOrDefaultAsync(p => p.Id == id);
         if (post == null)
         {
@@ -205,9 +206,11 @@ public class HomeController : Controller
         }
         if (post.CreatorId != user.Id)
         {
-            return Unauthorized("You are not authorized to update this post.");
+            return BadRequest("You are not authorized to update this post.");
         }
+        var creator = post.Creator;
         postDto.Adapt(post);
+        post.Creator = creator;
         if (postDto.Members.Any())
         {
             var memberEmails = postDto.Members.Select(m => m.Email).ToList();
@@ -223,7 +226,6 @@ public class HomeController : Controller
         await _hub.Clients.All.SendAsync("PostUpdated", updatedPostDto);
         return Ok(new { Message = "The post was successfully updated.", Post = updatedPostDto });
     }
-
     [HttpPost("/api/post/unjoin/{id}")]
     public async Task<IActionResult> UnjoinPost(string id)
     {

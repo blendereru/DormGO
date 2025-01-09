@@ -6,6 +6,7 @@ public class RefreshSession
     public string UserId { get; set; }
     public ApplicationUser User { get; set; }
     public string RefreshToken { get; set; }
+    public string Fingerprint { get; set; }
     public string UA { get; set; } // User-Agent
     public string Ip { get; set; }
     public long ExpiresIn { get; set; }

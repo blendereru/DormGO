@@ -80,13 +80,13 @@ public class AccountController : Controller
         }
         var accessToken = GenerateAccessToken(user);
         var refreshToken = GenerateRefreshToken();
-    
         var session = new RefreshSession
         {
             UserId = user.Id,
             RefreshToken = refreshToken,
+            Fingerprint = dto.VisitorId,
             UA = Request.Headers["User-Agent"].ToString(),
-            Ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? HttpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault(),
+            Ip = HttpContext.Connection.RemoteIpAddress?.ToString(),
             ExpiresIn = DateTimeOffset.UtcNow.AddDays(7).ToUnixTimeMilliseconds()
         };
         _db.RefreshSessions.Add(session);
@@ -99,13 +99,13 @@ public class AccountController : Controller
         });
     }
     [HttpPost("/api/signout")]
-    public async Task<IActionResult> Logout([FromBody] RefreshTokenRequest request)
+    public async Task<IActionResult> Logout([FromBody] TokenDto dto)
     {
         if (!ModelState.IsValid)
         {
             return BadRequest(ModelState);
         }
-        var session = await _db.RefreshSessions.FirstOrDefaultAsync(x => x.RefreshToken == request.RefreshToken);
+        var session = await _db.RefreshSessions.FirstOrDefaultAsync(x => x.RefreshToken == dto.RefreshToken);
         if (session == null)
         {
             return BadRequest("The refresh token is not found");
@@ -115,14 +115,13 @@ public class AccountController : Controller
         return Ok("The refresh token was successfully removed");
     }
     [HttpGet("/api/confirm-email")]
-    public async Task<IActionResult> ConfirmEmail(string userId, string token,
+    public async Task<IActionResult> ConfirmEmail(string userId, string token, string visitorId,
         [FromServices] IHubContext<UserHub> hub)
     {
         if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(token))
         {
             ViewBag.Message = "The link is Invalid or Expired";
         }
-
         var user = await _userManager.FindByIdAsync(userId);
         if (user == null)
         {
@@ -139,13 +138,14 @@ public class AccountController : Controller
         {
             UserId = user.Id,
             RefreshToken = refreshToken,
+            Fingerprint = visitorId,
             UA = Request.Headers["User-Agent"].ToString(),
-            Ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? HttpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault(),
+            Ip = HttpContext.Connection.RemoteIpAddress.ToString(),
             ExpiresIn = DateTimeOffset.UtcNow.AddDays(7).ToUnixTimeMilliseconds()
         };
         _db.RefreshSessions.Add(session);
         await _db.SaveChangesAsync();
-        var request = new TokenRequest()
+        var dto = new TokenDto()
         {
             AccessToken = accessToken,
             RefreshToken = refreshToken
@@ -158,7 +158,7 @@ public class AccountController : Controller
         {
             foreach (var connectionId in connections)
             {
-                await hub.Clients.Client(connectionId).SendAsync("EmailConfirmed", user.UserName, request);
+                await hub.Clients.Client(connectionId).SendAsync("EmailConfirmed", user.UserName, dto);
             }
         }
         else
@@ -168,13 +168,13 @@ public class AccountController : Controller
         return Ok(new { Message = "Email confirmed successfully" });
     }
     [HttpPost("/api/refresh-tokens")]
-    public async Task<IActionResult> RefreshTokens([FromBody] TokenRequest request)
+    public async Task<IActionResult> RefreshTokens([FromBody] RefreshTokenDto dto)
     {
-        if (string.IsNullOrEmpty(request.AccessToken) || string.IsNullOrEmpty(request.RefreshToken))
+        if (string.IsNullOrEmpty(dto.AccessToken) || string.IsNullOrEmpty(dto.RefreshToken))
         {
-            return BadRequest(new { Message = "Invalid request. Access token and refresh token are required." });
+            return BadRequest(new { Message = "Invalid dto. Access token and refresh token are required." });
         }
-        var principal = GetPrincipalFromExpiredToken(request.AccessToken);
+        var principal = GetPrincipalFromExpiredToken(dto.AccessToken);
         if (principal == null)
         {
             return Unauthorized(new { Message = "Invalid access token." });
@@ -184,19 +184,15 @@ public class AccountController : Controller
         {
             return Unauthorized(new { Message = "Invalid access token." });
         }
-        var session = _db.RefreshSessions
-            .FirstOrDefault(s => s.RefreshToken == request.RefreshToken && s.User.Email == userEmail);
+        var session = await _db.RefreshSessions
+            .FirstOrDefaultAsync(s => s.RefreshToken == dto.RefreshToken && s.User.Email == userEmail);
         if (session == null || session.ExpiresIn < DateTimeOffset.UtcNow.ToUnixTimeMilliseconds())
         {
             return Unauthorized(new { Message = "Invalid or expired refresh token." });
         }
-        if (request.RefreshToken != session.RefreshToken)
+        if (dto.VisitorId != session.Fingerprint)
         {
-            return Unauthorized(new { Message = "Invalid refresh token." });
-        }
-        if (session.Ip != HttpContext.Connection.RemoteIpAddress?.ToString())
-        {
-            return Unauthorized(new { Message = "Session validation failed." });
+            return BadRequest("Forged visitor ID");
         }
         var user = await _userManager.FindByEmailAsync(userEmail);
         if (user == null)
@@ -208,7 +204,7 @@ public class AccountController : Controller
         session.RefreshToken = newRefreshToken;
         session.ExpiresIn = DateTimeOffset.UtcNow.AddDays(7).ToUnixTimeMilliseconds();
         session.UA = Request.Headers["User-Agent"].ToString();
-        session.Ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? HttpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+        session.Ip = HttpContext.Connection.RemoteIpAddress.ToString();
         _db.RefreshSessions.Update(session);
         await _db.SaveChangesAsync();
         return Ok(new
@@ -222,7 +218,7 @@ public class AccountController : Controller
     {
         ArgumentNullException.ThrowIfNull(user, nameof(user));
         var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-        var confirmationLink = Url.Action("ConfirmEmail", "Account", new { userId = user.Id, token = token }, protocol: HttpContext.Request.Scheme);
+        var confirmationLink = Url.Action("ConfirmEmail", "Account", new { userId = user.Id, token = token, visitorId = user.Fingerprint }, protocol: HttpContext.Request.Scheme);
         var body = $"Please confirm your email by <a href='{HtmlEncoder.Default.Encode(confirmationLink)}'>clicking here</a>.";
         await _emailSender.SendEmailAsync(user.Email!, "Confirm your email", body, true);
     }

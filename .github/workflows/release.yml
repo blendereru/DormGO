@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - ./src/server/DormGO/**
+      - /src/server/DormGO/**
       - .github/workflows/release.yml
   workflow_dispatch:
 
