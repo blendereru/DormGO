@@ -24,7 +24,7 @@ This project follows the MVVM (Model-View-ViewModel) architecture pattern with S
     • Combine: Reactive programming framework for data binding.
     • CoreLocation: For location services and retrieving the user’s location.
     • MapKit: For map view and geolocation-related functionality.
-    • SignalRCleint: For websocket implementation
+    • SignalRClient: For websocket implementation
 ## Endpoints
 `Server-side` defines multiple `endpoints` for client to send requests to. 
 * `HttpPost /api/signup` - is needed to register new user in a database
@@ -39,6 +39,7 @@ This endpoint is needed to notify the client when the user confirms his email.
 * `HttpPost /api/post/join/{id}` - is needed to join the specific post. Marks the current user as a `member`.
 * `HttpPost /api/post/delete/{id}` - is needed to delete the specified post.
 * `HttpGet /api/post/read` - to read all posts.
+* `HttpGet /api/post/read/others` - is needed to retrieve the posts that user joined.
 * `/api/posthub` - is needed to notify `all the connected clients` about the post that was created.
 
 ## 🚨 Requirements
@@ -71,11 +72,9 @@ update the `EmailSettings` section in the `appsettings.json` file:
 ```
 If you're using Gmail, use an [App Password](https://support.google.com/accounts/answer/185833?hl=en). 
 ## 🎯 ToDos
-1. [ ] Ask to confirm `email` after `/api/signin` to ensure the right user is logging in.
-2. [ ] Add persistent storage in client-side(post IDs) to ensure the client can read info about posts.
-3. [ ] Add endpoints to handle the case when user's data changes. For example, client forgot his `password`.
-4. [ ] Modify the `UI` for better appearance.
-5. [ ] Decrease the `latency` in server-side.
+1. [ ] Add endpoints to handle the case when user's data changes. For example, client forgot his `password`.
+2. [ ] Modify the `UI` for better appearance.
+3. [ ] Chat functions so that members of the post can talk to each other.
 ## 📗 License
 The project code and all the resources are distributed under the terms of [MIT license](https://github.com/blendereru/LoginForm/blob/f9ec9cd269e0b785c8a7b778e4d4f16fdb4a1427/LICENSE)
 
