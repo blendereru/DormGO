@@ -1,8 +1,18 @@
-name: check how self hosted runners work
-on: push
+name: Check Self-Hosted Runner
+
+on: 
+  push
+
 jobs: 
   build:
+    # Specify the self-hosted label
     runs-on: self-hosted
+
     steps: 
-      - name: print hello world
-      - run: echo "Hello world in self hosted"
+      # Checkout the repository (optional, only needed if you want to use repo content)
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Print a hello world message to verify the runner
+      - name: Print Hello World
+        run: echo "Hello world in self-hosted"
