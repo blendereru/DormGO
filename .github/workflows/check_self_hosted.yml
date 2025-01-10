@@ -1,0 +1,8 @@
+name: check how self hosted runners work
+on: push
+jobs: 
+  build:
+    runs-on: self-hosted
+    steps: 
+      - name: print hello world
+      - run: echo "Hello world in self hosted"
