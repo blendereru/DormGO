@@ -1,7 +1,8 @@
 name: Check Self-Hosted Runner
 
 on: 
-  push
+  push:
+  workflow_dispatch:
 
 jobs: 
   build:
