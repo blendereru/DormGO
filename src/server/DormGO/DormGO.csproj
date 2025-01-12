@@ -8,12 +8,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <Content Include="..\.dockerignore">
-        <Link>.dockerignore</Link>
-      </Content>
-    </ItemGroup>
-
-    <ItemGroup>
       <PackageReference Include="Mapster" Version="7.4.1-pre01" />
       <PackageReference Include="Mapster.Core" Version="1.2.2-pre01" />
       <PackageReference Include="Mapster.DependencyInjection" Version="1.0.2-pre01" />

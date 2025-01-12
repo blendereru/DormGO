@@ -1,34 +1,21 @@
-version: "3.8"
+version: '3.8'
 
 services:
   app:
-    build: src/server/DormGO
-    image: identity-api-auth:latest
-    container_name: identity-api-auth-container
+    build:
+      context: .
+    image: dormgo
+    container_name: api
     ports:
       - "80:80"
       - "8080:8080"
     depends_on:
       - db
-    networks:
-      - my_network
-
   db:
     image: mcr.microsoft.com/mssql/server:2022-latest
-    container_name: sql_server_container
+    container_name: sql_server
     environment:
       - ACCEPT_EULA=Y
-      - SA_PASSWORD=<your_password>
+      - MSSQL_SA_PASSWORD=<your_password>
     ports:
-      - "1433:1433"
-    volumes:
-      - sql_data:/var/opt/mssql
-    networks:
-      - my_network
-
-networks:
-  my_network:
-    driver: bridge
-
-volumes:
-  sql_data:
+      - "8002:1433"
