@@ -44,7 +44,11 @@ func endpoint(_ path: String) -> URL {
     return baseURL.appendingPathComponent(path)
 }
 class PostAPIManager{
+   
     static let shared = PostAPIManager()
+    private var isRefreshing = false
+    private var pendingRequests: [(Bool) -> Void] = []
+    private let lockQueue = DispatchQueue(label: "com.example.PostAPIManager.lock")
     func sendProtectedRequest2(Description: String, CurrentPrice: Double, Latitude: Double, Longitude: Double, CreatedAt: String, MaxPeople: Int, completion: @escaping (ProtectedResponse?) -> Void) {
         let url = endpoint("api/post/create")
         
@@ -64,7 +68,7 @@ class PostAPIManager{
                     )
                 } else {
                     print("Unable to refresh token. Exiting.")
-                    completion(nil)
+                        //    completion(nil)
                 }
             }
             return
@@ -251,7 +255,7 @@ class PostAPIManager{
                                 )
                             } else {
                                 print("Failed to refresh token.")
-                                completion(nil)
+                         //       completion(nil)
                             }
                         }
                         return
@@ -479,102 +483,133 @@ class PostAPIManager{
 
         task.resume()
     }
-    func refreshToken2(completion: @escaping (Bool) -> Void) {
-        // Retrieve tokens from Keychain
-        guard let refreshToken = getJWTFromKeychain(tokenType: "refresh_token"),
-              let accessToken = getJWTFromKeychain(tokenType: "access_token") else {
-            print("Token(s) missing.")
-            completion(false)
-            return
+    func generateHashedFingerprint(fingerprint: String) -> String? {
+        if let data = fingerprint.data(using: .utf8) {
+            let hash = SHA256.hash(data: data)
+            return hash.compactMap { String(format: "%02x", $0) }.joined()
         }
-        
-        // Prepare the request
-        let refreshURL = endpoint("api/refresh-tokens")
-        var request = URLRequest(url: refreshURL)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
-        let body: [String: Any] = [
-            "refreshToken": refreshToken,
-            "accessToken": accessToken
-        ]
-        
-        // Set the HTTP body
-        request.httpBody = try? JSONSerialization.data(withJSONObject: body, options: [])
-        
-        // Make the request to refresh the token
-        let task = URLSession.shared.dataTask(with: request) { data, response, error in
-            DispatchQueue.main.async {
-                if let error = error {
-                    print("Error refreshing token: \(error.localizedDescription)")
-                    completion(false)
-                    return
-                }
-                
-                if let httpResponse = response as? HTTPURLResponse {
-                    switch httpResponse.statusCode {
-                    case 200:
-                        // Successfully refreshed the token
-                        guard let data = data else {
-                            print("Error: No data received")
-                            completion(false)
-                            return
-                        }
-                        
-                        do {
-                            if let responseObject = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
-                               let newAccessToken = responseObject["access_token"] as? String,
-                               let newRefreshToken = responseObject["refresh_token"] as? String {
-                                
-                                print("Access Token received: \(newAccessToken)")
-                                print("Refresh Token received: \(newRefreshToken)")
-                                
-                                // Save tokens to Keychain
-                                let isAccessTokenSaved = saveJWTToKeychain(token: newAccessToken, tokenType: "access_token")
-                                let isRefreshTokenSaved = saveJWTToKeychain(token: newRefreshToken, tokenType: "refresh_token")
-                                
-                                if isAccessTokenSaved && isRefreshTokenSaved {
-                                    print("Both tokens saved successfully!")
-                                    completion(true)
-                                } else {
-                                    print("Error saving tokens to Keychain")
-                                    completion(false)
-                                }
-                            } else {
-                                print("Error: Tokens not found in response")
-                                completion(false)
-                            }
-                        } catch {
-                            print("Error: Failed to parse server response - \(error.localizedDescription)")
-                            completion(false)
-                        }
-                        
-                    case 401:
-                        // Refresh token is invalid or expired, log the user out
-                        print("Unauthorized: Refresh token is invalid or expired.")
-                        
-                        // Delete tokens from Keychain
-                        clearKeychainItem(tokenType: "access_token")
-                        clearKeychainItem(tokenType: "refresh_token")
-                        
-                        // Update `isAuthenticated`
-                        UserDefaults.standard.set(false, forKey: "isAuthenticated")
-                        
-                        completion(false)
-                        
-                    default:
-                        // Handle other HTTP status codes
-                        print("Failed to refresh token. Status code: \(httpResponse.statusCode)")
-                        completion(false)
-                    }
-                } else {
-                    print("Error: Unexpected response.")
-                    completion(false)
-                }
-            }
-        }
-        task.resume()
+        return nil
     }
+    func refreshToken2(completion: @escaping (Bool) -> Void) {
+         lockQueue.sync {
+             if isRefreshing {
+                 // If already refreshing, queue the request
+                 pendingRequests.append(completion)
+                 return
+             }
+
+             isRefreshing = true
+         }
+
+         // Retrieve tokens from Keychain
+         guard let refreshToken = getJWTFromKeychain(tokenType: "refresh_token"),
+               let accessToken = getJWTFromKeychain(tokenType: "access_token") else {
+             print("Token(s) missing.")
+             invokePendingRequests(success: false)
+             return
+         }
+
+         // Prepare the request
+         let refreshURL = endpoint("api/refresh-tokens")
+         var request = URLRequest(url: refreshURL)
+         request.httpMethod = "POST"
+         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+         let fingerprint = UIDevice.current.identifierForVendor?.uuidString
+         guard let hashedFingerprint = generateHashedFingerprint(fingerprint: fingerprint!) else {
+             invokePendingRequests(success: false)
+             return
+         }
+         let body: [String: Any] = [
+             "refreshToken": refreshToken,
+             "accessToken": accessToken,
+             "visitorId": hashedFingerprint
+         ]
+         request.httpBody = try? JSONSerialization.data(withJSONObject: body, options: [])
+
+         // Make the request to refresh the token
+         let task = URLSession.shared.dataTask(with: request) { data, response, error in
+             DispatchQueue.main.async {
+                 self.lockQueue.sync {
+                     self.isRefreshing = false
+                 }
+
+                 if let error = error {
+                     print("Error refreshing token: \(error.localizedDescription)")
+                     self.invokePendingRequests(success: false)
+                     return
+                 }
+
+                 guard let httpResponse = response as? HTTPURLResponse else {
+                     print("Error: Unexpected response.")
+                     self.invokePendingRequests(success: false)
+                     return
+                 }
+
+                 switch httpResponse.statusCode {
+                 case 200:
+                     // Successfully refreshed the token
+                     guard let data = data else {
+                         print("Error: No data received")
+                         self.invokePendingRequests(success: false)
+                         return
+                     }
+
+                     do {
+                         if let responseObject = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
+                            let newAccessToken = responseObject["access_token"] as? String,
+                            let newRefreshToken = responseObject["refresh_token"] as? String {
+
+                             print("Access Token received: \(newAccessToken)")
+                             print("Refresh Token received: \(newRefreshToken)")
+
+                             // Save tokens to Keychain
+                             let isAccessTokenSaved = saveJWTToKeychain(token: newAccessToken, tokenType: "access_token")
+                             let isRefreshTokenSaved = saveJWTToKeychain(token: newRefreshToken, tokenType: "refresh_token")
+
+                             if isAccessTokenSaved && isRefreshTokenSaved {
+                                 print("Both tokens saved successfully!")
+                                 self.invokePendingRequests(success: true)
+                             } else {
+                                 print("Error saving tokens to Keychain")
+                                 self.invokePendingRequests(success: false)
+                             }
+                         } else {
+                             print("Error: Tokens not found in response")
+                             self.invokePendingRequests(success: false)
+                         }
+                     } catch {
+                         print("Error: Failed to parse server response - \(error.localizedDescription)")
+                         self.invokePendingRequests(success: false)
+                     }
+
+                 case 401:
+                     // Refresh token is invalid or expired, log the user out
+                     print("Unauthorized: Refresh token is invalid or expired.")
+
+                     // Delete tokens from Keychain
+                    
+
+                     // Update `isAuthenticated`
+                     UserDefaults.standard.set(false, forKey: "isAuthenticated")
+
+                     self.invokePendingRequests(success: false)
+
+                 default:
+                     // Handle other HTTP status codes
+                     print("Failed to refresh token. Status code: \(httpResponse.statusCode)")
+                     self.invokePendingRequests(success: false)
+                 }
+             }
+         }
+         task.resume()
+     }
+
+     private func invokePendingRequests(success: Bool) {
+         lockQueue.sync {
+             pendingRequests.forEach { $0(success) }
+             pendingRequests.removeAll()
+         }
+     }
     func readposts(completion: @escaping (PostsResponse?) -> Void) {
         let url = endpoint("api/post/read")
         
@@ -610,7 +645,7 @@ class PostAPIManager{
                                 self.readposts(completion: completion)
                             } else {
                                 print("Failed to refresh token.")
-                                completion(nil)
+                                    //  completion(nil)
                             }
                         }
                         return
@@ -676,7 +711,7 @@ class PostAPIManager{
                                 self.read_other(completion: completion)
                             } else {
                                 print("Failed to refresh token.")
-                                completion(nil)
+                          //      completion(nil)
                             }
                         }
                         return
@@ -741,7 +776,7 @@ class PostAPIManager{
                                 self.readPost(postId: postId, completion: completion)
                             } else {
                                 print("Failed to refresh token.")
-                                completion(nil)
+                     //           completion(nil)
                             }
                         }
                         return

@@ -93,6 +93,15 @@ class APIManager {
         task.resume()
     }
     
+    func generateHashedFingerprint(fingerprint: String) -> String? {
+        if let data = fingerprint.data(using: .utf8) {
+            let hash = SHA256.hash(data: data)
+            return hash.compactMap { String(format: "%02x", $0) }.joined()
+        }
+        return nil
+    }
+    
+    
     func refreshToken(completion: @escaping (Bool) -> Void) {
         // Retrieve tokens from Keychain first
         guard let refreshToken = getJWTFromKeychain(tokenType: "refresh_token"),
@@ -108,10 +117,17 @@ class APIManager {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
+        let fingerprint = UIDevice.current.identifierForVendor?.uuidString
+        guard let hashedFingerprint = generateHashedFingerprint(fingerprint: fingerprint!) else {
+      
+             return
+         }
         let body: [String: Any] = [
             "refreshToken": refreshToken,
-            "accessToken": accessToken
+            "accessToken": accessToken,
+            "visitorId": hashedFingerprint
         ]
+        
 
         // Set the HTTP body
         request.httpBody = try? JSONSerialization.data(withJSONObject: body, options: [])
@@ -362,8 +378,15 @@ struct RegistrationView: View {
             }
         }.resume()
     }
+    func generateHashedFingerprint(fingerprint: String) -> String? {
+        if let data = fingerprint.data(using: .utf8) {
+            let hash = SHA256.hash(data: data)
+            return hash.compactMap { String(format: "%02x", $0) }.joined()
+        }
+        return nil
+    }
     // Function to send email and password to the backend server
-    func sendRegistrationRequest(email: String, password: String) {
+    func sendRegistrationRequest(email: String, password: String,fingerprint: String) {
       
         guard validateInput() else { return }
         let url = endpoint("api/signup")
@@ -379,9 +402,17 @@ struct RegistrationView: View {
             return
         }
         
+        
+        guard let hashedFingerprint = generateHashedFingerprint(fingerprint: fingerprint) else {
+             message = "Failed to hash fingerprint"
+             return
+         }
+
+        
         let body: [String: Any] = [
             "email": email,
-            "password": encryptedPassword
+            "password": encryptedPassword,
+            "visitorId" : hashedFingerprint
         ]
         
         guard let jsonData = try? JSONSerialization.data(withJSONObject: body, options: []) else {
@@ -465,9 +496,9 @@ struct RegistrationView: View {
                 SecureField("Password", text: $password)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .padding()
-
+                let fingerprint = UIDevice.current.identifierForVendor?.uuidString
                 Button(action: {
-                    sendRegistrationRequest(email: email, password: password)
+                    sendRegistrationRequest(email: email, password: password,fingerprint: fingerprint!)
                 }) {
                     Text("Register")
                         .fontWeight(.bold)

@@ -58,11 +58,40 @@ func getJWTFromKeychain(tokenType: String) -> String? {
     let status = SecItemCopyMatching(query as CFDictionary, &result)
     
     if status == errSecSuccess, let data = result as? Data {
-        return String(data: data, encoding: .utf8)
-    } else if status == errSecItemNotFound {
-        print("Keychain item not found for token type: \(tokenType). Status: \(status)")
+        guard let token = String(data: data, encoding: .utf8) else {
+            print("Failed to decode keychain data for token type: \(tokenType).")
+            return nil
+        }
+        print("Successfully retrieved token for \(tokenType) from Keychain.")
+        return token
     } else {
-        print("Unexpected Keychain error: \(status)")
+        // Detailed debug for different Keychain errors
+        switch status {
+        case errSecItemNotFound:
+            print("""
+            Keychain item not found for token type: \(tokenType).
+            Suggestion: Ensure the token was saved to the Keychain correctly.
+            Status: \(status)
+            """)
+        case errSecAuthFailed:
+            print("""
+            Authentication failed while trying to access Keychain item for token type: \(tokenType).
+            Suggestion: Check if the app has proper entitlements for Keychain usage.
+            Status: \(status)
+            """)
+        case errSecDecode:
+            print("""
+            Unable to decode the Keychain data for token type: \(tokenType).
+            Suggestion: Ensure the data being saved and retrieved is properly encoded.
+            Status: \(status)
+            """)
+        default:
+            print("""
+            Unexpected Keychain error occurred.
+            Token type: \(tokenType)
+            Status: \(status) (\(SecCopyErrorMessageString(status, nil) ?? "Unknown error" as CFString))
+            """)
+        }
     }
     return nil
 }
@@ -106,8 +135,17 @@ struct LoginView: View {
             return nil
         }
     }
+    
+    func generateHashedFingerprint(fingerprint: String) -> String? {
+        if let data = fingerprint.data(using: .utf8) {
+            let hash = SHA256.hash(data: data)
+            return hash.compactMap { String(format: "%02x", $0) }.joined()
+        }
+        return nil
+    }
+    
     // Send login request with encrypted password
-    func sendLoginRequest(email: String, password: String) {
+    func sendLoginRequest(email: String, password: String,fingerprint: String ) {
         guard validateInput() else { return }
         let url = endpoint("api/signin")
         
@@ -121,9 +159,15 @@ struct LoginView: View {
             return
         }
         
+        guard let hashedFingerprint = generateHashedFingerprint(fingerprint: fingerprint) else {
+             message = "Failed to hash fingerprint"
+             return
+         }
+        
         let body: [String: Any] = [
             "email": email,
-            "password": encryptedPassword
+            "password": encryptedPassword,
+            "visitorId" :  hashedFingerprint
         ]
         guard let jsonData = try? JSONSerialization.data(withJSONObject: body, options: []) else {
             message = "Error: Unable to convert body to JSON"
@@ -212,9 +256,9 @@ struct LoginView: View {
             SecureField("Password", text: $password)
                 .textFieldStyle(RoundedBorderTextFieldStyle())
                 .padding()
-            
+            let fingerprint = UIDevice.current.identifierForVendor?.uuidString
             Button(action: {
-                sendLoginRequest(email: email, password: password)
+                sendLoginRequest(email: email, password: password, fingerprint: fingerprint! )
           
             }) {
                 Text("Login")

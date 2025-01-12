@@ -39,13 +39,13 @@ class SignalRManager: ObservableObject {
     }
 
     func startConnection() {
-        refreshTokenIfNeeded { [weak self] success in
-            if success {
-                self?.hubConnection?.start()
-            } else {
-                print("Failed to refresh token. Cannot start SignalR connection.")
-            }
-        }
+//        refreshTokenIfNeeded { [weak self] success in
+//            if success {
+                self.hubConnection?.start()
+//            } else {
+//                print("Failed to refresh token. Cannot start SignalR connection.")
+//            }
+//        }
     }
 
     func stopConnection() {
@@ -103,7 +103,7 @@ class SignalRManager: ObservableObject {
     private func refreshTokenIfNeeded(completion: @escaping (Bool) -> Void) {
         print("Refreshing token right away...")
 
-        // Always attempt to refresh the token
+        // Aways attempt to refresh the token
         refreshToken { success in
             completion(success)
         }
@@ -117,7 +117,7 @@ class SignalRManager: ObservableObject {
                 completion(true)
             } else {
                 print("Failed to refresh token. Cannot restart connection.")
-                completion(false)
+               // completion(false)
             }
         }
     }

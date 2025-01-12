@@ -343,16 +343,29 @@ struct MainView: View {
                             .padding(.trailing, 16)
                             .sheet(isPresented: $isSheet2Presented) {
                                 PublishContent()
-                                    .onDisappear {
-                                        
-                                      //  signalRManager.startConnection()
-                                        PostAPIManager.shared.readposts { response in
-                                            guard let response = response else {
-                                                return
-                                            }
-                                            self.posts = response
-                                        }
-                                    }
+                                  .onDisappear {
+//                                      DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { // Adjust the delay (in seconds) as needed
+//                                            signalRManager.startConnection()
+//                                        }
+//                                        
+//                                        // Fetch posts immediately or with a delay if necessary
+//                                        PostAPIManager.shared.readposts { response in
+//                                            guard let response = response else {
+//                                                return
+//                                            }
+//                                            self.posts = response
+//                                            print("Posts fetched successfully: \(response)") // Add this line here
+//                                        }
+//
+                                      
+//                                      //  signalRManager.startConnection()
+//                                        PostAPIManager.shared.readposts { response in
+//                                            guard let response = response else {
+//                                                return
+//                                            }
+//                                            self.posts = response
+//                                        }
+                                  }
                             }
                         }
                         .padding(.top, 16)
@@ -413,7 +426,12 @@ struct MainView: View {
                     Label("Rides", systemImage: "car.front.waves.up.fill")
                 }
                 .onAppear {
-                    signalRManager.startConnection()
+                    // Delay the start of SignalR connection
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) { // Adjust the delay (in seconds) as needed
+                        signalRManager.startConnection()
+                    }
+                    
+                    // Fetch posts immediately or with a delay if necessary
                     PostAPIManager.shared.readposts { response in
                         guard let response = response else {
                             return
@@ -422,6 +440,16 @@ struct MainView: View {
                         print("Posts fetched successfully: \(response)") // Add this line here
                     }
                 }
+//                .onAppear {
+//                    signalRManager.startConnection()
+//                    PostAPIManager.shared.readposts { response in
+//                        guard let response = response else {
+//                            return
+//                        }
+//                        self.posts = response
+//                        print("Posts fetched successfully: \(response)") // Add this line here
+//                    }
+//                }
                 
                 ScrollView{
                     VStack{
