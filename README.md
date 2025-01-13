@@ -71,6 +71,7 @@ update the `EmailSettings` section in the `appsettings.json` file:
 }
 ```
 If you're using Gmail, use an [App Password](https://support.google.com/accounts/answer/185833?hl=en).
+
 4. If you want to test the API by running it on [Docker](https://www.docker.com/get-started/),
 you have to pass your secrets to the following files:
 * [compose file](https://github.com/blendereru/LoginForm/blob/1c92e0acf566d70069fcfa99a24913562baa6e65/compose.yaml): 
