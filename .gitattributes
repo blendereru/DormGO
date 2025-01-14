@@ -1,0 +1,22 @@
+# Set default behavior to automatically normalize line endings.
+* text=auto
+
+*.doc  diff=astextplain
+*.DOC	diff=astextplain
+*.docx	diff=astextplain
+*.DOCX	diff=astextplain
+*.dot	diff=astextplain
+*.DOT	diff=astextplain
+*.pdf	diff=astextplain
+*.PDF	diff=astextplain
+*.rtf	diff=astextplain
+*.RTF	diff=astextplain
+*.jpg  	binary
+*.png 	binary
+*.gif 	binary
+*.in text eol=lf
+*.sh text eol=lf
+*.cmd text eol=crlf
+*.cs text=auto diff=csharp
+*.csproj text=auto
+*.sln text=auto eol=crlf
