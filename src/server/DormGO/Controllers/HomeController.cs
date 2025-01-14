@@ -12,13 +12,17 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace DormGO.Controllers;
+
 [Authorize]
-public class HomeController : Controller
+[ApiController]
+[Route("api")]
+public class HomeController : ControllerBase
 {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ApplicationContext _db;
     private readonly IHubContext<PostHub> _hub;
     private readonly IMapper _mapper;
+
     public HomeController(UserManager<ApplicationUser> userManager, ApplicationContext db,
         IHubContext<PostHub> hub, IMapper mapper)
     {
@@ -27,7 +31,8 @@ public class HomeController : Controller
         _hub = hub;
         _mapper = mapper;
     }
-    [HttpGet("/api/profile/read")]
+
+    [HttpGet("profile/read")]
     public async Task<IActionResult> Index()
     {
         var emailClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value;
@@ -49,13 +54,9 @@ public class HomeController : Controller
         });
     }
 
-    [HttpPost("/api/post/create")]
+    [HttpPost("post/create")]
     public async Task<IActionResult> CreatePost([FromBody] PostDto postDto)
     {
-        if (!ModelState.IsValid)
-        {
-            return BadRequest(ModelState);
-        }
         var creatorEmail = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email);
         if (creatorEmail == null)
         {
@@ -79,7 +80,8 @@ public class HomeController : Controller
         await _hub.Clients.AllExcept(connectionIds).SendAsync("PostCreated", false, postDtoMapped);
         return Ok(new { Message = "The post was saved to the database" });
     }
-    [HttpGet("/api/post/read")]
+
+    [HttpGet("post/read")]
     public async Task<IActionResult> ReadPosts()
     {
         var emailClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email);
@@ -109,7 +111,8 @@ public class HomeController : Controller
             restPosts
         });
     }
-    [HttpGet("/api/post/read/others")]
+
+    [HttpGet("post/read/others")]
     public async Task<IActionResult> ReadOtherPosts()
     {
         var emailClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email);
@@ -132,7 +135,8 @@ public class HomeController : Controller
             postsWhereMember
         });
     }
-    [HttpGet("/api/post/read/{id}")]
+
+    [HttpGet("post/read/{id}")]
     public async Task<IActionResult> ReadPost(string id)
     {
         var post = await _db.Posts
@@ -146,7 +150,8 @@ public class HomeController : Controller
         var postDto = _mapper.Map<PostDto>(post);
         return Ok(postDto);
     }
-    [HttpPost("/api/post/join/{id}")]
+
+    [HttpPost("post/join/{id}")]
     public async Task<IActionResult> JoinPost(string id)
     {
         var post = await _db.Posts
@@ -179,13 +184,9 @@ public class HomeController : Controller
         return Ok("The user was successfully added to the members of the post");
     }
 
-    [HttpPost("/api/post/update/{id}")]
+    [HttpPost("post/update/{id}")]
     public async Task<IActionResult> UpdatePost(string id, [FromBody] PostDto postDto)
     {
-        if (!ModelState.IsValid)
-        {
-            return BadRequest(ModelState);
-        }
         var userEmail = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value;
         if (string.IsNullOrEmpty(userEmail))
         {
@@ -226,7 +227,8 @@ public class HomeController : Controller
         await _hub.Clients.All.SendAsync("PostUpdated", updatedPostDto);
         return Ok(new { Message = "The post was successfully updated.", Post = updatedPostDto });
     }
-    [HttpPost("/api/post/unjoin/{id}")]
+
+    [HttpPost("post/unjoin/{id}")]
     public async Task<IActionResult> UnjoinPost(string id)
     {
         var emailClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value;
@@ -254,7 +256,8 @@ public class HomeController : Controller
         await _db.SaveChangesAsync();
         return Ok(new { Message = "The user was successfully removed from the post's members." });
     }
-    [HttpPost("/api/post/delete/{id}")]
+
+    [HttpPost("post/delete/{id}")]
     public async Task<IActionResult> RemovePost(string id)
     {
         var userEmail = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value;
