@@ -181,73 +181,8 @@ struct YourPostsSection: View {
         return "0"
     }
 }
-//struct PostGrid: View {
-//    let posts: [UnifiedPost] // Combined posts
-//    let columns: [GridItem]
-//    @Binding var isSheetPresented: Bool
-//
-//    var body: some View {
-//        LazyVGrid(columns: columns, spacing: 16) {
-//            ForEach(posts, id: \.id) { post in
-//                RideInfoButton(
-//                    peopleAssembled: "\(post.members.count)/\(post.maxPeople)",
-//                    destination: post.description,
-//                    minutesago: calculateMinutesAgo(from: post.createdAt),
-//                    rideName: "Price: \(post.currentPrice)₸",
-//                    status: "Active",
-//                    color: post.source == "rest" ? .yellow : .blue,
-//                    company: post.members.first?.name ?? "Unknown"
-//                ) {
-//                    isSheetPresented = true
-//                }
-////                .sheet(isPresented: $isSheetPresented) {
-////                    SheetContent(post: )
-////                        .onDisappear {
-////                            // Handle sheet dismissal
-////                        }
-////                }
-//            }
-//        }
-//    }
-//    private func calculateMinutesAgo(from createdAt: String) -> String {
-//        // Try ISO8601DateFormatter first
-//        let isoDateFormatter = ISO8601DateFormatter()
-//        isoDateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-//        isoDateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
-//        
-//        if let postDate = isoDateFormatter.date(from: createdAt) {
-//            let timeInterval = Date().timeIntervalSince(postDate)
-//            let minutesAgo = Int(timeInterval / 60)
-//            return "\(minutesAgo)"
-//        }
-//        
-//        // Fallback to DateFormatter for optional fractional seconds
-//        let fallbackFormatter = DateFormatter()
-//        
-//        // Try parsing with or without fractional seconds
-//        fallbackFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss" // Without fractional seconds
-//        fallbackFormatter.timeZone = TimeZone(secondsFromGMT: 0)
-//        
-//        if let postDate = fallbackFormatter.date(from: createdAt) {
-//            let timeInterval = Date().timeIntervalSince(postDate)
-//            let minutesAgo = Int(timeInterval / 60)
-//            return "\(minutesAgo)"
-//        }
-//        
-//        // If parsing fails, try with fractional seconds format
-//        fallbackFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS" // With fractional seconds
-//        
-//        if let postDate = fallbackFormatter.date(from: createdAt) {
-//            let timeInterval = Date().timeIntervalSince(postDate)
-//            let minutesAgo = Int(timeInterval / 60)
-//            return "\(minutesAgo)"
-//        }
-//        
-//        // Log failure and return 0
-//        print("Failed to parse date: \(createdAt)")
-//        return "0"
-//    }
-//}
+
+
 
 
 struct ProfileView: View {
@@ -343,19 +278,23 @@ struct MainView: View {
                             .padding(.trailing, 16)
                             .sheet(isPresented: $isSheet2Presented) {
                                 PublishContent()
-                                  .onDisappear {
-//                                      DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { // Adjust the delay (in seconds) as needed
-//                                            signalRManager.startConnection()
-//                                        }
-//                                        
-//                                        // Fetch posts immediately or with a delay if necessary
-//                                        PostAPIManager.shared.readposts { response in
-//                                            guard let response = response else {
-//                                                return
-//                                            }
-//                                            self.posts = response
-//                                            print("Posts fetched successfully: \(response)") // Add this line here
-//                                        }
+                                    .onDisappear {
+//                                        DispatchQueue.main.asyncAfter(deadline: .now() + 10.0) { // Adjust the delay (in seconds) as needed
+                                            
+                                      
+                                        
+                                       
+                                        // Fetch posts immediately or with a delay if necessary
+                                        PostAPIManager.shared.readposts { response in
+                                            guard let response = response else {
+                                                return
+                                            }
+                                            self.posts = response
+                                            print("Posts fetched successfully: \(response)") // Add this line here
+                                            SignalRManager().startConnection()
+                                         
+                                        }
+                                    
 //
                                       
 //                                      //  signalRManager.startConnection()
@@ -426,30 +365,18 @@ struct MainView: View {
                     Label("Rides", systemImage: "car.front.waves.up.fill")
                 }
                 .onAppear {
-                    // Delay the start of SignalR connection
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) { // Adjust the delay (in seconds) as needed
-                        signalRManager.startConnection()
-                    }
                     
-                    // Fetch posts immediately or with a delay if necessary
                     PostAPIManager.shared.readposts { response in
                         guard let response = response else {
                             return
                         }
                         self.posts = response
                         print("Posts fetched successfully: \(response)") // Add this line here
+                        
+                        SignalRManager().startConnection()
                     }
                 }
-//                .onAppear {
-//                    signalRManager.startConnection()
-//                    PostAPIManager.shared.readposts { response in
-//                        guard let response = response else {
-//                            return
-//                        }
-//                        self.posts = response
-//                        print("Posts fetched successfully: \(response)") // Add this line here
-//                    }
-//                }
+
                 
                 ScrollView{
                     VStack{

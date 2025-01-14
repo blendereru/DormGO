@@ -34,8 +34,8 @@ struct PostsResponse: Codable {
     let yourPosts: [Post]
     let restPosts: [Post]
 }
-
-let baseURL = URL(string: "https://dormgo.azurewebsites.net")! // https://dormgo.azurewebsites.net
+//https://8035-2-135-65-38.ngrok-free.app
+let baseURL = URL(string: "http://localhost:8080")! // https://dormgo.azurewebsites.net    http://localhost:8080
 
 
 
@@ -490,16 +490,17 @@ class PostAPIManager{
         }
         return nil
     }
-    func refreshToken2(completion: @escaping (Bool) -> Void) {
-         lockQueue.sync {
-             if isRefreshing {
-                 // If already refreshing, queue the request
-                 pendingRequests.append(completion)
-                 return
-             }
-
-             isRefreshing = true
-         }
+    func refreshToken2(caller: String = #function,completion: @escaping (Bool) -> Void) {
+        print("refreshToken2 called from \(caller)")
+//        lockQueue.sync {
+//             if isRefreshing {
+//                 // If already refreshing, queue the request
+//                 pendingRequests.append(completion)
+//                 return
+//             }
+//
+//             isRefreshing = true
+//         }
 
          // Retrieve tokens from Keychain
          guard let refreshToken = getJWTFromKeychain(tokenType: "refresh_token"),
@@ -514,9 +515,9 @@ class PostAPIManager{
          var request = URLRequest(url: refreshURL)
          request.httpMethod = "POST"
          request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-         let fingerprint = UIDevice.current.identifierForVendor?.uuidString
-         guard let hashedFingerprint = generateHashedFingerprint(fingerprint: fingerprint!) else {
-             invokePendingRequests(success: false)
+            // let fingerprint = UIDevice.current.identifierForVendor?.uuidString
+         guard let hashedFingerprint = generateHashedFingerprint(fingerprint: fingerprint) else {
+         //    invokePendingRequests(success: false)
              return
          }
          let body: [String: Any] = [
@@ -529,19 +530,19 @@ class PostAPIManager{
          // Make the request to refresh the token
          let task = URLSession.shared.dataTask(with: request) { data, response, error in
              DispatchQueue.main.async {
-                 self.lockQueue.sync {
-                     self.isRefreshing = false
-                 }
+//                 self.lockQueue.sync {
+//                     self.isRefreshing = false
+//                 }
 
                  if let error = error {
                      print("Error refreshing token: \(error.localizedDescription)")
-                     self.invokePendingRequests(success: false)
+                  //   self.invokePendingRequests(success: false)
                      return
                  }
 
                  guard let httpResponse = response as? HTTPURLResponse else {
                      print("Error: Unexpected response.")
-                     self.invokePendingRequests(success: false)
+                 //    self.invokePendingRequests(success: false)
                      return
                  }
 
@@ -550,11 +551,13 @@ class PostAPIManager{
                      // Successfully refreshed the token
                      guard let data = data else {
                          print("Error: No data received")
-                         self.invokePendingRequests(success: false)
+                       //  self.invokePendingRequests(success: false)
                          return
                      }
 
                      do {
+                         clearKeychainItem(tokenType: "access_token")
+                         clearKeychainItem(tokenType: "refresh_token")
                          if let responseObject = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
                             let newAccessToken = responseObject["access_token"] as? String,
                             let newRefreshToken = responseObject["refresh_token"] as? String {
@@ -568,18 +571,19 @@ class PostAPIManager{
 
                              if isAccessTokenSaved && isRefreshTokenSaved {
                                  print("Both tokens saved successfully!")
-                                 self.invokePendingRequests(success: true)
+                                 completion(true)
+                           //      self.invokePendingRequests(success: true)
                              } else {
                                  print("Error saving tokens to Keychain")
-                                 self.invokePendingRequests(success: false)
+                            //     self.invokePendingRequests(success: false)
                              }
                          } else {
                              print("Error: Tokens not found in response")
-                             self.invokePendingRequests(success: false)
+                         //    self.invokePendingRequests(success: false)
                          }
                      } catch {
                          print("Error: Failed to parse server response - \(error.localizedDescription)")
-                         self.invokePendingRequests(success: false)
+                   //      self.invokePendingRequests(success: false)
                      }
 
                  case 401:
@@ -597,7 +601,7 @@ class PostAPIManager{
                  default:
                      // Handle other HTTP status codes
                      print("Failed to refresh token. Status code: \(httpResponse.statusCode)")
-                     self.invokePendingRequests(success: false)
+                   //  self.invokePendingRequests(success: false)
                  }
              }
          }
@@ -639,13 +643,14 @@ class PostAPIManager{
                 
                 if let httpResponse = response as? HTTPURLResponse {
                     if httpResponse.statusCode == 401 {
-                        print("Token expired. Refreshing...")
+                        print("Tokenтттттттттттт expired. Refreshing...")
                         self.refreshToken2 { success in
                             if success {
+                                print("re-read")
                                 self.readposts(completion: completion)
                             } else {
                                 print("Failed to refresh token.")
-                                    //  completion(nil)
+                                    completion(nil)
                             }
                         }
                         return

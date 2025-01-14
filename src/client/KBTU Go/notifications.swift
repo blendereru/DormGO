@@ -21,6 +21,7 @@ struct PostDetails: Codable {
 }
 
 class SignalRManager: ObservableObject {
+
     private var hubConnection: HubConnection?
     @Published var posts: [PostDetails] = [] // State to hold the posts
     @Published var posts_update: [PostDetails] = []
@@ -32,13 +33,14 @@ class SignalRManager: ObservableObject {
                     options.accessTokenProvider = { token }
                 }
             }
-            .withLogging(minLogLevel: .info)
+            .withLogging(minLogLevel: .error)
             .build()
 
         setupListeners() // Register listeners for SignalR events
     }
 
     func startConnection() {
+        
 //        refreshTokenIfNeeded { [weak self] success in
 //            if success {
                 self.hubConnection?.start()
@@ -47,24 +49,40 @@ class SignalRManager: ObservableObject {
 //            }
 //        }
     }
+    
+    
 
     func stopConnection() {
         hubConnection?.stop()
     }
 
-    private func setupListeners() {
-        hubConnection?.on(method: "PostCreated", callback: { [weak self] (type: Bool, postDto: PostDetails) in
-            let timestamp = Date()
-            print("Received post at \(timestamp) with type: \(type)")  // Log the time and type
+    private func handlemessage_pc(type:Bool,postDto:PostDetails){
+        let timestamp = Date()
+        print("Received post at \(timestamp) with type: \(type)")  // Log the time and type
 
-            if !type {
-                print("Post appended: \(postDto)")
-                DispatchQueue.main.async {
-                    self?.posts.append(postDto)
-                }
-            } else {
-                print("Post ignored due to type being true")
+        if !type {
+            print("Post appended: \(postDto)")
+            DispatchQueue.main.async {
+                self.posts.append(postDto)
             }
+        } else {
+            print("Post ignored due to type being true")
+        }
+    }
+    private func setupListeners() {
+       // let hubUrl = endpoint("api/posthub")
+        
+    
+        hubConnection?.on(method: "PostCreated", callback: { [weak self] (type: Bool, postDto: PostDetails) in
+            guard let self = self else {
+                   print("Self is nil, cannot handle the post")
+                   return
+               }
+
+            
+                self.handlemessage_pc(type: type, postDto: postDto)
+        
+          
         })
         
         hubConnection?.on(method: "PostUpdated", callback: { [weak self] (type: Bool, postDto: PostDetails) in
@@ -101,7 +119,7 @@ class SignalRManager: ObservableObject {
         })    }
 
     private func refreshTokenIfNeeded(completion: @escaping (Bool) -> Void) {
-        print("Refreshing token right away...")
+      
 
         // Aways attempt to refresh the token
         refreshToken { success in
@@ -125,18 +143,21 @@ class SignalRManager: ObservableObject {
     private func restartConnection() {
         if let newToken = getJWTFromKeychain(tokenType: "access_token") {
             hubConnection?.stop()
-            hubConnection = HubConnectionBuilder(url: endpoint("api/posthub"))
-                .withHttpConnectionOptions { options in
-                    options.accessTokenProvider = { newToken }
-                }
-                .withLogging(minLogLevel: .info)
-                .build()
 
-            setupListeners()
-            hubConnection?.start()  // Reconnect after token refresh
+            // Delay the start of the new connection to ensure proper stopping of the old connection
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                self.hubConnection = HubConnectionBuilder(url: endpoint("api/posthub"))
+                    .withHttpConnectionOptions { options in
+                        options.accessTokenProvider = { newToken }
+                    }
+                    .withLogging(minLogLevel: .info)
+                    .build()
+
+                self.setupListeners()
+                self.hubConnection?.start()  // Reconnect after token refresh
+            }
         }
     }
-
     private func isTokenExpired(_ token: String) -> Bool {
         // Token expiration check logic (e.g., decoding token and checking expiry)
         return false  // Replace with actual expiration check

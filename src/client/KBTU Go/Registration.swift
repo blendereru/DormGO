@@ -102,7 +102,8 @@ class APIManager {
     }
     
     
-    func refreshToken(completion: @escaping (Bool) -> Void) {
+    func refreshToken(caller: String = #function,completion: @escaping (Bool) -> Void) {
+        print("refreshToken_from_reg called from \(caller)")
         // Retrieve tokens from Keychain first
         guard let refreshToken = getJWTFromKeychain(tokenType: "refresh_token"),
               let accessToken = getJWTFromKeychain(tokenType: "access_token") else {
@@ -117,8 +118,8 @@ class APIManager {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-        let fingerprint = UIDevice.current.identifierForVendor?.uuidString
-        guard let hashedFingerprint = generateHashedFingerprint(fingerprint: fingerprint!) else {
+            //   let fingerprint = UIDevice.current.identifierForVendor?.uuidString
+        guard let hashedFingerprint = generateHashedFingerprint(fingerprint: fingerprint) else {
       
              return
          }

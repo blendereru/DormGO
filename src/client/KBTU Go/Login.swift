@@ -8,7 +8,26 @@
 import Foundation
 import CryptoKit
 import SwiftUI
+import UIKit
 
+class DeviceManager {
+    static let shared = DeviceManager()
+    private let key = "savedIdentifierForVendor"
+
+    private init() {}
+
+    var identifierForVendor: String {
+        if let savedId = UserDefaults.standard.string(forKey: key) {
+            return savedId
+        } else {
+            let newId = UIDevice.current.identifierForVendor?.uuidString ?? UUID().uuidString
+            UserDefaults.standard.set(newId, forKey: key)
+            return newId
+        }
+    }
+}
+
+let fingerprint = DeviceManager.shared.identifierForVendor
 func getFixedNonce() -> Data {
     // Use a fixed nonce or store the same nonce across registration and login
     // For example, you could use a static 12-byte nonce.
@@ -256,9 +275,9 @@ struct LoginView: View {
             SecureField("Password", text: $password)
                 .textFieldStyle(RoundedBorderTextFieldStyle())
                 .padding()
-            let fingerprint = UIDevice.current.identifierForVendor?.uuidString
+          
             Button(action: {
-                sendLoginRequest(email: email, password: password, fingerprint: fingerprint! )
+                sendLoginRequest(email: email, password: password, fingerprint: fingerprint )
           
             }) {
                 Text("Login")
