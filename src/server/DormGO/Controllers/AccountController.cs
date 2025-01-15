@@ -240,33 +240,18 @@ public class AccountController : ControllerBase
     [HttpPost("resend-confirmation-email")]
     public async Task<IActionResult> ResendConfirmationEmail([FromBody] EmailDto emailDto)
     {
-        if (string.IsNullOrEmpty(emailDto.Email))
-        {
-            return BadRequest("Email is required.");
-        }
-
         var user = await _userManager.FindByEmailAsync(emailDto.Email);
-
         if (user == null)
         {
             return NotFound("User not found.");
         }
-
         if (await _userManager.IsEmailConfirmedAsync(user))
         {
             return BadRequest("Email is already confirmed.");
         }
-
-        try
-        {
-            await SendConfirmationEmailAsync(user);
-            return Ok(new { Message = "Confirmation email sent successfully." });
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Error sending confirmation email to {Email}", emailDto.Email);
-            return StatusCode(StatusCodes.Status500InternalServerError, "An error occurred while sending the email.");
-        }
+        user.Fingerprint = emailDto.VisitorId;
+        await SendConfirmationEmailAsync(user);
+        return Ok(new { Message = "Confirmation email sent successfully." });
     }
 
     [HttpPost("refresh-tokens")]
@@ -334,7 +319,6 @@ public class AccountController : ControllerBase
     private async Task SendConfirmationEmailAsync(ApplicationUser user)
     {
         ArgumentNullException.ThrowIfNull(user, nameof(user));
-
         var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
         var confirmationLink = Url.Action(
             "ConfirmEmail",
