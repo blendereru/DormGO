@@ -107,6 +107,63 @@ public class AccountController : ControllerBase
         });
     }
 
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword([FromBody] EmailDto emailDto)
+    {
+        var user = await _userManager.FindByEmailAsync(emailDto.Email);
+        if (user == null)
+        {
+            return NotFound("User not found.");
+        }
+        await SendForgotPasswordEmailAsync(user);
+        return Ok("Forgot password email sent successfully.");
+    }
+    [HttpGet("reset-password")]
+    public async Task<IActionResult> ResetPassword(string userId, string token)
+    {
+        if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(token))
+        {
+            return BadRequest("The link is invalid or expired.");
+        }
+
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user == null)
+        {
+            return NotFound("The user is not found.");
+        }
+        var isTokenValid = await _userManager.VerifyUserTokenAsync(
+            user, 
+            _userManager.Options.Tokens.PasswordResetTokenProvider, 
+            "ResetPassword", 
+            token
+        );
+        if (!isTokenValid)
+        {
+            return BadRequest("The link is invalid or expired.");
+        }
+        return Ok(new
+        {
+            Message = "The link is valid. You can now reset your password.",
+            Email = user.Email!,
+            Token = token
+        });
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword(ResetPasswordDto model)
+    {
+        var user = await _userManager.FindByEmailAsync(model.Email);
+        if (user == null)
+        {
+            return NotFound("The user is not found.");
+        }
+        var result = await _userManager.ResetPasswordAsync(user, model.Token, model.NewPassword);
+        if (!result.Succeeded)
+        {
+            return BadRequest(result.Errors);
+        }
+        return Ok(new { Message = "Your password has been reset successfully." });
+    }
     [HttpPost("signout")]
     public async Task<IActionResult> Logout([FromBody] TokenDto dto)
     {
@@ -122,7 +179,6 @@ public class AccountController : ControllerBase
 
         return Ok("The refresh token was successfully removed");
     }
-
     [HttpGet("confirm-email")]
     public async Task<IActionResult> ConfirmEmail(string userId, string token, string visitorId,
         [FromServices] IHubContext<UserHub> hub)
@@ -292,6 +348,24 @@ public class AccountController : ControllerBase
         await _emailSender.SendEmailAsync(user.Email!, "Confirm your email", body, true);
     }
 
+    [NonAction]
+    private async Task SendForgotPasswordEmailAsync(ApplicationUser user)
+    {
+        ArgumentNullException.ThrowIfNull(user, nameof(user));
+        string token = await _userManager.GeneratePasswordResetTokenAsync(user);
+        string resetLink = Url.Action(
+            "ResetPassword",
+            "Account",
+            new { userId = user.Id, token = token },
+            protocol: HttpContext.Request.Scheme);
+        string emailSubject = "Reset Your Password";
+        string emailBody = $@"
+        <p>Hi {user.UserName},</p>
+        <p>You requested to reset your password. Click the link below to reset it:</p>
+        <p><a href='{resetLink}'>Reset Password</a></p>
+        <p>If you did not request this, please ignore this email.</p>";
+        await _emailSender.SendEmailAsync(user.Email!, emailSubject, emailBody, true);
+    }
     [NonAction]
     private string GenerateAccessToken(ApplicationUser user)
     {
