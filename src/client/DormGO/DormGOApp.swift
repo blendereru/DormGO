@@ -8,7 +8,7 @@
 import SwiftUI
 
 @main
-struct KBTU_GoApp: App {
+struct DormGOApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
