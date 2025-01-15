@@ -32,6 +32,10 @@ This project follows the MVVM (Model-View-ViewModel) architecture pattern with S
 This endpoint is needed to notify the client when the user confirms his email.
 * `/api/confirm-email` - is needed to confirm user's email.
 * `HttpPost /api/signin` - is needed to log an existing user in the system. Doesn't allow to sign in until the `email` is confirmed.
+* `HttpPost /api/forgot-password` - the client should send requests here, whenever a user forgets his password.(Preview)
+* `HttpGet /api/reset-password/{userId}/{token}` - is needed to validate a token and to inform a client that a user can now send new password.(Preview)
+* `HttpPost /api/reset-password` - to save the changes in the database.(Preview)
+* `HttpPost /api/resend-confirmation-email` - requires user's email and visitorId in the body. Is needed when an email is not received by user.(Preview) 
 ### Endpoints for authorized users `only`
 * `HttpPost /api/post/create` - the endpoint to create a `post` and make it visible for all users.
 * `HttpPost /api/post/update/{id}` - is needed to update the post info.
@@ -87,9 +91,10 @@ environment:
 }
 ```
 ## 🎯 ToDos
-1. [ ] Add endpoints to handle the case when user's data changes. For example, client forgot his `password`.
+1. [ ] Add endpoints to handle the case when user's data changes. For example, client forgot his `password`.(Pending)
 2. [ ] Modify the `UI` for better appearance.
 3. [ ] Chat functions so that members of the post can talk to each other.
+4. [ ] (Server) Manage logging for better problem detection.
 ## 📗 License
 The project code and all the resources are distributed under the terms of [MIT license](https://github.com/blendereru/LoginForm/blob/f9ec9cd269e0b785c8a7b778e4d4f16fdb4a1427/LICENSE)
 
