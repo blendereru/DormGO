@@ -20,7 +20,41 @@ struct PostDetails: Codable {
     let members: [ProtectedResponse]
 }
 
-class SignalRManager: ObservableObject {
+
+class CustomLogger: Logger {
+    let dateFormatter: DateFormatter
+    var signalRManager: SignalRManager
+
+    init(signalRManager: SignalRManager) {
+        self.signalRManager = signalRManager
+        dateFormatter = DateFormatter()
+        dateFormatter.calendar = Calendar(identifier: .iso8601)
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+        dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+        dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSXXXXX"
+    }
+
+    func log(logLevel: LogLevel, message: @autoclosure () -> String) {
+        let logMessage = message()
+        let timestamp = dateFormatter.string(from: Date())
+        
+        if logLevel == .error && logMessage.contains("401") {
+            print("\(timestamp) ERROR: Unauthorized access detected (401). Please verify your token or credentials.")
+            PostAPIManager().refreshToken2 { success in
+                if success {
+                    print("Token refreshed in custom logger successfully. Restarting connection.")
+                    SignalRManager().startConnection()  // Restart the connection using the passed instance
+                } else {
+                    print("Failed to refresh token. Cannot restart connection.")
+                }
+            }
+        } else {
+            print("\(timestamp) \(logLevel.toString()): \(logMessage)")
+        }
+    }
+}
+
+class SignalRManager: ObservableObject{
 
     private var hubConnection: HubConnection?
     @Published var posts: [PostDetails] = [] // State to hold the posts
@@ -33,7 +67,7 @@ class SignalRManager: ObservableObject {
                     options.accessTokenProvider = { token }
                 }
             }
-            .withLogging(minLogLevel: .error)
+            .withLogging(minLogLevel: .error,logger: CustomLogger(signalRManager: self))
             .build()
 
         setupListeners() // Register listeners for SignalR events
@@ -69,6 +103,8 @@ class SignalRManager: ObservableObject {
             print("Post ignored due to type being true")
         }
     }
+    
+   
     private func setupListeners() {
        // let hubUrl = endpoint("api/posthub")
         

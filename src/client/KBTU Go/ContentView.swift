@@ -365,15 +365,15 @@ struct MainView: View {
                     Label("Rides", systemImage: "car.front.waves.up.fill")
                 }
                 .onAppear {
-                    
+                  
                     PostAPIManager.shared.readposts { response in
                         guard let response = response else {
                             return
                         }
                         self.posts = response
                         print("Posts fetched successfully: \(response)") // Add this line here
-                        
                         SignalRManager().startConnection()
+                        
                     }
                 }
 
