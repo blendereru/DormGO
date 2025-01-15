@@ -11,13 +11,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		637D7F8D2CE7D55800D37E0F /* KBTU Go.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "KBTU Go.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		637D7F8D2CE7D55800D37E0F /* DormGO.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DormGO.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		637D7F8F2CE7D55800D37E0F /* KBTU Go */ = {
+		637D7F8F2CE7D55800D37E0F /* DormGO */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "KBTU Go";
+			path = DormGO;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -37,7 +37,7 @@
 		637D7F842CE7D55800D37E0F = {
 			isa = PBXGroup;
 			children = (
-				637D7F8F2CE7D55800D37E0F /* KBTU Go */,
+				637D7F8F2CE7D55800D37E0F /* DormGO */,
 				637D7F8E2CE7D55800D37E0F /* Products */,
 			);
 			sourceTree = "<group>";
@@ -45,7 +45,7 @@
 		637D7F8E2CE7D55800D37E0F /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				637D7F8D2CE7D55800D37E0F /* KBTU Go.app */,
+				637D7F8D2CE7D55800D37E0F /* DormGO.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -53,9 +53,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		637D7F8C2CE7D55800D37E0F /* KBTU Go */ = {
+		637D7F8C2CE7D55800D37E0F /* DormGO */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 637D7F9B2CE7D55B00D37E0F /* Build configuration list for PBXNativeTarget "KBTU Go" */;
+			buildConfigurationList = 637D7F9B2CE7D55B00D37E0F /* Build configuration list for PBXNativeTarget "DormGO" */;
 			buildPhases = (
 				637D7F892CE7D55800D37E0F /* Sources */,
 				637D7F8A2CE7D55800D37E0F /* Frameworks */,
@@ -66,14 +66,14 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				637D7F8F2CE7D55800D37E0F /* KBTU Go */,
+				637D7F8F2CE7D55800D37E0F /* DormGO */,
 			);
-			name = "KBTU Go";
+			name = DormGO;
 			packageProductDependencies = (
 				636EB9CE2CF9E5FA003C7291 /* SignalRClient */,
 			);
 			productName = "KBTU Go";
-			productReference = 637D7F8D2CE7D55800D37E0F /* KBTU Go.app */;
+			productReference = 637D7F8D2CE7D55800D37E0F /* DormGO.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -91,7 +91,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 637D7F882CE7D55800D37E0F /* Build configuration list for PBXProject "KBTU Go" */;
+			buildConfigurationList = 637D7F882CE7D55800D37E0F /* Build configuration list for PBXProject "DormGO" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -108,7 +108,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				637D7F8C2CE7D55800D37E0F /* KBTU Go */,
+				637D7F8C2CE7D55800D37E0F /* DormGO */,
 			);
 		};
 /* End PBXProject section */
@@ -260,7 +260,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_ASSET_PATHS = "\"KBTU Go/Preview Content\"";
+				DEVELOPMENT_ASSET_PATHS = "\"DormGO/Preview Content\"";
 				DEVELOPMENT_TEAM = 5BK3H6Y47F;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -290,7 +290,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_ASSET_PATHS = "\"KBTU Go/Preview Content\"";
+				DEVELOPMENT_ASSET_PATHS = "\"DormGO/Preview Content\"";
 				DEVELOPMENT_TEAM = 5BK3H6Y47F;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -316,7 +316,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		637D7F882CE7D55800D37E0F /* Build configuration list for PBXProject "KBTU Go" */ = {
+		637D7F882CE7D55800D37E0F /* Build configuration list for PBXProject "DormGO" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				637D7F992CE7D55B00D37E0F /* Debug */,
@@ -325,7 +325,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		637D7F9B2CE7D55B00D37E0F /* Build configuration list for PBXNativeTarget "KBTU Go" */ = {
+		637D7F9B2CE7D55B00D37E0F /* Build configuration list for PBXNativeTarget "DormGO" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				637D7F9C2CE7D55B00D37E0F /* Debug */,
