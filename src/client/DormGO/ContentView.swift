@@ -283,28 +283,43 @@ struct MainView: View {
                                             
                                       
                                         
-                                       
-                                        // Fetch posts immediately or with a delay if necessary
-                                        PostAPIManager.shared.readposts { response in
-                                            guard let response = response else {
-                                                return
-                                            }
-                                            self.posts = response
-                                            print("Posts fetched successfully: \(response)") // Add this line here
-                                            SignalRManager().startConnection()
-                                         
-                                        }
-                                    
-//
-                                      
-//                                      //  signalRManager.startConnection()
+//                                        SignalRManager().startConnection()
+//                                        // Fetch posts immediately or with a delay if necessary
 //                                        PostAPIManager.shared.readposts { response in
 //                                            guard let response = response else {
 //                                                return
 //                                            }
 //                                            self.posts = response
+//                                            print("Posts fetched successfully: \(response)") // Add this line here
+//                                         
+//                                         
 //                                        }
-                                  }
+                                        
+//                                        SignalRManager().startConnection {
+//                                            // Connection is successfully established, now fetch posts
+//                                        }
+//                                    
+////                                            PostAPIManager.shared.readposts { response in
+//                                        guard let response = response else {
+//                                            return
+//                                        }
+//                                        self.posts = response
+//                                        print("Posts fetched successfully: \(response)")
+//                                    }
+
+                                        PostAPIManager.shared.readposts { response in
+                                            guard let response = response else {
+                                                print("Failed to fetch posts")
+                                                return
+                                            }
+                                            
+                                            // Assign the fetched posts to your local variable
+                                            self.posts = response
+                                            
+                                            // Start the SignalR connection only after posts are fetched
+                                            signalRManager.startConnection()
+                                        }
+                                                                          }
                             }
                         }
                         .padding(.top, 16)
@@ -366,15 +381,16 @@ struct MainView: View {
                 }
                 .onAppear {
                   
-                    PostAPIManager.shared.readposts { response in
-                        guard let response = response else {
-                            return
+                    
+                        PostAPIManager.shared.readposts { response in
+                            guard let response = response else {
+                                return
+                            }
+                            self.posts = response
+                            print("Posts fetched successfully: \(response)")
+                            signalRManager.startConnection()
                         }
-                        self.posts = response
-                        print("Posts fetched successfully: \(response)") // Add this line here
-                        SignalRManager().startConnection()
-                        
-                    }
+                    
                 }
 
                 

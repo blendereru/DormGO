@@ -21,6 +21,7 @@ struct PostDetails: Codable {
 }
 
 
+
 class CustomLogger: Logger {
     let dateFormatter: DateFormatter
     var signalRManager: SignalRManager
@@ -43,7 +44,8 @@ class CustomLogger: Logger {
             PostAPIManager().refreshToken2 { success in
                 if success {
                     print("Token refreshed in custom logger successfully. Restarting connection.")
-                    SignalRManager().startConnection()  // Restart the connection using the passed instance
+                    self.signalRManager.startConnection()
+                    // Restart the connection using the passed instance
                 } else {
                     print("Failed to refresh token. Cannot restart connection.")
                 }
@@ -59,7 +61,13 @@ class SignalRManager: ObservableObject{
     private var hubConnection: HubConnection?
     @Published var posts: [PostDetails] = [] // State to hold the posts
     @Published var posts_update: [PostDetails] = []
-    init() {
+    private var customLogger: CustomLogger?
+        init() {
+            self.customLogger = CustomLogger(signalRManager: self)
+            
+            guard let logger = customLogger else {
+                        fatalError("CustomLogger could not be initialized.")
+                    }
         let hubUrl = endpoint("api/posthub")
         hubConnection = HubConnectionBuilder(url: hubUrl)
             .withHttpConnectionOptions { options in
@@ -67,23 +75,38 @@ class SignalRManager: ObservableObject{
                     options.accessTokenProvider = { token }
                 }
             }
-            .withLogging(minLogLevel: .error,logger: CustomLogger(signalRManager: self))
+            .withLogging(minLogLevel: .error,logger:  logger)
             .build()
-
-        setupListeners() // Register listeners for SignalR events
+        setupListeners()
+                  // Once listeners are set up, mark as ready
+              
+         // Register listeners for SignalR events
+        
     }
 
     func startConnection() {
-        
-//        refreshTokenIfNeeded { [weak self] success in
-//            if success {
-                self.hubConnection?.start()
-//            } else {
-//                print("Failed to refresh token. Cannot start SignalR connection.")
-//            }
-//        }
-    }
-    
+//        guard let logger = customLogger else {
+//                   fatalError("CustomLogger could not be initialized.")
+//               }
+//
+//          //Rebuild connection with the provided token and custom logger
+//         self.hubConnection = HubConnectionBuilder(url: endpoint("api/posthub"))
+//             .withHttpConnectionOptions { options in
+//                 if let token = getJWTFromKeychain(tokenType: "access_token") {
+//                     options.accessTokenProvider = { token }
+//                 }
+//             }
+//             .withLogging(minLogLevel: .error, logger:  logger)
+//             .build()
+//
+//         // Start the connection
+//         self.hubConnection?.start()
+        guard hubConnection != nil else {
+            print("HubConnection is not initialized")
+            return
+        }
+        hubConnection?.start()
+     }
     
 
     func stopConnection() {
@@ -152,7 +175,9 @@ class SignalRManager: ObservableObject{
                     print("Post not found; skipping deletion.")
                 }
             }
-        })    }
+        })
+  
+    }
 
     private func refreshTokenIfNeeded(completion: @escaping (Bool) -> Void) {
       
@@ -189,7 +214,7 @@ class SignalRManager: ObservableObject{
                     .withLogging(minLogLevel: .info)
                     .build()
 
-                self.setupListeners()
+             //   self.setupListeners()
                 self.hubConnection?.start()  // Reconnect after token refresh
             }
         }
