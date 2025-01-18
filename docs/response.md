@@ -326,6 +326,105 @@ different http methods).
   </tbody>
 </table>
 
+## WebSocket's events
+Server initiates `WebSocket` connection with client for specific events to trigger an immediate update
+on view.
+
+<table border="1">
+  <thead>
+    <tr>
+      <th>HTTP Endpoint</th>
+      <th>Hub Method</th>
+      <th>Response Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>/api/userhub?userName="your_userName"</td>
+      <td>EmailConfirmed</td>
+      <td>
+        <pre lang="json">{
+  "target": "EmailConfirmed",
+  "arguments": [
+    "your_gmail@kbtu.kz",
+    {
+      "accessToken": "your_access_token",
+      "refreshToken": "your_refresh_token"
+    }
+  ]
+}</pre>
+      </td>
+      <td>Gets triggered when a user confirms their email.</td>
+    </tr>
+    <tr>
+      <td>/api/posthub</td>
+      <td>PostCreated</td>
+      <td>
+        <pre lang="json">{
+  "target": "PostCreated",
+  "arguments": [
+    true,
+    {
+      "postId": "post_id",
+      "description": "your_description",
+      "currentPrice": 1500,
+      "latitude": 12.345,
+      "longitude": 23.678,
+      "createdAt": "date_of_creation",
+      "maxPeople": 6,
+      "creator": {
+        "email": "creator_email_address",
+        "name": "creator_name"
+      },
+      "members": []
+    }
+  ]
+}</pre>
+      </td>
+      <td>Gets triggered when a user creates a post. The first argument indicates if the post creator is the user himself.</td>
+    </tr>
+    <tr>
+      <td>/api/posthub</td>
+      <td>PostUpdated</td>
+      <td>
+        <pre lang="json">{
+  "target": "PostUpdated",
+  "arguments": [
+    {
+      "postId": "post_id",
+      "description": "your_description",
+      "currentPrice": 1500,
+      "latitude": 12.345,
+      "longitude": 23.678,
+      "createdAt": "post_date_of_creation",
+      "maxPeople": 2,
+      "creator": {
+        "email": "creatorgmail@kbtu.kz",
+        "name": "creator_name"
+      },
+      "members": []
+    }
+  ]
+}</pre>
+      </td>
+      <td>Gets triggered when a user updates their post settings.</td>
+    </tr>
+    <tr>
+      <td>/api/posthub</td>
+      <td>PostDeleted</td>
+      <td>
+        <pre lang="json">{
+  "target": "PostDeleted",
+  "arguments": [
+    "post_id"
+  ]
+}</pre>
+      </td>
+      <td>Gets triggered when a user removes a post. The argument indicates the ID of the post that was removed.</td>
+    </tr>
+  </tbody>
+</table>
 
 
 
