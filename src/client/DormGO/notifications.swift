@@ -17,9 +17,14 @@ struct PostDetails: Codable {
     let longitude: Double
     let createdAt: String
     let maxPeople: Int
+    let creator: ProtectedResponse
     let members: [ProtectedResponse]
 }
 
+struct PostResponse_Update: Codable {
+    let message: String
+    let post: PostDetails
+}
 
 
 class CustomLogger: Logger {
@@ -144,12 +149,13 @@ class SignalRManager: ObservableObject{
           
         })
         
-        hubConnection?.on(method: "PostUpdated", callback: { [weak self] (type: Bool, postDto: PostDetails) in
+        hubConnection?.on(method: "PostUpdated", callback: { [weak self] ( postDto: PostDetails) in
             let timestamp = Date()
-            print("Received post update at \(timestamp) with type: \(type)") // Log the time and type
+         //   print("Received post update at \(timestamp) with message: \(postDto.message)") // Log the time and type
 
-            if !type {
+          
                 DispatchQueue.main.async {
+                   // let updatedPost = postDto.post
                     if let index = self?.posts.firstIndex(where: { $0.postId == postDto.postId }) {
                         // Update the existing post
                         self?.posts[index] = postDto
@@ -158,9 +164,9 @@ class SignalRManager: ObservableObject{
                         print("Post not found; skipping update.")
                     }
                 }
-            } else {
+            
                 print("Post ignored due to type being true")
-            }
+            
         })
         
         hubConnection?.on(method: "PostDeleted", callback: { [weak self] (postId: String) in
