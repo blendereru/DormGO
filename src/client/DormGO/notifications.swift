@@ -77,7 +77,7 @@ class SignalRManager: ObservableObject{
             }
             .withLogging(minLogLevel: .error,logger:  logger)
             .build()
-        setupListeners()
+        
                   // Once listeners are set up, mark as ready
               
          // Register listeners for SignalR events
@@ -85,20 +85,20 @@ class SignalRManager: ObservableObject{
     }
 
     func startConnection() {
-//        guard let logger = customLogger else {
-//                   fatalError("CustomLogger could not be initialized.")
-//               }
+        guard let logger = customLogger else {
+                   fatalError("CustomLogger could not be initialized.")
+               }
 //
 //          //Rebuild connection with the provided token and custom logger
-//         self.hubConnection = HubConnectionBuilder(url: endpoint("api/posthub"))
-//             .withHttpConnectionOptions { options in
-//                 if let token = getJWTFromKeychain(tokenType: "access_token") {
-//                     options.accessTokenProvider = { token }
-//                 }
-//             }
-//             .withLogging(minLogLevel: .error, logger:  logger)
-//             .build()
-//
+         self.hubConnection = HubConnectionBuilder(url: endpoint("api/posthub"))
+             .withHttpConnectionOptions { options in
+                 if let token = getJWTFromKeychain(tokenType: "access_token") {
+                     options.accessTokenProvider = { token }
+                 }
+             }
+             .withLogging(minLogLevel: .error, logger:  logger)
+             .build()
+         setupListeners()
 //         // Start the connection
 //         self.hubConnection?.start()
         guard hubConnection != nil else {

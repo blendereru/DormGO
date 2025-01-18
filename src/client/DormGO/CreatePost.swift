@@ -35,7 +35,7 @@ struct PostsResponse: Codable {
     let restPosts: [Post]
 }
 //https://8035-2-135-65-38.ngrok-free.app
-let baseURL = URL(string: "https://bcfd-176-64-5-60.ngrok-free.app")! // https://dormgo.azurewebsites.net    http://localhost:8080
+let baseURL = URL(string: "https://6edf-37-99-2-128.ngrok-free.app")! // https://dormgo.azurewebsites.net    http://localhost:8080
 
 
 
