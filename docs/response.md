@@ -51,8 +51,22 @@ different http methods).
 }</pre>
       </td>
     </tr>
+        <tr>
+      <td>DELETE</td>
+      <td>/api/signout</td>
+      <td>Log out a user and remove their refresh token.</td>
+      <td>
+        <pre lang="json">{
+  "refreshToken": "&lt;refresh_token&gt;",
+  "accessToken": "&lt;access_token&gt;"
+}</pre>
+      </td>
+      <td>
+        <pre lang="json">"The refresh token was successfully removed."</pre>
+      </td>
+    </tr>
     <tr>
-      <td>POST</td>
+      <td>PUT</td>
       <td>/api/refresh-tokens</td>
       <td>Refresh the access and refresh tokens.</td>
       <td>
@@ -106,7 +120,7 @@ different http methods).
   "token": "&lt;your_token&gt;",
   "new_password": "&lt;your_new_password&gt;"
 }</pre>
-      </td>
+      </td> 
       <td>
         <pre lang="json">{
   "message": "Your password has been reset successfully"
@@ -163,18 +177,22 @@ different http methods).
       </td>
     </tr>
     <tr>
-      <td>POST</td>
+      <td>PUT</td>
       <td>/api/post/update/{id}</td>
       <td>Update the information of a specific post.</td>
       <td>
         <pre lang="json">{
-  "Description": "&lt;your_post_description&gt;",
-  "CurrentPrice": 0,
-  "Latitude": 0,
-  "MaxPeople": 0,
-  "Members": [],
-  "Longitude": 0,
-  "CreatedAt": "&lt;date_of_creation&gt;"
+  "description": "&lt;your_post_description&gt;",
+  "currentPrice": 0,
+  "latitude": 0,
+  "maxPeople": 0,
+  longitude": 0,
+  "memberToRemove": [
+    {
+        "email": "example@kbtu.kz",
+        "name": "&lt;your_name&gt;"
+    }
+  ],
 }</pre>
       </td>
       <td>
@@ -220,7 +238,7 @@ different http methods).
       </td>
     </tr>
     <tr>
-      <td>POST</td>
+      <td>PUT</td>
       <td>/api/post/join/{id}</td>
       <td>Add the current user as a member of the post.</td>
       <td>Requires `id` of the post in the query.</td>
@@ -229,7 +247,7 @@ different http methods).
       </td>
     </tr>
     <tr>
-      <td>POST</td>
+      <td>DELETE</td>
       <td>/api/post/unjoin/{id}</td>
       <td>Remove the current user from the post's members.</td>
       <td>Requires `id` of the post in the query.</td>
@@ -240,7 +258,7 @@ different http methods).
       </td>
     </tr>
     <tr>
-      <td>POST</td>
+      <td>DELETE</td>
       <td>/api/post/delete/{id}</td>
       <td>Delete the specific post.</td>
       <td>Requires `id` of the post in the query.</td>
@@ -252,8 +270,8 @@ different http methods).
     </tr>
     <tr>
       <td>GET</td>
-      <td>/api/post/read</td>
-      <td>Retrieve all posts.</td>
+      <td>/api/post/read?joined=false</td>
+      <td>Retrieve the posts that user created and the new ones.</td>
       <td>No request body required.</td>
       <td>
         <pre lang="json">{
@@ -294,7 +312,7 @@ different http methods).
     </tr>
     <tr>
       <td>GET</td>
-      <td>/api/post/read/others</td>
+      <td>/api/post/read?joined=true</td>
       <td>Retrieve posts where the user is a member.</td>
       <td>No request body required.</td>
       <td>

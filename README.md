@@ -68,12 +68,6 @@ environment:
   "IdentityConnection": "Server=db, 1433;Database=dormgo-db;User Id=sa;Password=<your_password>;TrustServerCertificate=true"
 }
 ```
-## 🎯 ToDos
-1. [X] Add endpoints to handle the case when user's data changes. For example, client forgot his `password`.(Pending)
-2. [ ] Modify the `UI` for better appearance.
-3. [ ] Chat functions so that members of the post can talk to each other.
-4. [ ] (Server) Manage logging for better problem detection.
-5. [ ] (Server) REST API
 ## 📗 License
 The project code and all the resources are distributed under the terms of [MIT license](https://github.com/blendereru/LoginForm/blob/f9ec9cd269e0b785c8a7b778e4d4f16fdb4a1427/LICENSE)
 

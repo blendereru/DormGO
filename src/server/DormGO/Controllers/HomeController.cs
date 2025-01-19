@@ -177,6 +177,12 @@ public class HomeController : ControllerBase
             Log.Warning("JoinPost: User not found with email: {Email}", emailClaim.Value);
             return NotFound("The user is not found");
         }
+
+        if (post.CreatorId == user.Id)
+        {
+            Log.Warning("JoinPost: Attempt to join the post created by user himself. PostId: {PostId}, Email: {Email}", post.Id, user.Email);
+            return BadRequest("You can't join the post as you are the creator.");
+        }
         if (post.Members.Any(m => m.Id == user.Id))
         {
             Log.Warning("JoinPost: User with email {Email} is already a member of the post", user.Email);

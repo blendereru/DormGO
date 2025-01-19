@@ -203,7 +203,7 @@ public class AccountController : ControllerBase
         Log.Information("ResetPassword: Password reset successfully for {Email}.", model.Email);
         return Ok(new { Message = "Your password has been reset successfully." });
     }
-    [HttpPost("signout")]
+    [HttpDelete("signout")]
     public async Task<IActionResult> Logout([FromBody] TokenDto dto)
     {
         Log.Information("Logout initiated for refresh token: {RefreshToken}", dto.RefreshToken);
@@ -302,7 +302,7 @@ public class AccountController : ControllerBase
         return Ok(new { Message = "Confirmation email sent successfully." });
     }
 
-    [HttpPost("refresh-tokens")]
+    [HttpPut("refresh-tokens")]
     public async Task<IActionResult> RefreshTokens([FromBody] RefreshTokenDto dto)
     {
         Log.Information("Refresh token request initiated. AccessToken: {AccessToken}, RefreshToken: {RefreshToken}", dto.AccessToken, dto.RefreshToken);
