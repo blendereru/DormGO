@@ -38,35 +38,45 @@ public class AccountController : ControllerBase
     [HttpPost("signup")]
     public async Task<IActionResult> Register([FromBody] UserDto dto)
     {
+        Log.Information("Register: Signup request received for email {Email}.", dto.Email);
+
         var user = _mapper.Map<ApplicationUser>(dto);
         user.RegistrationDate = DateTime.UtcNow;
+
         var result = await _userManager.CreateAsync(user, dto.Password);
 
         if (!result.Succeeded)
         {
             foreach (var error in result.Errors)
             {
+                Log.Warning("Register: Failed to create user {Email}. Error: {Error}", dto.Email, error.Description);
                 ModelState.AddModelError(string.Empty, error.Description);
             }
             return BadRequest(ModelState);
         }
 
+        Log.Information("Register: User {Email} registered successfully. Sending confirmation email.", dto.Email);
         await SendConfirmationEmailAsync(user);
+
         return Ok(new { Message = "User registered successfully. Email confirmation is pending." });
     }
 
     [HttpPost("signin")]
     public async Task<IActionResult> Login([FromBody] UserDto dto)
     {
+        Log.Information("Login: Signin request received for email {Email}.", dto.Email);
+
         var user = await _db.Users.Include(u => u.RefreshSessions).FirstOrDefaultAsync(u => u.Email == dto.Email);
 
         if (user == null)
         {
+            Log.Warning("Login: Failed attempt. User {Email} not found.", dto.Email);
             return Unauthorized("Invalid email");
         }
 
         if (!user.EmailConfirmed)
         {
+            Log.Warning("Login: User {Email} attempted login but email is not confirmed.", dto.Email);
             return BadRequest("Email is not confirmed. Please check your email for the confirmation link.");
         }
 
@@ -74,11 +84,13 @@ public class AccountController : ControllerBase
 
         if (!isPasswordValid)
         {
+            Log.Warning("Login: Invalid password attempt for email {Email}.", dto.Email);
             return Unauthorized("Invalid password.");
         }
 
         if (user.RefreshSessions.Count >= 5)
         {
+            Log.Information("Login: Clearing excess refresh sessions for user {Email}.", dto.Email);
             _db.RefreshSessions.RemoveRange(user.RefreshSessions);
             await _db.SaveChangesAsync();
         }
@@ -99,6 +111,8 @@ public class AccountController : ControllerBase
         _db.RefreshSessions.Add(session);
         await _db.SaveChangesAsync();
 
+        Log.Information("Login: User {Email} logged in successfully.", dto.Email);
+
         return Ok(new
         {
             Message = "Login successful",
@@ -110,37 +124,53 @@ public class AccountController : ControllerBase
     [HttpPost("forgot-password")]
     public async Task<IActionResult> ForgotPassword([FromBody] EmailDto emailDto)
     {
+        Log.Information("ForgotPassword: Request received for email {Email}.", emailDto.Email);
+
         var user = await _userManager.FindByEmailAsync(emailDto.Email);
         if (user == null)
         {
+            Log.Warning("ForgotPassword: User {Email} not found.", emailDto.Email);
             return NotFound("User not found.");
         }
+
+        Log.Information("ForgotPassword: Sending forgot password email to {Email}.", emailDto.Email);
         await SendForgotPasswordEmailAsync(user);
+
         return Ok("Forgot password email sent successfully.");
     }
+
     [HttpGet("reset-password")]
     public async Task<IActionResult> ResetPassword(string userId, string token)
     {
+        Log.Information("ResetPassword: Request to validate reset password link for user {UserId}.", userId);
+
         if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(token))
         {
+            Log.Warning("ResetPassword: Invalid or expired reset link for user {UserId}.", userId);
             return BadRequest("The link is invalid or expired.");
         }
 
         var user = await _userManager.FindByIdAsync(userId);
         if (user == null)
         {
+            Log.Warning("ResetPassword: User {UserId} not found.", userId);
             return NotFound("The user is not found.");
         }
+
         var isTokenValid = await _userManager.VerifyUserTokenAsync(
-            user, 
-            _userManager.Options.Tokens.PasswordResetTokenProvider, 
-            "ResetPassword", 
+            user,
+            _userManager.Options.Tokens.PasswordResetTokenProvider,
+            "ResetPassword",
             token
         );
+
         if (!isTokenValid)
         {
+            Log.Warning("ResetPassword: Invalid or expired token for user {UserId}.", userId);
             return BadRequest("The link is invalid or expired.");
         }
+
+        Log.Information("ResetPassword: Valid reset password link for user {UserId}.", userId);
         return Ok(new
         {
             Message = "The link is valid. You can now reset your password.",
@@ -152,56 +182,70 @@ public class AccountController : ControllerBase
     [HttpPost("reset-password")]
     public async Task<IActionResult> ResetPassword(ResetPasswordDto model)
     {
+        Log.Information("ResetPassword: Attempt to reset password for email {Email}.", model.Email);
+
         var user = await _userManager.FindByEmailAsync(model.Email);
         if (user == null)
         {
+            Log.Warning("ResetPassword: User {Email} not found.", model.Email);
             return NotFound("The user is not found.");
         }
+
         var result = await _userManager.ResetPasswordAsync(user, model.Token, model.NewPassword);
+
         if (!result.Succeeded)
         {
+            Log.Warning("ResetPassword: Failed to reset password for {Email}. Errors: {Errors}",
+                model.Email, result.Errors.Select(e => e.Description));
             return BadRequest(result.Errors);
         }
+
+        Log.Information("ResetPassword: Password reset successfully for {Email}.", model.Email);
         return Ok(new { Message = "Your password has been reset successfully." });
     }
     [HttpPost("signout")]
     public async Task<IActionResult> Logout([FromBody] TokenDto dto)
     {
+        Log.Information("Logout initiated for refresh token: {RefreshToken}", dto.RefreshToken);
+
         var session = await _db.RefreshSessions.FirstOrDefaultAsync(x => x.RefreshToken == dto.RefreshToken);
 
         if (session == null)
         {
+            Log.Warning("Logout failed. Refresh token not found: {RefreshToken}", dto.RefreshToken);
             return BadRequest("The refresh token is not found");
         }
 
         _db.RefreshSessions.Remove(session);
         await _db.SaveChangesAsync();
 
+        Log.Information("Logout successful. Refresh token removed: {RefreshToken}", dto.RefreshToken);
         return Ok("The refresh token was successfully removed");
     }
     [HttpGet("confirm-email")]
     public async Task<IActionResult> ConfirmEmail(string userId, string token, string visitorId,
         [FromServices] IHubContext<UserHub> hub)
     {
+        Log.Information("Email confirmation initiated for UserId: {UserId}, Token: {Token}, VisitorId: {VisitorId}", userId, token, visitorId);
         if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(token))
         {
+            Log.Warning("Email confirmation failed. Invalid or missing parameters. UserId: {UserId}, Token: {Token}", userId, token);
             return BadRequest("The link is invalid or expired.");
         }
-
         var user = await _userManager.FindByIdAsync(userId);
 
         if (user == null)
         {
+            Log.Warning("Email confirmation failed. User not found: {UserId}", userId);
             return NotFound("The user is not found");
         }
-
         var result = await _userManager.ConfirmEmailAsync(user, token);
-
         if (!result.Succeeded)
         {
+            Log.Warning("Email confirmation failed for UserId: {UserId}. Errors: {Errors}", userId, result.Errors);
             return BadRequest(result);
         }
-
+        Log.Information("Email confirmed successfully for UserId: {UserId}", userId);
         var accessToken = GenerateAccessToken(user);
         var refreshToken = GenerateRefreshToken();
 
@@ -217,7 +261,7 @@ public class AccountController : ControllerBase
 
         _db.RefreshSessions.Add(session);
         await _db.SaveChangesAsync();
-
+        Log.Information("New session created for UserId: {UserId} with RefreshToken: {RefreshToken}", userId, refreshToken);
         var dto = new TokenDto
         {
             AccessToken = accessToken,
@@ -240,25 +284,31 @@ public class AccountController : ControllerBase
     [HttpPost("resend-confirmation-email")]
     public async Task<IActionResult> ResendConfirmationEmail([FromBody] EmailDto emailDto)
     {
+        Log.Information("Resending confirmation email for Email: {Email}", emailDto.Email);
         var user = await _userManager.FindByEmailAsync(emailDto.Email);
         if (user == null)
         {
+            Log.Warning("Resend confirmation email failed. User not found: {Email}", emailDto.Email);
             return NotFound("User not found.");
         }
         if (await _userManager.IsEmailConfirmedAsync(user))
         {
+            Log.Information("Resend confirmation email skipped. Email already confirmed: {Email}", emailDto.Email);
             return BadRequest("Email is already confirmed.");
         }
         user.Fingerprint = emailDto.VisitorId;
         await SendConfirmationEmailAsync(user);
+        Log.Information("Resent confirmation email successfully for Email: {Email}", emailDto.Email);
         return Ok(new { Message = "Confirmation email sent successfully." });
     }
 
     [HttpPost("refresh-tokens")]
     public async Task<IActionResult> RefreshTokens([FromBody] RefreshTokenDto dto)
     {
+        Log.Information("Refresh token request initiated. AccessToken: {AccessToken}, RefreshToken: {RefreshToken}", dto.AccessToken, dto.RefreshToken);
         if (string.IsNullOrEmpty(dto.AccessToken) || string.IsNullOrEmpty(dto.RefreshToken))
         {
+            Log.Warning("Refresh token request failed. Missing tokens.");
             return BadRequest(new { Message = "Access token and refresh token are required." });
         }
 
@@ -266,6 +316,7 @@ public class AccountController : ControllerBase
 
         if (principal == null)
         {
+            Log.Warning("Refresh token request failed. Invalid access token: {AccessToken}", dto.AccessToken);
             return Unauthorized(new { Message = "Invalid access token." });
         }
 
@@ -273,6 +324,7 @@ public class AccountController : ControllerBase
 
         if (string.IsNullOrEmpty(userEmail))
         {
+            Log.Warning("Refresh token request failed. Invalid access token payload.");
             return Unauthorized(new { Message = "Invalid access token." });
         }
 
@@ -282,18 +334,19 @@ public class AccountController : ControllerBase
 
         if (session == null || session.ExpiresIn < DateTimeOffset.UtcNow.ToUnixTimeMilliseconds())
         {
+            Log.Warning("Refresh token request failed. Invalid or expired refresh token: {RefreshToken}", dto.RefreshToken);
             return Unauthorized(new { Message = "Invalid or expired refresh token." });
         }
 
         if (dto.VisitorId != session.Fingerprint)
         {
+            Log.Warning("Refresh token request failed. Forged visitor ID detected for UserEmail: {UserEmail}", userEmail);
             return BadRequest("Forged visitor ID.");
         }
-
         var user = await _userManager.FindByEmailAsync(userEmail);
-
         if (user == null)
         {
+            Log.Warning("Refresh token request failed. User not found: {UserEmail}", userEmail);
             return Unauthorized(new { Message = "User is not found." });
         }
 
@@ -304,10 +357,9 @@ public class AccountController : ControllerBase
         session.ExpiresIn = DateTimeOffset.UtcNow.AddDays(7).ToUnixTimeMilliseconds();
         session.UA = Request.Headers["User-Agent"].ToString();
         session.Ip = HttpContext.Connection.RemoteIpAddress?.ToString();
-
         _db.RefreshSessions.Update(session);
         await _db.SaveChangesAsync();
-
+        Log.Information("Refresh tokens updated successfully for UserEmail: {UserEmail}. New RefreshToken: {RefreshToken}", userEmail, newRefreshToken);
         return Ok(new
         {
             access_token = newAccessToken,

@@ -17,6 +17,12 @@ public static class MapsterConfig
             .Map(dest => dest.MaxPeople, src => src.MaxPeople)
             .Map(dest => dest.Creator, src => src.Creator.Adapt<MemberDto>())
             .Map(dest => dest.Members, src => src.Members.Adapt<List<MemberDto>>());
+        TypeAdapterConfig<Post, UpdatePostDto>.NewConfig()
+            .Map(dest => dest.Description, src => src.Description)
+            .Map(dest => dest.CurrentPrice, src => src.CurrentPrice)
+            .Map(dest => dest.Latitude, src => src.Latitude)
+            .Map(dest => dest.Longitude, src => src.Longitude)
+            .Map(dest => dest.MaxPeople, src => src.MaxPeople);
         TypeAdapterConfig<UserDto, ApplicationUser>.NewConfig()
             .Map(dest => dest.Email, src => src.Email)
             .Map(dest => dest.UserName, src => src.Email)
