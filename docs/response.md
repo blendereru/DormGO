@@ -186,7 +186,7 @@ different http methods).
   "currentPrice": 0,
   "latitude": 0,
   "maxPeople": 0,
-  longitude": 0,
+  "longitude": 0,
   "memberToRemove": [
     {
         "email": "example@kbtu.kz",
