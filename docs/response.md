@@ -145,14 +145,27 @@ different http methods).
     </tr>
     <tr>
       <td>GET</td>
-      <td>/api/profile/read</td>
-      <td>Retrieve profile details for the logged-in user.</td>
+      <td>/api/profile/me</td>
+      <td>Retrieve profile details of the current user</td>
       <td>No request body required.</td>
       <td>
         <pre lang="json">{
   "email": "&lt;your_gmail_here&gt;",
   "name": "&lt;your_name&gt;",
   "registeredAt": "&lt;your_registration_date&gt;"
+}</pre>
+      </td>
+    </tr>
+<tr>
+      <td>GET</td>
+      <td>/api/profile/{email}</td>
+      <td>Retrieve profile details of the specified user</td>
+      <td>Provide email in the request query.</td>
+      <td>
+        <pre lang="json">{
+  "email": "&lt;users_gmail&gt;",
+  "name": "&lt;user_name&gt;",
+  "registeredAt": "&lt;user_registration_date&gt;"
 }</pre>
       </td>
     </tr>
@@ -214,6 +227,19 @@ different http methods).
   }
 }</pre>
       </td>
+    </tr>
+<tr>
+      <td>PUT</td>
+      <td>/api/post/{id}/transfer-ownership</td>
+      <td>Change the creator(owner) of the post</td>
+      <td>
+        <pre lang="json">{
+  "email": "example@kbtu.kz",
+  "name": "&lt;creator_name&gt;"
+}</pre>
+      </td>
+      <td><pre lang="json">
+"The user was successfully added to the members of the post"</pre></td>
     </tr>
     <tr>
       <td>GET</td>
@@ -341,6 +367,57 @@ different http methods).
 }</pre>
       </td>
     </tr>
+<tr>
+      <td>GET</td>
+      <td>/api/chat/{postId}/messages</td>
+      <td>Retrieve all messages for a specific post.</td>
+      <td>No request body is needed.</td>
+      <td>
+        <pre lang="json">{
+  "messages": [
+    {
+      "messageId": "&lt;_message_id&gt;",
+      "content": "&lt;your_post_description&gt;",
+      "sender": {
+        "email": "sender@kbtu.kz",
+        "name": "&lt;sender_name&gt;"
+      },
+      "sentAt": "&lt;date_of_creation&gt;"
+    }
+  ]
+}</pre>
+      </td>
+    </tr>
+<tr>
+      <td>POST</td>
+      <td>/api/chat/{postId}/messages</td>
+      <td>Add the message to the post.</td>
+      <td><pre lang="json">{
+    "content": "&lt;your_post_description&gt;",
+}</pre></td>
+      <td>
+        <pre lang="json">{
+  "message": {
+      "messageId": "&lt;message_id&gt;",
+      "content": "&lt;your_post_description&gt;",
+      "sender": {
+        "email": "sender@kbtu.kz",
+        "name": "&lt;sender_name&gt;"
+      },
+      "sentAt": "&lt;date_of_creation&gt;"
+  }
+}</pre>
+      </td>
+    </tr>
+    <tr>
+      <td>DELETE</td>
+      <td>/api/chat/messages/{messageId}</td>
+      <td>Delete the message from the post.</td>
+      <td>No request body required,</td>
+      <td>
+        <pre lang="json">"The message was successfully removed"</pre>
+      </td>
+    </tr>
   </tbody>
 </table>
 
@@ -441,6 +518,26 @@ on view.
       </td>
       <td>Gets triggered when a user removes a post. The argument indicates the ID of the post that was removed.</td>
     </tr>
+    <tr>
+  <td>/api/chathub</td>
+  <td>ReceiveMessage</td>
+  <td>
+    <pre lang="json">{
+  "target": "ReceiveMessage",
+  "arguments": [
+    "post_id",
+    {
+      "content": "Message content from sender",
+      "sender": {
+        "userId": "sender_user_id",
+        "userName": "sender_user_name"
+      }
+    }
+  ]
+}</pre>
+  </td>
+  <td>Gets triggered when a user sends a message to the members of a post. The message contains the post ID and the content along with the sender details.</td>
+</tr>
   </tbody>
 </table>
 

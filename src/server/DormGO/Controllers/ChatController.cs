@@ -16,7 +16,7 @@ namespace DormGO.Controllers;
 
 [Authorize]
 [ApiController]
-[Route("/api/chat")]
+[Route("api/chat")]
 public class ChatController : ControllerBase
 {
     private readonly ApplicationContext _db;
@@ -121,8 +121,12 @@ public class ChatController : ControllerBase
             .Where(uc => uc.UserId == user.Id && uc.Hub == "/api/chathub")
             .Select(uc => uc.ConnectionId)
             .ToListAsync();
-        await _hub.Clients.GroupExcept(postId, excludedConnectionIds).SendAsync("ReceiveMessage", postId, message);
-        return Ok("The message was successfully added to the database.");
+        var responseDto = _mapper.Map<MessageDto>(message);
+        await _hub.Clients.GroupExcept(postId, excludedConnectionIds).SendAsync("ReceiveMessage", postId, responseDto);
+        return Ok(new
+        {
+            Message = responseDto
+        });
     }
 
     [HttpDelete("messages/{messageId}")]
@@ -154,7 +158,7 @@ public class ChatController : ControllerBase
         if (message.SenderId != user.Id)
         {
             Log.Warning("DeleteMessage: Unauthorized attempt to delete message. UserId: {UserId}, MessageId: {MessageId}", user.Id, messageId);
-            return Forbid("You are not authorized to delete this message.");
+            return BadRequest("You are not authorized to delete this message.");
         }
         _db.Messages.Remove(message);
         await _db.SaveChangesAsync();

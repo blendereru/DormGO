@@ -8,7 +8,7 @@ using Serilog;
 namespace DormGO.Controllers;
 [Authorize]
 [ApiController]
-[Route("/api/profile")]
+[Route("api/profile")]
 public class ProfileController : ControllerBase
 {
     private readonly UserManager<ApplicationUser> _userManager;

@@ -173,6 +173,39 @@ public class HomeController : ControllerBase
         return Ok("The user was successfully added to the members of the post");
     }
 
+    [HttpPut("{id}/transfer-ownership")]
+    public async Task<IActionResult> TransferPostOwnership(string id, [FromBody] MemberDto memberDto)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+        {
+            Log.Warning("TransferOwnership: Unauthorized access attempt.");
+            return Unauthorized("User is not authenticated.");
+        }
+
+        var post = await _db.Posts.Include(p => p.Members).FirstOrDefaultAsync(p => p.Id == id);
+        if (post == null)
+        {
+            Log.Warning("TransferOwnership: Post not found. PostId: {PostId}", id);
+            return NotFound("The post does not exist.");
+        }
+        if (post.CreatorId != userId)
+        {
+            Log.Warning("TransferOwnership: User {UserId} is not the creator of post {PostId}.", userId, id);
+            return Unauthorized("Only the creator can transfer ownership.");
+        }
+        var newOwner = post.Members.FirstOrDefault(m => m.Email == memberDto.Email);
+        if (newOwner == null)
+        {
+            Log.Warning("TransferOwnership: New owner {NewOwnerEmail} is not a member of post {PostId}.", memberDto.Email, id);
+            return BadRequest("The new owner must be a member of the post.");
+        }
+        post.CreatorId = newOwner.Id;
+        await _db.SaveChangesAsync();
+        Log.Information("Ownership of Post {PostId} transferred from {OldOwner} to {NewOwner}.",
+            id, userId, newOwner.Id);
+        return Ok("Ownership transferred successfully.");
+    }
     [HttpPut("update/{id}")]
     public async Task<IActionResult> UpdatePost(string id, [FromBody] UpdatePostDto postDto)
     {
@@ -256,7 +289,24 @@ public class HomeController : ControllerBase
             Log.Warning("UnjoinPost failed. User {UserId} is not a member of post {PostId}.", user.Id, id);
             return BadRequest("The user is not a member of the post.");
         }
-        Log.Information("Removing user {UserId} from post {PostId}.", user.Id, id);
+
+        if (post.CreatorId == user.Id)
+        {
+            if (post.Members.Count == 1)
+            {
+                _db.Posts.Remove(post);
+                await _db.SaveChangesAsync();
+                Log.Information("Post {PostId} deleted because the creator left and there were no other members.", id);
+                return Ok(new { Message = "Post deleted because there were no other members." });
+            }
+            var newCreator = post.Members.FirstOrDefault(m => m.Id != user.Id);
+            if (newCreator != null)
+            {
+                post.CreatorId = newCreator.Id;
+                Log.Information("Ownership of Post {PostId} transferred from User {OldCreatorId} to User {NewCreatorId}.",
+                    id, user.Id, newCreator.Id);
+            }
+        }
         post.Members.Remove(user);
         await _db.SaveChangesAsync();
         Log.Information("User {UserId} successfully removed from post {PostId}.", user.Id, id);
