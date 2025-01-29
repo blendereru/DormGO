@@ -30,5 +30,10 @@ public static class MapsterConfig
         TypeAdapterConfig<ApplicationUser, MemberDto>.NewConfig()
             .Map(dest => dest.Email, src => src.Email)
             .Map(dest => dest.Name, src => src.UserName);
+        TypeAdapterConfig<Message, MessageDto>.NewConfig()
+            .Map(dest => dest.MessageId, src => src.Id)
+            .Map(dest => dest.Sender, src => src.Sender)
+            .Map(dest => dest.Content, src => src.Content)
+            .Map(dest => dest.SentAt, src => src.SentAt);
     }
 }

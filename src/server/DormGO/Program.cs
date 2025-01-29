@@ -83,5 +83,6 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHub<UserHub>("/api/userhub");
 app.MapHub<PostHub>("/api/posthub");
+app.MapHub<ChatHub>("/api/chathub");
 app.Run();
 public partial class Program {}

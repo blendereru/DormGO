@@ -16,7 +16,7 @@ namespace DormGO.Controllers;
 
 [Authorize]
 [ApiController]
-[Route("api")]
+[Route("api/post")]
 public class HomeController : ControllerBase
 {
     private readonly UserManager<ApplicationUser> _userManager;
@@ -32,33 +32,7 @@ public class HomeController : ControllerBase
         _hub = hub;
         _mapper = mapper;
     }
-
-    [HttpGet("profile/read")]
-    public async Task<IActionResult> Index()
-    {
-        var emailClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value;
-        var nameClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Name)?.Value;
-        if (string.IsNullOrEmpty(emailClaim))
-        {
-            Log.Warning("Unauthorized access attempt: Email claim missing.");
-            return Unauthorized("The email claim is missing from the token.");
-        }
-        var user = await _userManager.FindByEmailAsync(emailClaim);
-        if (user == null)
-        {
-            Log.Warning("User not found with email: {Email}", emailClaim);
-            return NotFound("The user with the provided email is not found.");
-        }
-        Log.Information("Profile read for user: {Email}", emailClaim);
-        return Ok(new
-        {
-            Email = emailClaim,
-            Name = nameClaim ?? user.UserName,
-            RegisteredAt = user.RegistrationDate
-        });
-    }
-
-    [HttpPost("post/create")]
+    [HttpPost("create")]
     public async Task<IActionResult> CreatePost([FromBody] PostDto postDto)
     {
         var creatorEmail = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email);
@@ -88,7 +62,7 @@ public class HomeController : ControllerBase
         return Ok(new { Message = "The post was saved to the database" });
     }
 
-    [HttpGet("post/read")]
+    [HttpGet("read")]
     public async Task<IActionResult> ReadPosts(bool joined)
     {
         var emailClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email);
@@ -136,7 +110,7 @@ public class HomeController : ControllerBase
         });
     }
 
-    [HttpGet("post/read/{id}")]
+    [HttpGet("read/{id}")]
     public async Task<IActionResult> ReadPost(string id)
     {
         Log.Information("ReadPost: reading post with id: {PostId}", id);
@@ -154,7 +128,7 @@ public class HomeController : ControllerBase
         return Ok(postDto);
     }
 
-    [HttpPut("post/join/{id}")]
+    [HttpPut("join/{id}")]
     public async Task<IActionResult> JoinPost(string id)
     {
         var post = await _db.Posts
@@ -199,7 +173,7 @@ public class HomeController : ControllerBase
         return Ok("The user was successfully added to the members of the post");
     }
 
-    [HttpPut("post/update/{id}")]
+    [HttpPut("update/{id}")]
     public async Task<IActionResult> UpdatePost(string id, [FromBody] UpdatePostDto postDto)
     {
         Log.Information("UpdatePost called with post ID: {PostId} by user: {UserEmail}", id, User.Identity?.Name);
@@ -253,7 +227,7 @@ public class HomeController : ControllerBase
         await _hub.Clients.All.SendAsync("PostUpdated", updatedPostDto);
         return Ok(new { Message = "The post was successfully updated.", Post = updatedPostDto });
     }
-    [HttpDelete("post/unjoin/{id}")]
+    [HttpDelete("unjoin/{id}")]
     public async Task<IActionResult> UnjoinPost(string id)
     {
         Log.Information("UnjoinPost called for post ID: {PostId} by user: {UserEmail}", id, User.Identity?.Name);
@@ -289,7 +263,7 @@ public class HomeController : ControllerBase
         return Ok(new { Message = "The user was successfully removed from the post's members." });
     }
 
-    [HttpDelete("post/delete/{id}")]
+    [HttpDelete("delete/{id}")]
     public async Task<IActionResult> RemovePost(string id)
     {
         Log.Information("RemovePost: Request received to delete post with ID {PostId} by user {UserEmail}.", id, User.Identity?.Name);

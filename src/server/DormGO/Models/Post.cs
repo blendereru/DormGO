@@ -13,4 +13,5 @@ public class Post
     public string CreatorId { get; set; }
     public ApplicationUser Creator { get; set; }
     public IList<ApplicationUser> Members { get; set; } = new List<ApplicationUser>();
+    public IList<Message> Messages { get; set; } = new List<Message>();
 }

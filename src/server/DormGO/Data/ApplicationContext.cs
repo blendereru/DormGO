@@ -10,6 +10,7 @@ public class ApplicationContext : IdentityDbContext<ApplicationUser>
     public DbSet<Post> Posts { get; set; } = null!;
     public DbSet<RefreshSession> RefreshSessions { get; set; } = null!;
     public DbSet<UserConnection> UserConnections { get; set; } = null!;
+    public DbSet<Message> Messages { get; set; } = null!;
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -46,5 +47,10 @@ public class ApplicationContext : IdentityDbContext<ApplicationUser>
                 .OnDelete(DeleteBehavior.Cascade);
             // x.Property(p => p.Ip).HasMaxLength(15);
         });
+        builder.Entity<Message>()
+            .HasOne(m => m.Post)
+            .WithMany(p => p.Messages)
+            .HasForeignKey(m => m.PostId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }
