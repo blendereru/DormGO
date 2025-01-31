@@ -31,6 +31,7 @@ func deleteJWTFromKeychain(tokenType: String) -> Bool {
 }
 
 struct ContentView: View {
+    @StateObject private var signalRManager = SignalRManager()
     @AppStorage("isAuthenticated") private var isAuthenticated: Bool = false
     @State private var user: ProtectedResponse
     @State private var posts: PostsResponse
@@ -61,7 +62,7 @@ struct ContentView: View {
     var body: some View {
         Group {
             if isAuthenticated {
-                MainView(user: user, posts: posts, logoutAction: {
+                MainView(user: user, posts: posts, signalRManager: signalRManager, logoutAction: {
                     // Delete both the access and refresh tokens
                     let accessTokenDeleted = deleteJWTFromKeychain(tokenType: "access_token")
                     let refreshTokenDeleted = deleteJWTFromKeychain(tokenType: "refresh_token")
@@ -117,7 +118,7 @@ struct YourPostsSection: View {
                         RideInfoButton(
                             peopleAssembled: "\(post.members.count)/\(post.maxPeople)",
                             destination: post.description,
-                            minutesago: calculateMinutesAgo(from: post.createdAt),
+                            minutesago: formatTime(from: post.createdAt),
                             rideName: "Price: \(post.currentPrice)₸",
                             status: "Active",
                             color: post.source == "rest" ? .yellow : .blue,
@@ -148,37 +149,42 @@ struct YourPostsSection: View {
         }
     }
 
-    private func calculateMinutesAgo(from createdAt: String) -> String {
+    private func formatTime(from createdAt: String) -> String {
+        // ISO8601 formatter for standard formats
         let isoDateFormatter = ISO8601DateFormatter()
-        isoDateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        isoDateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds, .withTimeZone]
         isoDateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
-        
+
         if let postDate = isoDateFormatter.date(from: createdAt) {
-            let timeInterval = Date().timeIntervalSince(postDate)
-            let minutesAgo = Int(timeInterval / 60)
-            return "\(minutesAgo)"
+            let timeFormatter = DateFormatter()
+            timeFormatter.dateFormat = "HH:mm"
+            timeFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+            return timeFormatter.string(from: postDate)
         }
         
+        // Fallback formatter for cases where there is no timezone information
         let fallbackFormatter = DateFormatter()
-        fallbackFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        fallbackFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss" // This format expects no timezone info
         fallbackFormatter.timeZone = TimeZone(secondsFromGMT: 0)
-        
+
         if let postDate = fallbackFormatter.date(from: createdAt) {
-            let timeInterval = Date().timeIntervalSince(postDate)
-            let minutesAgo = Int(timeInterval / 60)
-            return "\(minutesAgo)"
+            let timeFormatter = DateFormatter()
+            timeFormatter.dateFormat = "HH:mm"
+            timeFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+            return timeFormatter.string(from: postDate)
         }
         
-        fallbackFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS"
-        
+        // Additional fallback for specific timezone formats, if necessary
+        fallbackFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZZZZZ" // For formats with timezone offsets like +0600
         if let postDate = fallbackFormatter.date(from: createdAt) {
-            let timeInterval = Date().timeIntervalSince(postDate)
-            let minutesAgo = Int(timeInterval / 60)
-            return "\(minutesAgo)"
+            let timeFormatter = DateFormatter()
+            timeFormatter.dateFormat = "HH:mm"
+            timeFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+            return timeFormatter.string(from: postDate)
         }
         
         print("Failed to parse date: \(createdAt)")
-        return "0"
+        return "Invalid time"
     }
 }
 
@@ -236,6 +242,7 @@ struct ProfileView: View {
                 self.name = protectedResponse?.name ?? ""
                 self.email = protectedResponse?.email ?? ""
             }
+       
         }
     }
 }
@@ -244,7 +251,8 @@ struct MainView: View {
     @State private var name: String = "" // State variable for name
     @State private var email: String = "" // State variable for email
     @State private var isSheet1Presented = false
-    @StateObject private var signalRManager = SignalRManager() // StateObject for SignalR
+ //   @StateObject private var signalRManager = SignalRManager()// StateObject for SignalR
+    @ObservedObject var signalRManager: SignalRManager
     @State private var isSheet2Presented = false
     let columns = [GridItem(.adaptive(minimum: 150))]
     @State private var user: ProtectedResponse
@@ -252,12 +260,48 @@ struct MainView: View {
     @State private var joinedposts:PostsResponse_other = PostsResponse_other(postsWhereMember : [])
     var logoutAction: () -> Void // Accept logout closure
     
-    init(user: ProtectedResponse, posts: PostsResponse, logoutAction: @escaping () -> Void) {
+    init(user: ProtectedResponse, posts: PostsResponse, signalRManager: SignalRManager, logoutAction: @escaping () -> Void) {
         _user = State(initialValue: user)
         _posts = State(initialValue: posts)
+        self.signalRManager = signalRManager
         self.logoutAction = logoutAction
+     
     }
-    
+    private func setupSignalRCallbacks() {
+        signalRManager.onPostCreated = { newPost in
+            // Create mutable copy
+            var newPosts = self.posts
+            print("lmaboo")
+            if newPost.creator.email == self.user.email {
+                print("new")
+                newPosts.yourPosts.append(newPost)
+            } else {
+                newPosts.restPosts.append(newPost)
+            }
+            
+            // Assign back to trigger view update
+            self.posts = newPosts
+        }
+        
+        signalRManager.onPostUpdated = { updatedPost in
+            var newPosts = self.posts
+            
+            if let index = newPosts.yourPosts.firstIndex(where: { $0.postId == updatedPost.postId }) {
+                newPosts.yourPosts[index] = updatedPost
+            } else if let index = newPosts.restPosts.firstIndex(where: { $0.postId == updatedPost.postId }) {
+                newPosts.restPosts[index] = updatedPost
+            }
+            
+            self.posts = newPosts
+        }
+        
+        signalRManager.onPostDeleted = { postId in
+            var newPosts = self.posts
+            newPosts.yourPosts.removeAll { $0.postId == postId }
+            newPosts.restPosts.removeAll { $0.postId == postId }
+            self.posts = newPosts
+        }
+    }
     var body: some View {
         VStack {
             TabView {
@@ -279,33 +323,7 @@ struct MainView: View {
                             .sheet(isPresented: $isSheet2Presented) {
                                 PublishContent()
                                     .onDisappear {
-//                                        DispatchQueue.main.asyncAfter(deadline: .now() + 10.0) { // Adjust the delay (in seconds) as needed
-                                            
-                                      
-                                        
-//                                        SignalRManager().startConnection()
-//                                        // Fetch posts immediately or with a delay if necessary
-//                                        PostAPIManager.shared.readposts { response in
-//                                            guard let response = response else {
-//                                                return
-//                                            }
-//                                            self.posts = response
-//                                            print("Posts fetched successfully: \(response)") // Add this line here
-//                                         
-//                                         
-//                                        }
-                                        
-//                                        SignalRManager().startConnection {
-//                                            // Connection is successfully established, now fetch posts
-//                                        }
-//                                    
-////                                            PostAPIManager.shared.readposts { response in
-//                                        guard let response = response else {
-//                                            return
-//                                        }
-//                                        self.posts = response
-//                                        print("Posts fetched successfully: \(response)")
-//                                    }
+
 
                                         PostAPIManager.shared.readposts { response in
                                             guard let response = response else {
@@ -345,18 +363,7 @@ struct MainView: View {
                                 currentPrice: Double(restPost.currentPrice),
                                 source: "rest"
                             )
-                        } + signalRManager.posts.map { signalRPost in
-                            UnifiedPost(
-                                id: signalRPost.postId ,
-                                members: signalRPost.members,
-                                maxPeople: signalRPost.maxPeople,
-                                description: signalRPost.description,
-                                createdAt: signalRPost.createdAt,
-                                currentPrice: Double(signalRPost.currentPrice),
-                                source: "signalR"
-                            )
                         }
-                      
 
                         if !unifiedPosts.isEmpty {
                             // Separate user posts and rest posts
@@ -368,7 +375,7 @@ struct MainView: View {
 
                            
                             YourPostsSection(
-                                                     posts: unifiedPosts.filter { $0.source == "rest" || $0.source == "signalR" },
+                                                     posts: unifiedPosts.filter { $0.source == "rest"},
                                                      columns: columns
                                                  )
                         }
@@ -380,16 +387,20 @@ struct MainView: View {
                     Label("Rides", systemImage: "car.front.waves.up.fill")
                 }
                 .onAppear {
-                  
+                    setupSignalRCallbacks()
                     
-                        PostAPIManager.shared.readposts { response in
-                            guard let response = response else {
-                                return
-                            }
-                            self.posts = response
-                            print("Posts fetched successfully: \(response)")
-                            signalRManager.startConnection()
-                        }
+                    PostAPIManager.shared.readposts { response in
+                           guard let response = response else { return }
+                           DispatchQueue.main.async {
+                               self.posts = response
+                               self.signalRManager.startConnection()
+                           }
+                       
+
+                       
+                    
+
+                                    }
                     
                 }
 
@@ -449,6 +460,7 @@ struct MainView: View {
             }
         }
     }
+    
 }
 struct AuthenticationView: View {
     @State private var showLogin = true
@@ -494,7 +506,7 @@ struct RideInfoButton: View {
                     // Add clock icon and "minutes ago" text
                     
 
-                    Text(" \(minutesago) min ago")
+                    Text(" \(minutesago) ")
                         .font(.subheadline)
                         .foregroundColor(.white)
                     

@@ -17,7 +17,7 @@ import Combine
 struct Post: Codable {
     let postId: String
     let description: String
-    let currentPrice: Int
+    let currentPrice: Double
     let latitude: Double
     let longitude: Double
     let createdAt: String
@@ -31,11 +31,11 @@ struct PostsResponse_other: Codable {
 }
 // Root response model
 struct PostsResponse: Codable {
-    let yourPosts: [Post]
-    let restPosts: [Post]
+    var yourPosts: [Post]
+    var restPosts: [Post]
 }
 //https://8035-2-135-65-38.ngrok-free.app
-let baseURL = URL(string: "https://6edf-37-99-2-128.ngrok-free.app")! // https://dormgo.azurewebsites.net    http://localhost:8080
+let baseURL = URL(string: "https://ff9a-37-99-96-77.ngrok-free.app")! // https://dormgo.azurewebsites.net    http://localhost:8080
 
 
 

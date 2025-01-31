@@ -64,9 +64,13 @@ class CustomLogger: Logger {
 class SignalRManager: ObservableObject{
 
     private var hubConnection: HubConnection?
-    @Published var posts: [PostDetails] = [] // State to hold the posts
-    @Published var posts_update: [PostDetails] = []
+//    @Published var posts: [PostDetails] = [] // State to hold the posts
+//    @Published var posts_update: [PostDetails] = []
     private var customLogger: CustomLogger?
+    
+    var onPostCreated: ((Post) -> Void)?
+      var onPostUpdated: ((Post) -> Void)?
+      var onPostDeleted: ((String) -> Void)?
         init() {
             self.customLogger = CustomLogger(signalRManager: self)
             
@@ -118,14 +122,15 @@ class SignalRManager: ObservableObject{
         hubConnection?.stop()
     }
 
-    private func handlemessage_pc(type:Bool,postDto:PostDetails){
+    private func handlemessage_pc(type:Bool,postDto:Post){
         let timestamp = Date()
         print("Received post at \(timestamp) with type: \(type)")  // Log the time and type
 
         if !type {
             print("Post appended: \(postDto)")
             DispatchQueue.main.async {
-                self.posts.append(postDto)
+                [weak self] in
+                               self?.onPostCreated?(postDto)
             }
         } else {
             print("Post ignored due to type being true")
@@ -137,7 +142,7 @@ class SignalRManager: ObservableObject{
        // let hubUrl = endpoint("api/posthub")
         
     
-        hubConnection?.on(method: "PostCreated", callback: { [weak self] (type: Bool, postDto: PostDetails) in
+        hubConnection?.on(method: "PostCreated", callback: { [weak self] (type: Bool, postDto: Post) in
             guard let self = self else {
                    print("Self is nil, cannot handle the post")
                    return
@@ -149,38 +154,27 @@ class SignalRManager: ObservableObject{
           
         })
         
-        hubConnection?.on(method: "PostUpdated", callback: { [weak self] ( postDto: PostDetails) in
-            let timestamp = Date()
+        hubConnection?.on(method: "PostUpdated", callback: { [weak self] ( postDto: Post) in
+         
          //   print("Received post update at \(timestamp) with message: \(postDto.message)") // Log the time and type
 
-          
-                DispatchQueue.main.async {
-                   // let updatedPost = postDto.post
-                    if let index = self?.posts.firstIndex(where: { $0.postId == postDto.postId }) {
-                        // Update the existing post
-                        self?.posts[index] = postDto
-                        print("Post updated: \(postDto)")
-                    } else {
-                        print("Post not found; skipping update.")
-                    }
-                }
+      
+                            DispatchQueue.main.async { [weak self] in
+                                self?.onPostUpdated?(postDto)
+                            }
             
-                print("Post ignored due to type being true")
+            
+               
             
         })
         
         hubConnection?.on(method: "PostDeleted", callback: { [weak self] (postId: String) in
-            let timestamp = Date()
-            print("Post deleted notification received at \(timestamp) for PostId: \(postId)")
+        
+         
 
-            DispatchQueue.main.async {
-                if let index = self?.posts.firstIndex(where: { $0.postId == postId }) {
-                    self?.posts.remove(at: index)
-                    print("Post deleted: \(postId)")
-                } else {
-                    print("Post not found; skipping deletion.")
+            DispatchQueue.main.async { [weak self] in
+                    self?.onPostDeleted?(postId)
                 }
-            }
         })
   
     }
