@@ -189,7 +189,7 @@ class PostAPIManager{
         print("JWT Token: \(token)")
         
         var request = URLRequest(url: url)
-        request.httpMethod = "POST"  // Make sure the method is POST
+        request.httpMethod = "PUT"  // Make sure the method is POST
         
         // Set the JWT token in the Authorization header
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
@@ -303,7 +303,7 @@ class PostAPIManager{
 
         // Prepare the request
         var request = URLRequest(url: url)
-        request.httpMethod = "POST"
+        request.httpMethod = "DELETE"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type") // In case the server expects JSON headers
 
@@ -370,7 +370,7 @@ class PostAPIManager{
 
         // Prepare the request
         var request = URLRequest(url: url)
-        request.httpMethod = "POST"
+        request.httpMethod = "PUT"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type") // In case the server expects JSON headers
 
@@ -437,7 +437,7 @@ class PostAPIManager{
 
         // Prepare the request
         var request = URLRequest(url: url)
-        request.httpMethod = "POST"
+        request.httpMethod = "DELETE"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type") // In case the server expects JSON headers
 
@@ -513,7 +513,7 @@ class PostAPIManager{
          // Prepare the request
          let refreshURL = endpoint("api/refresh-tokens")
          var request = URLRequest(url: refreshURL)
-         request.httpMethod = "POST"
+         request.httpMethod = "PUT"
          request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             // let fingerprint = UIDevice.current.identifierForVendor?.uuidString
          guard let hashedFingerprint = generateHashedFingerprint(fingerprint: fingerprint) else {

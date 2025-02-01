@@ -122,7 +122,7 @@ class APIManager {
         // Prepare the request
         let refreshURL = endpoint("api/refresh-tokens")
         var request = URLRequest(url: refreshURL)
-        request.httpMethod = "POST"
+        request.httpMethod = "PUT"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
             //   let fingerprint = UIDevice.current.identifierForVendor?.uuidString
