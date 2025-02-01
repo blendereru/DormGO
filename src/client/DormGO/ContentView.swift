@@ -492,6 +492,7 @@ struct RideInfoButton: View {
     let status: String
     let color: Color
     let company: String
+    
     let action: () -> Void
 
     var body: some View {
@@ -539,6 +540,7 @@ struct RideInfoButton: View {
 }
 
 struct SheetContent: View {
+    @State private var isMembersPopover: Bool = false
     let post: Post
     let isUserPost: Bool
     @State private var isPublishSheetPresented: Bool = false
@@ -576,6 +578,38 @@ struct SheetContent: View {
             Text("Price: \(post.currentPrice)₸")
                 .font(.subheadline)
                 .foregroundColor(.gray)
+            
+            Button(action: {
+                        self.isMembersPopover = true
+               }) {
+                   Text("Members")
+                       .padding()
+               }
+               .background(Color.blue) // Applies to the entire button
+                       .foregroundColor(.white)
+                       .cornerRadius(8)
+                       .popover(isPresented: $isMembersPopover) {
+                           VStack(alignment: .leading){
+                               Text("Dividers")
+                                   .font(.headline)
+                                   .padding()
+                               Divider()
+                               
+                               ScrollView{
+                                   VStack(alignment:.leading,spacing:8){
+                                       if post.members.isEmpty{
+                                           Text("No members yet")
+                                               .foregroundColor(.gray)
+                                               .padding()
+                                       } else{
+                                           ForEach(post.members ){ member in
+                                               Text(member.name)
+                                               
+                                           }
+                                       }
+                                   }
+                               }
+                           }}
         }
         .padding(.horizontal)
     }
@@ -621,6 +655,7 @@ struct SheetContent: View {
 struct SheetContent_joined: View {
     let post: Post
    // let isUserPost: Bool
+    @State private var isMembersPopover: Bool = false
     @State private var isPublishSheetPresented: Bool = false
     let shared = PostAPIManager()
 
@@ -639,6 +674,8 @@ struct SheetContent_joined: View {
 
     // MARK: - Post Details Section
     private var postDetailsSection: some View {
+  
+
         VStack(alignment: .leading, spacing: 8) {
             Text(post.description)
                 .font(.title)
@@ -650,6 +687,38 @@ struct SheetContent_joined: View {
             Text("Price: \(post.currentPrice)₸")
                 .font(.subheadline)
                 .foregroundColor(.gray)
+            Button(action: {
+                        self.isMembersPopover = true
+               }) {
+                   Text("Members")
+                       .padding()
+               }
+               .background(Color.blue) // Applies to the entire button
+                       .foregroundColor(.white)
+                       .cornerRadius(8)
+               .popover(isPresented: $isMembersPopover) {
+                   VStack(alignment: .leading){
+                       Text("Dividers")
+                           .font(.headline)
+                           .padding()
+                       Divider()
+                       
+                       ScrollView{
+                           VStack(alignment:.leading,spacing:8){
+                               if post.members.isEmpty{
+                                   Text("No members yet")
+                                       .foregroundColor(.gray)
+                                       .padding()
+                               } else{
+                                   ForEach(post.members ){ member in
+                                       Text(member.name)
+                                       
+                                   }
+                               }
+                           }
+                       }
+                   }
+               }
         }
         .padding(.horizontal)
     }

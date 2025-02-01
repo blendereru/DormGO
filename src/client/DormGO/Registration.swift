@@ -9,10 +9,17 @@ import Foundation
 import SwiftUI
 import Security
 import CryptoKit
-struct ProtectedResponse: Codable {
+struct ProtectedResponse: Codable ,Identifiable {
+      var id = UUID()
+    
     let email: String
     let name: String
   
+    
+    enum CodingKeys: String, CodingKey {
+         case email, name // Explicitly list JSON keys
+     }
+
     func toDictionary() -> [String: Any] {
            return [
                "name": name,
