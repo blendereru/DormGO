@@ -57,9 +57,9 @@ public class ProfileController : ControllerBase
         Log.Information("GetUserProfile: Successfully retrieved user info. User id {UserId}", user.Id);
         return Ok(new 
         {
-            email = user.Email,
-            name = user.UserName,
-            registeredAt = user.RegistrationDate
+            Email = user.Email,
+            Name = user.UserName,
+            RegisteredAt = user.RegistrationDate
         });
     }
 }

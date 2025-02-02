@@ -368,6 +368,61 @@ different http methods).
       </td>
     </tr>
 <tr>
+  <td>GET</td>
+  <td>/api/post/search</td>
+  <td>Search posts with filters (text, dates, members, etc.).</td>
+  <td>
+    Query parameters:<br>
+    - SearchText: string<br>
+    - StartDate: DateTime? (UTC)<br>
+    - EndDate: DateTime? (UTC)<br>
+    - MaxPeople: int?<br>
+    - Members: List&lt;MemberDto&gt;<br>
+    - OnlyAvailable: bool?
+  </td>
+  <td>
+    <pre lang="json">[
+  {
+    "postId": "&lt;post_id&gt;",
+    "description": "&lt;post_description&gt;",
+    "currentPrice": 0,
+    "latitude": 0,
+    "longitude": 0,
+    "createdAt": "&lt;creation_date&gt;",
+    "maxPeople": 0,
+    "creator": {
+      "email": "creator@example.com",
+      "name": "&lt;creator_name&gt;"
+    },
+    "members": [
+      {
+        "email": "member1@example.com",
+        "name": "&lt;member1_name&gt;"
+      },
+      {
+        "email": "member2@example.com",
+        "name": "&lt;member2_name&gt;"
+      }
+    ]
+  },
+  {
+    "postId": "&lt;another_post_id&gt;",
+    "description": "&lt;another_description&gt;",
+    "currentPrice": 0,
+    "latitude": 0,
+    "longitude": 0,
+    "createdAt": "&lt;another_date&gt;",
+    "maxPeople": 0,
+    "creator": {
+      "email": "another@example.com",
+      "name": "&lt;another_creator&gt;"
+    },
+    "members": []
+  }
+]</pre>
+  </td>
+</tr>
+<tr>
       <td>GET</td>
       <td>/api/chat/{postId}/messages</td>
       <td>Retrieve all messages for a specific post.</td>

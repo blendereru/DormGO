@@ -62,6 +62,91 @@ public class HomeController : ControllerBase
         return Ok(new { Message = "The post was saved to the database" });
     }
 
+    [HttpGet("search")]
+    public async Task<IActionResult> SearchPosts([FromQuery] SearchPostDto searchDto)
+    {
+        var emailClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email);
+        if (emailClaim == null)
+        {
+            Log.Warning("SearchPosts: Email claim not found in JWT token");
+            return Unauthorized("The email claim is not found");
+        }
+        var user = await _userManager.FindByEmailAsync(emailClaim.Value);
+        if (user == null)
+        {
+            Log.Warning("SearchPosts: User not found with email: {Email}", emailClaim.Value);
+            return NotFound("The user is not found");
+        }
+        Log.Information("SearchPosts: Search initiated by {Email} with filters - Text: {SearchText}, Dates: {StartDate}-{EndDate}, MaxPeople: {MaxPeople}, Members: {MemberCount}",
+            emailClaim.Value,
+            searchDto.SearchText,
+            searchDto.StartDate,
+            searchDto.EndDate,
+            searchDto.MaxPeople,
+            searchDto.Members.Count);
+        try
+        {
+            var query = _db.Posts.AsQueryable();
+            if (!string.IsNullOrEmpty(searchDto.SearchText))
+            {
+                Log.Debug("Applying text filter: {SearchText}", searchDto.SearchText);
+                var searchTerm = searchDto.SearchText.ToLower();
+                query = query.Where(p => p.Description.ToLower().Contains(searchTerm));
+            }
+            if (searchDto.StartDate.HasValue)
+            {
+                Log.Debug("Applying start date filter: {StartDate}", searchDto.StartDate.Value);
+                query = query.Where(p => p.CreatedAt >= searchDto.StartDate.Value);
+            }
+            if (searchDto.EndDate.HasValue)
+            {
+                Log.Debug("Applying end date filter: {EndDate}", searchDto.EndDate.Value);
+                query = query.Where(p => p.CreatedAt <= searchDto.EndDate.Value);
+            }
+            if (searchDto.Members.Count > 0)
+            {
+                Log.Debug("Processing member filter for {Count} emails", searchDto.Members.Count);
+                var memberEmails = searchDto.Members.Select(m => m.Email).ToList();
+                var users = await _db.Users
+                    .Where(u => memberEmails.Contains(u.Email))
+                    .ToListAsync();
+                if (!users.Any())
+                {
+                    Log.Information("No users found for provided member emails");
+                    return Ok(new List<PostDto>());
+                }
+                Log.Debug("Found {UserCount} matching users in database", users.Count);
+                var userIds = users.Select(u => u.Id).ToList();
+                foreach (var userId in userIds)
+                {
+                    query = query.Where(p => p.Members.Any(m => m.Id == userId));
+                }
+            }
+            if (searchDto.MaxPeople.HasValue)
+            {
+                Log.Debug("Applying max people filter: {MaxPeople}", searchDto.MaxPeople.Value);
+                query = query.Where(p => p.MaxPeople <= searchDto.MaxPeople.Value);
+            }
+            if (searchDto.OnlyAvailable.HasValue && searchDto.OnlyAvailable.Value)
+            {
+                Log.Debug("Applying availability filter (only non-full posts)");
+                query = query.Where(p => p.Members.Count < p.MaxPeople);
+            }
+            var posts = await query
+                .Include(p => p.Creator)
+                .Include(p => p.Members)
+                .ProjectToType<PostDto>()
+                .ToListAsync();
+            Log.Information("Search completed for {Email}. Found {PostCount} results", 
+                emailClaim.Value, posts.Count);
+            return Ok(posts);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "SearchPosts: Error occurred during search for {Email}", emailClaim.Value);
+            return StatusCode(500, "An error occurred while processing your request");
+        }
+    }
     [HttpGet("read")]
     public async Task<IActionResult> ReadPosts(bool joined)
     {
