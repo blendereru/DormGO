@@ -35,7 +35,7 @@ struct PostsResponse: Codable {
     var restPosts: [Post]
 }
 //https://8035-2-135-65-38.ngrok-free.app
-let baseURL = URL(string: "https://ad38-37-99-26-133.ngrok-free.app")! // https://dormgo.azurewebsites.net    http://localhost:8080
+let baseURL = URL(string: "https://d51c-37-99-38-97.ngrok-free.app")! // https://dormgo.azurewebsites.net    http://localhost:8080
 
 
 
@@ -683,8 +683,16 @@ class PostAPIManager{
         task.resume() // <-- This line is important!
     }
     func read_other(completion: @escaping (PostsResponse_other?) -> Void) {
-        let url = endpoint("/api/post/read/others")
-        
+        let endpointPath = "/api/post/read"
+        var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: true)!
+        components.path = endpointPath
+
+        components.queryItems = [
+            URLQueryItem(name: "joined", value: "true") // Or "false"
+        ]
+
+        let url = components.url!
+        print("Final URL: \(url)")
         guard let token = getJWTFromKeychain(tokenType: "access_token") else {
             print("Access token missing. Attempting to refresh token.")
             refreshToken2 { success in

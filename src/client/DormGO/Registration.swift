@@ -32,11 +32,16 @@ struct TokenResponse: Codable {
     let accessToken: String
     let refreshToken: String
 }
+struct ProfileInfo:Codable{
+    let email: String
+    let name: String
+    let registeredAt: Date
+}
 class APIManager {
     static let shared = APIManager()
     
-    func sendProtectedRequest(completion: @escaping (ProtectedResponse?) -> Void) {
-        let url = endpoint("/api/profile/read")
+    func sendProtectedRequest(completion: @escaping (ProfileInfo?) -> Void) {
+        let url = endpoint("/api/profile/me")
         
         guard let token = getJWTFromKeychain(tokenType: "access_token") else {
             print("Access token missing. Attempting to refresh token.")
@@ -83,9 +88,9 @@ class APIManager {
                     if let data = data {
                         do {
                             let decoder = JSONDecoder()
-                            let protectedResponse = try decoder.decode(ProtectedResponse.self, from: data)
-                            saveToModel(email: protectedResponse.email, name: protectedResponse.name)
-                            completion(protectedResponse)
+                            let profileInfo = try decoder.decode(ProfileInfo.self, from: data)
+                            saveToModel(email: profileInfo.email, name: profileInfo.name)
+                            completion(profileInfo)
                         } catch {
                             print("Failed to decode response: \(error.localizedDescription)")
                             completion(nil)

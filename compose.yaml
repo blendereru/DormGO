@@ -4,6 +4,7 @@ services:
   app:
     build:
       context: .
+
     image: dormgo
     container_name: api
     ports:
