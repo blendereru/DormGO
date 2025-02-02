@@ -33,7 +33,7 @@ func deleteJWTFromKeychain(tokenType: String) -> Bool {
 struct ContentView: View {
     @StateObject private var signalRManager = SignalRManager()
     @AppStorage("isAuthenticated") private var isAuthenticated: Bool = false
-    @State private var user: ProtectedResponse
+    @State private var user: ProfileInfo
     @State private var posts: PostsResponse
 
 //    init() {
@@ -45,15 +45,15 @@ struct ContentView: View {
     init(isPreview: Bool = false) {
            // Initialize the `user` and `posts` with default values
            if isPreview {
-               _user = State(initialValue: ProtectedResponse(email: "preview@example.com", name: "Preview User"))
+               _user = State(initialValue: ProfileInfo(email: "preview@example.com", name: "Preview User", registeredAt: Date()))
                _posts = State(initialValue: PostsResponse(yourPosts: [], restPosts: []))  // Simulated empty posts for preview
                isAuthenticated = true  // Simulate logged-in state for preview
            } else if let _ = getJWTFromKeychain(tokenType: "access_token") {
-               _user = State(initialValue: ProtectedResponse(email: "user@example.com", name: "Authenticated User"))
+               _user = State(initialValue: ProfileInfo(email: "user@example.com", name: "Authenticated User", registeredAt: Date()))
                _posts = State(initialValue: PostsResponse(yourPosts: [], restPosts: []))  // Add real posts if necessary
                isAuthenticated = true
            } else {
-               _user = State(initialValue: ProtectedResponse(email: "", name: ""))
+               _user = State(initialValue: ProfileInfo(email: "", name: "", registeredAt: Date()))
                _posts = State(initialValue: PostsResponse(yourPosts: [], restPosts: []))  // Empty posts if not authenticated
                isAuthenticated = false
            }
@@ -194,8 +194,16 @@ struct YourPostsSection: View {
 struct ProfileView: View {
     @Binding var name: String
     @Binding var email: String
+    @Binding var registeredAt: Date
     let logoutAction: () -> Void
 
+    
+    private var formattedDate: String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        return formatter.string(from: registeredAt)
+    }
     var body: some View {
         VStack(spacing: 20) {
             // Title Text
@@ -216,6 +224,11 @@ struct ProfileView: View {
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .padding(.horizontal)
+                
+                Text("Registered At: \(formattedDate)") // Display formatted date
+                                   .font(.subheadline)
+                                   .foregroundColor(.secondary)
+                                   .padding(.horizontal)
             }
 
             Spacer()
@@ -249,18 +262,19 @@ struct ProfileView: View {
 
 struct MainView: View {
     @State private var name: String = "" // State variable for name
-    @State private var email: String = "" // State variable for email
+    @State private var email: String = ""
+    @State private var registeredAt: Date = Date()// State variable for email
     @State private var isSheet1Presented = false
  //   @StateObject private var signalRManager = SignalRManager()// StateObject for SignalR
     @ObservedObject var signalRManager: SignalRManager
     @State private var isSheet2Presented = false
     let columns = [GridItem(.adaptive(minimum: 150))]
-    @State private var user: ProtectedResponse
+    @State private var user: ProfileInfo
     @State private var posts: PostsResponse = PostsResponse(yourPosts: [], restPosts: [])
     @State private var joinedposts:PostsResponse_other = PostsResponse_other(postsWhereMember : [])
     var logoutAction: () -> Void // Accept logout closure
     
-    init(user: ProtectedResponse, posts: PostsResponse, signalRManager: SignalRManager, logoutAction: @escaping () -> Void) {
+    init(user: ProfileInfo, posts: PostsResponse, signalRManager: SignalRManager, logoutAction: @escaping () -> Void) {
         _user = State(initialValue: user)
         _posts = State(initialValue: posts)
         self.signalRManager = signalRManager
@@ -448,6 +462,7 @@ struct MainView: View {
                 ProfileView(
                     name: $name,
                     email: $email,
+                    registeredAt: $registeredAt,
                     logoutAction: logoutAction
                 )
                 .tabItem {
@@ -456,6 +471,7 @@ struct MainView: View {
                 .onAppear {
                     name = user.name
                     email = user.email
+                    registeredAt = user.registeredAt
                 }
             }
         }

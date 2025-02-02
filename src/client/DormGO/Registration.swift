@@ -36,6 +36,13 @@ struct ProfileInfo:Codable{
     let email: String
     let name: String
     let registeredAt: Date
+    
+    func toDictionary() -> [String: Any] {
+           return [
+               "name": name,
+               "email": email
+           ]
+       }
 }
 class APIManager {
     static let shared = APIManager()
@@ -88,6 +95,9 @@ class APIManager {
                     if let data = data {
                         do {
                             let decoder = JSONDecoder()
+                            let dateFormatter = DateFormatter()
+                                                   dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSSSSSS"
+                                                   decoder.dateDecodingStrategy = .formatted(dateFormatter)
                             let profileInfo = try decoder.decode(ProfileInfo.self, from: data)
                             saveToModel(email: profileInfo.email, name: profileInfo.name)
                             completion(profileInfo)
