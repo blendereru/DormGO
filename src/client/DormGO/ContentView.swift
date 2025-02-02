@@ -59,11 +59,55 @@ struct ContentView: View {
            }
        }
     
+    func retryLogoutAction() {
+        // Assuming that you have the correct refresh_token and accessToken here
+        let token = getJWTFromKeychain(tokenType: "access_token")!
+        let refresh_token = getJWTFromKeychain(tokenType: "refresh_token")!
+        
+        PostAPIManager.shared.logoutfunc(refreshToken: refresh_token, accessToken: token)
+        
+        let accessTokenDeleted = deleteJWTFromKeychain(tokenType: "access_token")
+        let refreshTokenDeleted = deleteJWTFromKeychain(tokenType: "refresh_token")
+        
+        if accessTokenDeleted && refreshTokenDeleted {
+            print("Both access and refresh tokens have been deleted successfully.")
+        } else {
+            print("Failed to delete tokens.")
+        }
+        
+        // Set isAuthenticated to false to log the user out
+        isAuthenticated = false
+    }
     var body: some View {
         Group {
             if isAuthenticated {
                 MainView(user: user, posts: posts, signalRManager: signalRManager, logoutAction: {
                     // Delete both the access and refresh tokens
+                    guard let token = getJWTFromKeychain(tokenType: "access_token") else {
+                        print("Access token missing. Attempting to refresh token.")
+                        PostAPIManager().refreshToken2 { success in
+                            if success {
+                                retryLogoutAction()
+                            } else {
+                                print("Unable to refresh token. Exiting.")
+                            }
+                        }
+                        return
+                    }
+                    guard let refresh_token = getJWTFromKeychain(tokenType: "refresh_token") else {
+                        print("Access token missing. Attempting to refresh token.")
+                        PostAPIManager().refreshToken2 { success in
+                            if success {
+                                retryLogoutAction()
+                            } else {
+                                print("Unable to refresh token. Exiting.")
+                            }
+                        }
+                        return
+                    }
+
+
+                    PostAPIManager.shared.logoutfunc(refreshToken: refresh_token, accessToken: token)
                     let accessTokenDeleted = deleteJWTFromKeychain(tokenType: "access_token")
                     let refreshTokenDeleted = deleteJWTFromKeychain(tokenType: "refresh_token")
                     
@@ -81,7 +125,9 @@ struct ContentView: View {
                     isAuthenticated = true
                 })
             }
+            
         }
+        
     }
 }
 

@@ -160,6 +160,98 @@ class PostAPIManager{
         
         task.resume()
     }
+    func logoutfunc(refreshToken:String,accessToken:String) {
+        let url = endpoint("api/signout")
+        
+        // Retrieve the JWT token from Keychain
+        guard let token = getJWTFromKeychain(tokenType: "access_token") else {
+            print("Access token missing. Attempting to refresh token.")
+            refreshToken2 { success in
+                if success {
+                    self.logoutfunc(
+                        refreshToken: refreshToken, accessToken: accessToken
+                    )
+                } else {
+                    print("Unable to refresh token. Exiting.")
+                        //    completion(nil)
+                }
+            }
+            return
+        }
+        print("JWT Token: \(token)")
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"  // Make sure the method is POST
+        
+        // Set the JWT token in the Authorization header
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        // Use the dynamic body passed into the function
+        let body: [String: Any] = [
+            "refreshToken": refreshToken,
+            "accessToken":accessToken
+        ]
+        
+        // Convert body to JSON data
+        guard let jsonData = try? JSONSerialization.data(withJSONObject: body, options: []) else {
+            print("Error: Unable to convert body to JSON")
+            return
+        }
+        
+        request.httpBody = jsonData
+        
+        // Print the headers to terminal
+        if let allHeaders = request.allHTTPHeaderFields {
+            print("Request Headers: \(allHeaders)")
+        }
+        
+        let task = URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("Error: \(error.localizedDescription)")
+                    return
+                }
+                
+                if let httpResponse = response as? HTTPURLResponse {
+                    print("HTTP Status Code: \(httpResponse.statusCode)")
+                    
+                    if let headers = httpResponse.allHeaderFields as? [String: String] {
+                        print("Response Headers: \(headers)")
+                    }
+                    if httpResponse.statusCode == 401 {
+                        print("Token expired. Refreshing...")
+                        self.refreshToken2 { success in
+                            if success {
+                                self.logoutfunc(refreshToken: refreshToken, accessToken: accessToken)
+                            } else {
+                                print("Failed to refresh token.")
+                         
+                            }
+                        }
+                        return
+                    }
+                    
+                    if let data = data, let responseString = String(data: data, encoding: .utf8) {
+                        print("Response Body: \(responseString)")
+                        do {
+                            let decoder = JSONDecoder()
+                            let protectedResponse = try decoder.decode(ProtectedResponse.self, from: data)
+                            print("Email: \(protectedResponse.email)")
+                            print("Name: \(protectedResponse.name)")
+                    
+                        } catch {
+                            print("Error decoding JSON: \(error.localizedDescription)")
+                        }
+                    } else {
+                        print("No data received")
+                    }
+                }
+            }
+        }
+        
+        task.resume()
+    }
     func update(postId: String ,Description: String, CurrentPrice: Double, Latitude: Double, Longitude: Double, CreatedAt: String, MaxPeople: Int,Members:[ProtectedResponse], completion: @escaping (ProtectedResponse?) -> Void) {
         let url = endpoint("api/post/update/\(postId)")
         

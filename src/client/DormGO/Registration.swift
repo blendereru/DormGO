@@ -46,7 +46,7 @@ struct ProfileInfo:Codable{
 }
 class APIManager {
     static let shared = APIManager()
-    
+ 
     func sendProtectedRequest(completion: @escaping (ProfileInfo?) -> Void) {
         let url = endpoint("/api/profile/me")
         
