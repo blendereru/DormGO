@@ -23,13 +23,13 @@ public class ProfileController : ControllerBase
         if (string.IsNullOrEmpty(emailClaim))
         {
             Log.Warning("GetMyProfile: Email claim not found.");
-            return Unauthorized("The email claim is not found.");
+            return Unauthorized(new { Message = "The email claim is not found." });
         }
         var user = await _userManager.FindByEmailAsync(emailClaim);
         if (user == null)
         {
             Log.Warning("GetMyProfile: User not found with email: {Email}", emailClaim);
-            return NotFound("The user with the provided email is not found.");
+            return NotFound(new { Message = "The user with the provided email is not found." });
         }
         Log.Information("GetMyProfile: Profile read for user: {Email}", emailClaim);
         return Ok(new
@@ -46,13 +46,13 @@ public class ProfileController : ControllerBase
         if (string.IsNullOrEmpty(email))
         {
             Log.Warning("GetUserProfile: The email is missing");
-            return BadRequest("Email is required.");
+            return BadRequest(new { Message = "Email is required." });
         }
         var user = await _userManager.FindByEmailAsync(email);
         if (user == null)
         {
             Log.Warning("GetUserProfile: The user with email {Email} is not found", email);
-            return NotFound("User not found.");
+            return NotFound(new { Message = "User not found." });
         }
         Log.Information("GetUserProfile: Successfully retrieved user info. User id {UserId}", user.Id);
         return Ok(new 

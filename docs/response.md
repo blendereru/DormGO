@@ -507,6 +507,24 @@ on view.
       </td>
       <td>Gets triggered when a user confirms their email.</td>
     </tr>
+<tr>
+  <td>/api/userhub?userName="your_userName"</td>
+  <td>PasswordResetLinkValidated</td>
+  <td>
+    <pre lang="json">{
+  "target": "PasswordResetLinkValidated",
+  "arguments": [
+    {
+      "Message": "Your password reset link has been verified.",
+      "Email": "user_email@example.com",
+      "Token": "reset_token_here",
+      "Timestamp": "2024-01-01T12:00:00Z"
+    }
+  ]
+}</pre>
+  </td>
+  <td>Triggered when a password reset link is successfully validated. Provides the reset token and user email for password update operations.</td>
+</tr>
     <tr>
       <td>/api/posthub</td>
       <td>PostCreated</td>
@@ -560,6 +578,63 @@ on view.
       </td>
       <td>Gets triggered when a user updates their post settings.</td>
     </tr>
+<tr>
+  <td>/api/posthub</td>
+  <td>PostJoined</td>
+  <td>
+    <pre lang="json">{
+  "target": "PostJoined",
+  "arguments": [
+    {
+      "postId": "post_id",
+      "description": "post_description",
+      "currentPrice": 1500,
+      "latitude": 12.345,
+      "longitude": 23.678,
+      "createdAt": "post_creation_date",
+      "maxPeople": 4,
+      "creator": {
+        "email": "creator@kbtu.kz",
+        "name": "creator_name"
+      },
+      "members": [
+        {
+          "email": "newmember@kbtu.kz",
+          "name": "new_member_name"
+        }
+      ]
+    }
+  ]
+}</pre>
+  </td>
+  <td>Triggered when a user joins a post. Contains updated post data with new member in the members list.</td>
+</tr>
+<tr>
+  <td>/api/posthub</td>
+  <td>PostUnjoined</td>
+  <td>
+    <pre lang="json">{
+  "target": "PostUnjoined",
+  "arguments": [
+    {
+      "postId": "post_id",
+      "description": "post_description",
+      "currentPrice": 1500,
+      "latitude": 12.345,
+      "longitude": 23.678,
+      "createdAt": "post_creation_date",
+      "maxPeople": 4,
+      "creator": {
+        "email": "creator@kbtu.kz",
+        "name": "creator_name"
+      },
+      "members": []
+    }
+  ]
+}</pre>
+  </td>
+  <td>Triggered when a user leaves a post. Contains updated post data with removed member excluded from the members list.</td>
+</tr>
     <tr>
       <td>/api/posthub</td>
       <td>PostDeleted</td>

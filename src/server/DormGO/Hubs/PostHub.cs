@@ -96,6 +96,31 @@ public class PostHub : Hub
             Log.Error(ex, "Error occurred while notifying post update. PostId: {PostId}", post.PostId);
         }
     }
+    public async Task NotifyPostJoined(PostDto post)
+    {
+        try
+        {
+            await Clients.All.SendAsync("PostJoined", post);
+            Log.Information("PostJoined notification sent for PostId: {PostId}", post.PostId);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error notifying PostJoined for PostId: {PostId}", post.PostId);
+        }
+    }
+
+    public async Task NotifyPostUnjoined(PostDto post)
+    {
+        try
+        {
+            await Clients.All.SendAsync("PostUnjoined", post);
+            Log.Information("PostUnjoined notification sent for PostId: {PostId}", post.PostId);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error notifying PostUnjoined for PostId: {PostId}", post.PostId);
+        }
+    }
     public async Task NotifyPostDeleted(string postId)
     {
         try

@@ -39,28 +39,28 @@ public class ChatController : ControllerBase
         if (string.IsNullOrWhiteSpace(postId))
         {
             Log.Warning("GetMessagesForPost: Invalid postId provided.");
-            return BadRequest("The post ID is invalid.");
+            return BadRequest(new { Message = "The post ID is invalid." });
         }
 
         var emailClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email);
         if (emailClaim == null)
         {
             Log.Warning("GetMessagesForPost: Email claim not found.");
-            return Unauthorized("The email claim is not found.");
+            return Unauthorized(new { Message = "The email claim is not found." });
         }
 
         var user = await _userManager.FindByEmailAsync(emailClaim.Value);
         if (user == null)
         {
             Log.Warning("GetMessagesForPost: User not found with email: {Email}", emailClaim.Value);
-            return NotFound("The user is not found.");
+            return NotFound(new { Message = "The user is not found." });
         }
 
         var postExists = await _db.Posts.AnyAsync(p => p.Id == postId);
         if (!postExists)
         {
             Log.Warning("GetMessagesForPost: Post not found with postId: {PostId}", postId);
-            return NotFound("The post does not exist.");
+            return NotFound(new { Message = "The post does not exist." });
         }
 
         Log.Information("User {UserId} is retrieving messages for Post {PostId}.", user.Id, postId);
@@ -81,27 +81,27 @@ public class ChatController : ControllerBase
         if (string.IsNullOrWhiteSpace(postId))
         {
             Log.Warning("AddMessageToPost: Invalid postId provided.");
-            return BadRequest("The post ID is invalid.");
+            return BadRequest(new { Message = "The post ID is invalid." });
         }
 
         if (string.IsNullOrWhiteSpace(messageDto.Content))
         {
             Log.Warning("AddMessageToPost: Invalid message content.");
-            return BadRequest("Message content cannot be null or empty.");
+            return BadRequest(new { Message = "Message content cannot be null or empty." });
         }
 
         var emailClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value;
         if (string.IsNullOrEmpty(emailClaim))
         {
             Log.Warning("AddMessageToPost: Unauthorized access attempt. Email claim missing.");
-            return Unauthorized("The email claim is missing from the token.");
+            return Unauthorized(new { Message = "The email claim is missing from the token." });
         }
 
         var user = await _userManager.FindByEmailAsync(emailClaim);
         if (user == null)
         {
             Log.Warning("AddMessageToPost: User not found with email: {Email}", emailClaim);
-            return NotFound("The user with the provided email is not found.");
+            return NotFound(new { Message = "The user with the provided email is not found." });
         }
         var post = await _db.Posts
             .Include(p => p.Members)
@@ -109,7 +109,7 @@ public class ChatController : ControllerBase
         if (post == null)
         {
             Log.Warning("AddMessageToPost: Post not found with postId: {PostId}", postId);
-            return NotFound("The post does not exist.");
+            return NotFound(new { Message = "The post does not exist." });
         }
         var message = _mapper.Map<Message>(messageDto);
         message.SenderId = user.Id;
@@ -123,10 +123,7 @@ public class ChatController : ControllerBase
             .ToListAsync();
         var responseDto = _mapper.Map<MessageDto>(message);
         await _hub.Clients.GroupExcept(postId, excludedConnectionIds).SendAsync("ReceiveMessage", postId, responseDto);
-        return Ok(new
-        {
-            Message = responseDto
-        });
+        return Ok(responseDto);
     }
 
     [HttpDelete("messages/{messageId}")]
@@ -136,14 +133,14 @@ public class ChatController : ControllerBase
         if (string.IsNullOrEmpty(emailClaim))
         {
             Log.Warning("DeleteMessage: Unauthorized access attempt. Email claim missing.");
-            return Unauthorized("The email claim is missing from the token.");
+            return Unauthorized(new { Message = "The email claim is missing from the token." });
         }
 
         var user = await _userManager.FindByEmailAsync(emailClaim);
         if (user == null)
         {
             Log.Warning("DeleteMessage: User not found with email: {Email}", emailClaim);
-            return NotFound("The user with the provided email is not found.");
+            return NotFound(new { Message = "The user with the provided email is not found." });
         }
 
         var message = await _db.Messages
@@ -153,16 +150,16 @@ public class ChatController : ControllerBase
         if (message == null)
         {
             Log.Warning("DeleteMessage: Message not found with messageId: {MessageId}", messageId);
-            return NotFound("Message not found.");
+            return NotFound(new { Message = "Message not found." });
         }
         if (message.SenderId != user.Id)
         {
             Log.Warning("DeleteMessage: Unauthorized attempt to delete message. UserId: {UserId}, MessageId: {MessageId}", user.Id, messageId);
-            return BadRequest("You are not authorized to delete this message.");
+            return BadRequest(new { Message = "You are not authorized to delete this message." });
         }
         _db.Messages.Remove(message);
         await _db.SaveChangesAsync();
         Log.Information("User {UserId} deleted Message {MessageId}.", user.Id, messageId);
-        return Ok("The message was successfully removed");
+        return Ok(new { Message = "The message was successfully removed" });
     }
 }

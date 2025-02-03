@@ -71,13 +71,12 @@ public class AccountController : ControllerBase
         if (user == null)
         {
             Log.Warning("Login: Failed attempt. User {Email} not found.", dto.Email);
-            return Unauthorized("Invalid email");
+            return Unauthorized(new { Message = "Invalid email" });
         }
-
         if (!user.EmailConfirmed)
         {
             Log.Warning("Login: User {Email} attempted login but email is not confirmed.", dto.Email);
-            return BadRequest("Email is not confirmed. Please check your email for the confirmation link.");
+            return BadRequest(new { Message = "Email is not confirmed. Please check your email for the confirmation link." });
         }
 
         var isPasswordValid = await _userManager.CheckPasswordAsync(user, dto.Password);
@@ -85,9 +84,8 @@ public class AccountController : ControllerBase
         if (!isPasswordValid)
         {
             Log.Warning("Login: Invalid password attempt for email {Email}.", dto.Email);
-            return Unauthorized("Invalid password.");
+            return Unauthorized(new { Message = "Invalid password." });
         }
-
         if (user.RefreshSessions.Count >= 5)
         {
             Log.Information("Login: Clearing excess refresh sessions for user {Email}.", dto.Email);
@@ -130,31 +128,31 @@ public class AccountController : ControllerBase
         if (user == null)
         {
             Log.Warning("ForgotPassword: User {Email} not found.", emailDto.Email);
-            return NotFound("User not found.");
+            return NotFound(new { Message = "User not found."});
         }
 
         Log.Information("ForgotPassword: Sending forgot password email to {Email}.", emailDto.Email);
         await SendForgotPasswordEmailAsync(user);
 
-        return Ok("Forgot password email sent successfully.");
+        return Ok(new { Message = "Forgot password email sent successfully."});
     }
 
     [HttpGet("reset-password")]
-    public async Task<IActionResult> ResetPassword(string userId, string token)
+    public async Task<IActionResult> ResetPassword(string userId, string token, [FromServices] IHubContext<UserHub> hub)
     {
         Log.Information("ResetPassword: Request to validate reset password link for user {UserId}.", userId);
 
         if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(token))
         {
             Log.Warning("ResetPassword: Invalid or expired reset link for user {UserId}.", userId);
-            return BadRequest("The link is invalid or expired.");
+            return BadRequest(new { Message = "The link is invalid or expired."});
         }
 
         var user = await _userManager.FindByIdAsync(userId);
         if (user == null)
         {
             Log.Warning("ResetPassword: User {UserId} not found.", userId);
-            return NotFound("The user is not found.");
+            return NotFound(new { Message = "The user is not found." });
         }
 
         var isTokenValid = await _userManager.VerifyUserTokenAsync(
@@ -167,15 +165,30 @@ public class AccountController : ControllerBase
         if (!isTokenValid)
         {
             Log.Warning("ResetPassword: Invalid or expired token for user {UserId}.", userId);
-            return BadRequest("The link is invalid or expired.");
+            return BadRequest(new { Message = "The link is invalid or expired."});
         }
-
-        Log.Information("ResetPassword: Valid reset password link for user {UserId}.", userId);
+        var connections = await _db.UserConnections
+            .Where(c => c.UserId == userId)
+            .Select(c => c.ConnectionId)
+            .ToListAsync();
+        if (connections.Any())
+        {
+            await hub.Clients.Clients(connections).SendAsync("PasswordResetLinkValidated", new
+            {
+                Message = "Your password reset link has been verified.",
+                Email = user.Email!,
+                Token = token,
+                Timestamp = DateTime.UtcNow
+            });
+            Log.Information("ResetPassword: Notification sent to user {UserId} for valid reset link.", userId);
+        }
+        else
+        {
+            Log.Warning("ResetPassword: No active connections found for user {UserId}.", userId);
+        }
         return Ok(new
         {
             Message = "The link is valid. You can now reset your password.",
-            Email = user.Email!,
-            Token = token
         });
     }
 
@@ -188,7 +201,7 @@ public class AccountController : ControllerBase
         if (user == null)
         {
             Log.Warning("ResetPassword: User {Email} not found.", model.Email);
-            return NotFound("The user is not found.");
+            return NotFound(new { Message = "The user is not found."});
         }
 
         var result = await _userManager.ResetPasswordAsync(user, model.Token, model.NewPassword);
@@ -213,14 +226,12 @@ public class AccountController : ControllerBase
         if (session == null)
         {
             Log.Warning("Logout failed. Refresh token not found: {RefreshToken}", dto.RefreshToken);
-            return BadRequest("The refresh token is not found");
+            return BadRequest(new { Message = "The refresh token is not found"});
         }
-
         _db.RefreshSessions.Remove(session);
         await _db.SaveChangesAsync();
-
         Log.Information("Logout successful. Refresh token removed: {RefreshToken}", dto.RefreshToken);
-        return Ok("The refresh token was successfully removed");
+        return Ok(new { Message = "The refresh token was successfully removed"});
     }
     [HttpGet("confirm-email")]
     public async Task<IActionResult> ConfirmEmail(string userId, string token, string visitorId,
@@ -230,14 +241,14 @@ public class AccountController : ControllerBase
         if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(token))
         {
             Log.Warning("Email confirmation failed. Invalid or missing parameters. UserId: {UserId}, Token: {Token}", userId, token);
-            return BadRequest("The link is invalid or expired.");
+            return BadRequest(new { Message = "The link is invalid or expired."});
         }
         var user = await _userManager.FindByIdAsync(userId);
 
         if (user == null)
         {
             Log.Warning("Email confirmation failed. User not found: {UserId}", userId);
-            return NotFound("The user is not found");
+            return NotFound(new { Message = "The user is not found"});
         }
         var result = await _userManager.ConfirmEmailAsync(user, token);
         if (!result.Succeeded)
@@ -289,12 +300,12 @@ public class AccountController : ControllerBase
         if (user == null)
         {
             Log.Warning("Resend confirmation email failed. User not found: {Email}", emailDto.Email);
-            return NotFound("User not found.");
+            return NotFound(new { Message = "User not found."});
         }
         if (await _userManager.IsEmailConfirmedAsync(user))
         {
             Log.Information("Resend confirmation email skipped. Email already confirmed: {Email}", emailDto.Email);
-            return BadRequest("Email is already confirmed.");
+            return BadRequest(new { Message = "Email is already confirmed." });
         }
         user.Fingerprint = emailDto.VisitorId;
         await SendConfirmationEmailAsync(user);
@@ -341,7 +352,7 @@ public class AccountController : ControllerBase
         if (dto.VisitorId != session.Fingerprint)
         {
             Log.Warning("Refresh token request failed. Forged visitor ID detected for UserEmail: {UserEmail}", userEmail);
-            return BadRequest("Forged visitor ID.");
+            return BadRequest(new { Message = "Forged visitor ID."});
         }
         var user = await _userManager.FindByEmailAsync(userEmail);
         if (user == null)
@@ -378,9 +389,7 @@ public class AccountController : ControllerBase
             new { userId = user.Id, token = token, visitorId = user.Fingerprint },
             protocol: HttpContext.Request.Scheme
         );
-
         var body = $"Please confirm your email by <a href='{HtmlEncoder.Default.Encode(confirmationLink)}'>clicking here</a>.";
-
         await _emailSender.SendEmailAsync(user.Email!, "Confirm your email", body, true);
     }
 

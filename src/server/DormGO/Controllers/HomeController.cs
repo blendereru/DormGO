@@ -39,13 +39,13 @@ public class HomeController : ControllerBase
         if (creatorEmail == null)
         {
             Log.Warning("CreatePost: Missing email claim.");
-            return BadRequest("The user's email was not found from jwt token");
+            return BadRequest(new { Message = "The user's email was not found from jwt token" });
         }
         var user = await _userManager.FindByEmailAsync(creatorEmail.Value);
         if (user == null)
         {
             Log.Warning("CreatePost: User not found with email: {Email}", creatorEmail);
-            return BadRequest($"User with email {creatorEmail.Value} not found.");
+            return BadRequest(new { Message = $"User with email {creatorEmail.Value} not found." });
         }
         var connectionIds = await _db.UserConnections
             .Where(c => c.UserId == user.Id && c.Hub == "/api/posthub")
@@ -69,13 +69,13 @@ public class HomeController : ControllerBase
         if (emailClaim == null)
         {
             Log.Warning("SearchPosts: Email claim not found in JWT token");
-            return Unauthorized("The email claim is not found");
+            return Unauthorized(new { Message = "The email claim is not found" });
         }
         var user = await _userManager.FindByEmailAsync(emailClaim.Value);
         if (user == null)
         {
             Log.Warning("SearchPosts: User not found with email: {Email}", emailClaim.Value);
-            return NotFound("The user is not found");
+            return NotFound(new { Message = "The user is not found" });
         }
         Log.Information("SearchPosts: Search initiated by {Email} with filters - Text: {SearchText}, Dates: {StartDate}-{EndDate}, MaxPeople: {MaxPeople}, Members: {MemberCount}",
             emailClaim.Value,
@@ -154,14 +154,14 @@ public class HomeController : ControllerBase
         if (emailClaim == null)
         {
             Log.Warning("ReadPosts: Email claim not found.");
-            return Unauthorized("The email claim is not found");
+            return Unauthorized(new {Message = "The email claim is not found" });
         }
 
         var user = await _userManager.FindByEmailAsync(emailClaim.Value);
         if (user == null)
         {
             Log.Warning("ReadPosts: User not found with email: {Email}", emailClaim.Value);
-            return NotFound("The user is not found");
+            return NotFound(new { Message = "The user is not found" });
         }
 
         if (joined)
@@ -206,7 +206,7 @@ public class HomeController : ControllerBase
         if (post == null)
         {
             Log.Warning("ReadPost: Post with id {Id} is not found", id);
-            return BadRequest("The post with specified id is not found");
+            return BadRequest(new { Message = "The post with specified id is not found" });
         }
         var postDto = _mapper.Map<PostDto>(post);
         Log.Information("ReadPost: successfully read post: {Id}", id);
@@ -222,40 +222,42 @@ public class HomeController : ControllerBase
         if (post == null)
         {
             Log.Warning("JoinPost: Post with id {Id} is not found", id);
-            return NotFound("The post with the specified ID is not found");
+            return NotFound(new { Message = "The post with the specified ID is not found" });
         }
         var emailClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email);
         if (emailClaim == null)
         {
             Log.Warning("JoinPost: Missing email claim.");
-            return Unauthorized("The email claim is not found");
+            return Unauthorized(new {Message = "The email claim is not found" });
         }
         var user = await _userManager.FindByEmailAsync(emailClaim.Value);
         if (user == null)
         {
             Log.Warning("JoinPost: User not found with email: {Email}", emailClaim.Value);
-            return NotFound("The user is not found");
+            return NotFound(new { Message = "The user is not found" });
         }
 
         if (post.CreatorId == user.Id)
         {
             Log.Warning("JoinPost: Attempt to join the post created by user himself. PostId: {PostId}, Email: {Email}", post.Id, user.Email);
-            return BadRequest("You can't join the post as you are the creator.");
+            return BadRequest(new { Message = "You can't join the post as you are the creator." });
         }
         if (post.Members.Any(m => m.Id == user.Id))
         {
             Log.Warning("JoinPost: User with email {Email} is already a member of the post", user.Email);
-            return BadRequest("The user is already a member of the post");
+            return BadRequest(new { Message = "The user is already a member of the post" });
         }
         if (post.Members.Count >= post.MaxPeople)
         {
             Log.Warning("JoinPost: Post has reached its capacity: {PostId}", post.Id);
-            return BadRequest("The post has reached its maximum member capacity");
+            return BadRequest(new { Message = "The post has reached its maximum member capacity" });
         }
         post.Members.Add(user);
         await _db.SaveChangesAsync();
+        var updatedPostDto = _mapper.Map<PostDto>(post);
+        await _hub.Clients.All.SendAsync("PostJoined", updatedPostDto);
         Log.Warning("JoinPost: The user with email {Email} is a member of the post", user.Email);
-        return Ok("The user was successfully added to the members of the post");
+        return Ok(new { Message = "The user was successfully added to the members of the post" });
     }
 
     [HttpPut("{id}/transfer-ownership")]
@@ -265,31 +267,30 @@ public class HomeController : ControllerBase
         if (string.IsNullOrEmpty(userId))
         {
             Log.Warning("TransferOwnership: Unauthorized access attempt.");
-            return Unauthorized("User is not authenticated.");
+            return Unauthorized(new { Message = "User is not authenticated." });
         }
-
         var post = await _db.Posts.Include(p => p.Members).FirstOrDefaultAsync(p => p.Id == id);
         if (post == null)
         {
             Log.Warning("TransferOwnership: Post not found. PostId: {PostId}", id);
-            return NotFound("The post does not exist.");
+            return NotFound(new { Message = "The post does not exist." });
         }
         if (post.CreatorId != userId)
         {
             Log.Warning("TransferOwnership: User {UserId} is not the creator of post {PostId}.", userId, id);
-            return Unauthorized("Only the creator can transfer ownership.");
+            return Unauthorized(new { Message = "Only the creator can transfer ownership." });
         }
         var newOwner = post.Members.FirstOrDefault(m => m.Email == memberDto.Email);
         if (newOwner == null)
         {
             Log.Warning("TransferOwnership: New owner {NewOwnerEmail} is not a member of post {PostId}.", memberDto.Email, id);
-            return BadRequest("The new owner must be a member of the post.");
+            return BadRequest(new { Message = "The new owner must be a member of the post." });
         }
         post.CreatorId = newOwner.Id;
         await _db.SaveChangesAsync();
         Log.Information("Ownership of Post {PostId} transferred from {OldOwner} to {NewOwner}.",
             id, userId, newOwner.Id);
-        return Ok("Ownership transferred successfully.");
+        return Ok(new { Message = "Ownership transferred successfully." });
     }
     [HttpPut("update/{id}")]
     public async Task<IActionResult> UpdatePost(string id, [FromBody] UpdatePostDto postDto)
@@ -299,13 +300,13 @@ public class HomeController : ControllerBase
         if (string.IsNullOrEmpty(userEmail))
         {
             Log.Warning("Unauthorized attempt to update post. User's email is missing in the JWT token.");
-            return Unauthorized("User's email not found in the JWT token.");
+            return Unauthorized(new { Message = "User's email not found in the JWT token." });
         }
         var user = await _userManager.FindByEmailAsync(userEmail);
         if (user == null)
         {
             Log.Warning("Unauthorized attempt to update post. User with email {Email} does not exist.", userEmail);
-            return Unauthorized("The user does not exist.");
+            return Unauthorized(new { Message = "The user does not exist." });
         }
         var post = await _db.Posts
             .Include(p => p.Members)
@@ -314,12 +315,12 @@ public class HomeController : ControllerBase
         if (post == null)
         {
             Log.Warning("UpdatePost failed. Post with ID {PostId} was not found.", id);
-            return NotFound("The post with the specified ID was not found.");
+            return NotFound(new { Message = "The post with the specified ID was not found." });
         }
         if (post.CreatorId != user.Id)
         {
             Log.Warning("Unauthorized update attempt by user {UserEmail} on post {PostId}.", userEmail, id);
-            return BadRequest("You are not authorized to update this post.");
+            return BadRequest(new { Message = "You are not authorized to update this post." });
         }
         Log.Information("Updating post {PostId} by user {UserId}.", id, user.Id);
         var creator = post.Creator;
@@ -353,13 +354,13 @@ public class HomeController : ControllerBase
         if (string.IsNullOrEmpty(emailClaim))
         {
             Log.Warning("Unauthorized attempt to unjoin post. User's email is missing in the JWT token.");
-            return Unauthorized("User's email not found in the JWT token.");
+            return Unauthorized(new { Message = "User's email not found in the JWT token." });
         }
         var user = await _userManager.FindByEmailAsync(emailClaim);
         if (user == null)
         {
             Log.Warning("UnjoinPost failed. User with email {Email} does not exist.", emailClaim);
-            return NotFound("The user does not exist.");
+            return NotFound(new { Message = "The user does not exist." });
         }
         var post = await _db.Posts
             .Include(p => p.Members)
@@ -367,14 +368,13 @@ public class HomeController : ControllerBase
         if (post == null)
         {
             Log.Warning("UnjoinPost failed. Post with ID {PostId} was not found.", id);
-            return NotFound("The post with the specified ID was not found.");
+            return NotFound(new { Message = "The post with the specified ID was not found." });
         }
         if (!post.Members.Any(m => m.Id == user.Id))
         {
             Log.Warning("UnjoinPost failed. User {UserId} is not a member of post {PostId}.", user.Id, id);
-            return BadRequest("The user is not a member of the post.");
+            return BadRequest(new { Message = "The user is not a member of the post." });
         }
-
         if (post.CreatorId == user.Id)
         {
             if (post.Members.Count == 1)
@@ -394,6 +394,8 @@ public class HomeController : ControllerBase
         }
         post.Members.Remove(user);
         await _db.SaveChangesAsync();
+        var updatedPostDto = _mapper.Map<PostDto>(post);
+        await _hub.Clients.All.SendAsync("PostUnjoined", updatedPostDto);
         Log.Information("User {UserId} successfully removed from post {PostId}.", user.Id, id);
         return Ok(new { Message = "The user was successfully removed from the post's members." });
     }
@@ -407,28 +409,26 @@ public class HomeController : ControllerBase
         if (string.IsNullOrEmpty(userEmail))
         {
             Log.Warning("RemovePost: Unauthorized attempt to delete post with ID {PostId}. User's email is missing in the JWT token.", id);
-            return Unauthorized("User's email not found in the JWT token.");
+            return Unauthorized(new { Message = "User's email not found in the JWT token." });
         }
-
         var user = await _userManager.FindByEmailAsync(userEmail);
         if (user == null)
         {
             Log.Warning("RemovePost: Unauthorized attempt to delete post with ID {PostId}. User with email {UserEmail} does not exist.", id, userEmail);
-            return Unauthorized("The user does not exist.");
+            return Unauthorized(new { Message = "The user does not exist." });
         }
-
         var post = await _db.Posts
             .Include(p => p.Members)
             .FirstOrDefaultAsync(p => p.Id == id);
         if (post == null)
         {
             Log.Warning("RemovePost: Post with ID {PostId} not found.", id);
-            return NotFound("The post with the specified ID was not found.");
+            return NotFound(new { Message = "The post with the specified ID was not found." });
         }
         if (post.CreatorId != user.Id)
         {
             Log.Warning("RemovePost: Unauthorized attempt by user {UserEmail} to delete post {PostId}.", userEmail, id);
-            return Unauthorized("You are not authorized to delete this post.");
+            return Unauthorized(new { Message = "You are not authorized to delete this post." });
         }
         Log.Information("RemovePost: Deleting post with ID {PostId} by user {UserId}.", id, user.Id);
         _db.Posts.Remove(post);

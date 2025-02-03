@@ -95,4 +95,15 @@ public class UserHub : Hub
     {
         await Clients.Caller.SendAsync("EmailConfirmed", userName, dto);
     }
+
+    public async Task NotifyPasswordResetLinkValidated(string email, string token)
+    {
+        await Clients.Caller.SendAsync("PasswordResetLinkValidated", new
+        {
+            Message = "Your password reset link has been verified.",
+            Email = email,
+            Token = token,
+            Timestamp = DateTime.UtcNow
+        });
+    }
 }
