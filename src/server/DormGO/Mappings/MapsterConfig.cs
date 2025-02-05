@@ -9,6 +9,7 @@ public static class MapsterConfig
     {
         TypeAdapterConfig<Post, PostDto>.NewConfig()
             .Map(dest => dest.PostId, src => src.Id)
+            .Map(dest => dest.Title, src => src.Title)
             .Map(dest => dest.Description, src => src.Description)
             .Map(dest => dest.CurrentPrice, src => src.CurrentPrice)
             .Map(dest => dest.Latitude, src => src.Latitude)
@@ -35,5 +36,17 @@ public static class MapsterConfig
             .Map(dest => dest.Sender, src => src.Sender)
             .Map(dest => dest.Content, src => src.Content)
             .Map(dest => dest.SentAt, src => src.SentAt);
+        TypeAdapterConfig<Notification, NotificationDto>.NewConfig()
+            .Map(dest => dest.NotificationId, src => src.Id)
+            .Map(dest => dest.User, src => src.User.Adapt<MemberDto>())
+            .Map(dest => dest.Message, src => src.Message)
+            .Map(dest => dest.IsRead, src => src.IsRead)
+            .Map(dest => dest.CreatedAt, src => src.CreatedAt);
+        TypeAdapterConfig<PostNotification, NotificationDto>.NewConfig()
+            .Inherits<Notification, NotificationDto>()
+            .Map(dest => dest.Post, src => src.Post.Adapt<PostDto>())
+            .Map(dest => dest.Message, src => src.Message)
+            .Map(dest => dest.IsRead, src => src.IsRead)
+            .Map(dest => dest.CreatedAt, src => src.CreatedAt);
     }
 }

@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DormGO.Migrations
 {
     [DbContext(typeof(ApplicationContext))]
-    [Migration("20250129081718_AddMessageEntity")]
-    partial class AddMessageEntity
+    [Migration("20250204175959_InitialMigration")]
+    partial class InitialMigration
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -137,6 +137,34 @@ namespace DormGO.Migrations
                     b.ToTable("Messages");
                 });
 
+            modelBuilder.Entity("DormGO.Models.Notification", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable((string)null);
+
+                    b.UseTpcMappingStrategy();
+                });
+
             modelBuilder.Entity("DormGO.Models.Post", b =>
                 {
                     b.Property<string>("Id")
@@ -164,6 +192,10 @@ namespace DormGO.Migrations
 
                     b.Property<int>("MaxPeople")
                         .HasColumnType("int");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -375,6 +407,19 @@ namespace DormGO.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("DormGO.Models.PostNotification", b =>
+                {
+                    b.HasBaseType("DormGO.Models.Notification");
+
+                    b.Property<string>("PostId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasIndex("PostId");
+
+                    b.ToTable("PostNotifications");
+                });
+
             modelBuilder.Entity("ApplicationUserPost", b =>
                 {
                     b.HasOne("DormGO.Models.ApplicationUser", null)
@@ -407,6 +452,17 @@ namespace DormGO.Migrations
                     b.Navigation("Post");
 
                     b.Navigation("Sender");
+                });
+
+            modelBuilder.Entity("DormGO.Models.Notification", b =>
+                {
+                    b.HasOne("DormGO.Models.ApplicationUser", "User")
+                        .WithMany("Notifications")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("DormGO.Models.Post", b =>
@@ -493,9 +549,22 @@ namespace DormGO.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("DormGO.Models.PostNotification", b =>
+                {
+                    b.HasOne("DormGO.Models.Post", "Post")
+                        .WithMany()
+                        .HasForeignKey("PostId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Post");
+                });
+
             modelBuilder.Entity("DormGO.Models.ApplicationUser", b =>
                 {
                     b.Navigation("CreatedPosts");
+
+                    b.Navigation("Notifications");
 
                     b.Navigation("RefreshSessions");
 

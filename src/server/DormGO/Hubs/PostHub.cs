@@ -134,6 +134,18 @@ public class PostHub : Hub
         }
     }
 
+    public async Task SendNotification(string userId, NotificationDto notification)
+    {
+        try
+        {
+            await Clients.User(userId).SendAsync("ReceiveNotification", notification);
+            Log.Information("Notification sent to UserId: {UserId}", userId);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error occurred while sending notification to user {UserId}", userId);
+        }
+    }
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
         try

@@ -423,6 +423,70 @@ different http methods).
   </td>
 </tr>
 <tr>
+  <td>GET</td>
+  <td>/api/notifications/</td>
+  <td>Retrieve all notifications for the authenticated user.</td>
+  <td>No query parameters</td>
+  <td>
+    <pre lang="json">[
+      {
+        "notificationId": "notification_id",
+        "user": {
+          "email": "user_email@example.com",
+          "name": "User Name"
+        },
+        "message": "Your message",
+        "isRead": false,
+        "createdAt": "2025-02-05T21:38:47Z",
+        "post": {
+          "postId": "post_id",
+          "description": "Post description",
+          "currentPrice": 1500,
+          "latitude": 12.345,
+          "longitude": 23.678,
+          "createdAt": "2025-02-05T21:38:47Z",
+          "maxPeople": 2,
+          "creator": {
+            "email": "creator_email@example.com",
+            "name": "Creator Name"
+          },
+          "members": []
+        }
+      }
+    ]</pre>
+  </td>
+</tr>
+
+<tr>
+  <td>PUT</td>
+  <td>/api/notifications/{id}/mark-as-read</td>
+  <td>Mark a specific notification as read for the authenticated user.</td>
+  <td>
+    Path parameters:<br>
+    - id: string (The notification ID)
+  </td>
+  <td>
+    <pre lang="json">{
+      "message": "The notification was marked as read."
+    }</pre>
+  </td>
+</tr>
+
+<tr>
+  <td>DELETE</td>
+  <td>/api/notifications/{id}</td>
+  <td>Delete a specific notification for the authenticated user.</td>
+  <td>
+    Path parameters:<br>
+    - id: string (The notification ID)
+  </td>
+  <td>
+    <pre lang="json">{
+      "message": "The notification was successfully deleted."
+    }</pre>
+  </td>
+</tr>
+<tr>
       <td>GET</td>
       <td>/api/chat/{postId}/messages</td>
       <td>Retrieve all messages for a specific post.</td>
@@ -648,6 +712,42 @@ on view.
       </td>
       <td>Gets triggered when a user removes a post. The argument indicates the ID of the post that was removed.</td>
     </tr>
+<tr>
+  <td>/api/posthub</td>
+  <td>ReceiveNotification</td>
+  <td>
+    <pre lang="json">{
+  "target": "ReceiveNotification",
+  "arguments": [
+    {
+      "notificationId": "notification_id",
+      "user": {
+        "email": "user_email@domain.com",
+        "name": "user_name"
+      },
+      "message": "Your notification message",
+      "isRead": false,
+      "createdAt": "2025-02-05T21:38:47Z",
+      "post": {
+        "postId": "post_id",
+        "description": "post_description",
+        "currentPrice": 1500,
+        "latitude": 12.345,
+        "longitude": 23.678,
+        "createdAt": "post_date_of_creation",
+        "maxPeople": 2,
+        "creator": {
+          "email": "creator_email@domain.com",
+          "name": "creator_name"
+        },
+        "members": []
+      }
+    }
+  ]
+}</pre>
+  </td>
+  <td>Triggered when a user receives a new notification.</td>
+</tr>
     <tr>
   <td>/api/chathub</td>
   <td>ReceiveMessage</td>

@@ -11,6 +11,8 @@ public class ApplicationContext : IdentityDbContext<ApplicationUser>
     public DbSet<RefreshSession> RefreshSessions { get; set; } = null!;
     public DbSet<UserConnection> UserConnections { get; set; } = null!;
     public DbSet<Message> Messages { get; set; } = null!;
+    public DbSet<Notification> Notifications { get; set; } = null!;
+    public DbSet<PostNotification> PostNotifications { get; set; } = null!;
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -52,5 +54,15 @@ public class ApplicationContext : IdentityDbContext<ApplicationUser>
             .WithMany(p => p.Messages)
             .HasForeignKey(m => m.PostId)
             .OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<Notification>().UseTpcMappingStrategy();
+        builder.Entity<Notification>()
+            .HasOne(n => n.User)
+            .WithMany(u => u.Notifications)
+            .HasForeignKey(n => n.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<PostNotification>()
+            .HasOne(pn => pn.Post)
+            .WithMany()
+            .HasForeignKey(pn => pn.PostId);
     }
 }

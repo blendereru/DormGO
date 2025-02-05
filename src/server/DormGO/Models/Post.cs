@@ -3,6 +3,7 @@ namespace DormGO.Models;
 public class Post
 {
     public string Id { get; set; } = Guid.NewGuid().ToString();
+    public string Title { get; set; }
     public string Description { get; set; }
     public decimal CurrentPrice { get; set; }
     public double Latitude { get; set; }
