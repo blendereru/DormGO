@@ -14,6 +14,27 @@ import SwiftUI
 import CoreLocation
 import Combine
 
+
+struct SenderInfo: Codable {
+    let email: String
+    let name: String
+}
+
+struct ChatMessage: Codable {
+    let messageId: String
+    let content: String
+    let sender: SenderInfo
+    let sentAt: String
+}
+
+struct MessagesResponse: Codable {
+    let messages: [ChatMessage]
+}
+
+struct MessageResponse: Codable {
+    let message: String
+}
+
 struct Post: Codable {
     let postId: String
     let description: String
@@ -49,6 +70,8 @@ class PostAPIManager{
     private var isRefreshing = false
     private var pendingRequests: [(Bool) -> Void] = []
     private let lockQueue = DispatchQueue(label: "com.example.PostAPIManager.lock")
+    
+    
     func sendProtectedRequest2(Description: String, CurrentPrice: Double, Latitude: Double, Longitude: Double, CreatedAt: String, MaxPeople: Int, completion: @escaping (ProtectedResponse?) -> Void) {
         let url = endpoint("api/post/create")
         
@@ -911,6 +934,156 @@ class PostAPIManager{
         
         // Start the network task
         task.resume()
+    }
+}
+
+
+
+// MARK: - PostAPIManager Extension
+extension PostAPIManager {
+    
+    // MARK: - Get Messages for Post
+    func getMessagesForPost(postId: String, completion: @escaping (Result<[ChatMessage], Error>) -> Void) {
+        let url = endpoint("api/chat/\(postId)/messages")
+        
+        guard let token = getJWTFromKeychain(tokenType: "access_token") else {
+            refreshToken2 { success in
+                if success {
+                    self.getMessagesForPost(postId: postId, completion: completion)
+                } else {
+                    completion(.failure(NSError(domain: "Auth", code: 401, userInfo: nil)))
+                }
+            }
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            self.handleResponse(data: data, response: response, error: error) {
+                let result: Result<MessagesResponse, Error> = self.decodeData(data: data)
+                switch result {
+                case .success(let response):
+                    completion(.success(response.messages))
+                case .failure(let error):
+                    completion(.failure(error))
+                }
+            }
+        }.resume()
+    }
+    
+    // MARK: - Send Message to Post
+    func sendMessageToPost(postId: String, content: String, completion: @escaping (Result<ChatMessage, Error>) -> Void) {
+        let url = endpoint("api/chat/\(postId)/messages")
+        
+        guard let token = getJWTFromKeychain(tokenType: "access_token") else {
+            refreshToken2 { success in
+                if success {
+                    self.sendMessageToPost(postId: postId, content: content, completion: completion)
+                } else {
+                    completion(.failure(NSError(domain: "Auth", code: 401, userInfo: nil)))
+                }
+            }
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let body: [String: Any] = ["content": content]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            self.handleResponse(data: data, response: response, error: error) {
+                let result: Result<ChatMessage, Error> = self.decodeData(data: data)
+                completion(result)
+            }
+        }.resume()
+    }
+    
+    // MARK: - Delete Message
+    func deleteMessage(messageId: String, completion: @escaping (Result<String, Error>) -> Void) {
+        let url = endpoint("api/chat/messages/\(messageId)")
+        
+        guard let token = getJWTFromKeychain(tokenType: "access_token") else {
+            refreshToken2 { success in
+                if success {
+                    self.deleteMessage(messageId: messageId, completion: completion)
+                } else {
+                    completion(.failure(NSError(domain: "Auth", code: 401, userInfo: nil)))
+                }
+            }
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            self.handleResponse(data: data, response: response, error: error) {
+                let result: Result<MessageResponse, Error> = self.decodeData(data: data)
+                switch result {
+                case .success(let response):
+                    completion(.success(response.message))
+                case .failure(let error):
+                    completion(.failure(error))
+                }
+            }
+        }.resume()
+    }
+    
+    // MARK: - Shared Response Handling
+    private func handleResponse(data: Data?, response: URLResponse?, error: Error?, completion: @escaping () -> Void) {
+        DispatchQueue.main.async {
+            if let error = error {
+                print("Network error: \(error.localizedDescription)")
+                completion()
+                return
+            }
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                print("Invalid response type")
+                completion()
+                return
+            }
+            
+            if httpResponse.statusCode == 401 {
+                self.refreshToken2 { success in
+                    if success {
+                        print("Token refreshed, retrying request...")
+                        completion()
+                    } else {
+                        print("Failed to refresh token")
+                    }
+                }
+                return
+            }
+            
+            completion()
+        }
+    }
+    
+    private func decodeData<T: Decodable>(data: Data?) -> Result<T, Error> {
+        guard let data = data else {
+            return .failure(NSError(domain: "Data", code: 400, userInfo: nil))
+        }
+        
+        do {
+            let decoder = JSONDecoder()
+            let result = try decoder.decode(T.self, from: data)
+            return .success(result)
+        } catch {
+            print("Decoding error: \(error)")
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("Raw response: \(responseString)")
+            }
+            return .failure(error)
+        }
     }
 }
 class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
