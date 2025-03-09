@@ -9,6 +9,11 @@ import SignalRClient
 import Foundation
 
 
+protocol ConnectionHandler: AnyObject {
+    func restartConnection()
+    func getCurrentToken() -> String?
+}
+
 struct PostDetails: Codable {
     let postId: String
     let description: String
@@ -29,15 +34,12 @@ struct PostResponse_Update: Codable {
 
 class CustomLogger: Logger {
     let dateFormatter: DateFormatter
-    var signalRManager: SignalRManager
+    weak var connectionHandler: ConnectionHandler?
 
-    init(signalRManager: SignalRManager) {
-        self.signalRManager = signalRManager
+    init(connectionHandler: ConnectionHandler) {
+        self.connectionHandler = connectionHandler
         dateFormatter = DateFormatter()
-        dateFormatter.calendar = Calendar(identifier: .iso8601)
-        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
-        dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
-        dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSXXXXX"
+        // Keep existing date formatter setup
     }
 
     func log(logLevel: LogLevel, message: @autoclosure () -> String) {
@@ -45,14 +47,11 @@ class CustomLogger: Logger {
         let timestamp = dateFormatter.string(from: Date())
         
         if logLevel == .error && logMessage.contains("401") {
-            print("\(timestamp) ERROR: Unauthorized access detected (401). Please verify your token or credentials.")
+            print("\(timestamp) ERROR: Unauthorized access detected (401).")
             PostAPIManager().refreshToken2 { success in
                 if success {
-                    print("Token refreshed in custom logger successfully. Restarting connection.")
-                    self.signalRManager.startConnection()
-                    // Restart the connection using the passed instance
-                } else {
-                    print("Failed to refresh token. Cannot restart connection.")
+                    print("Token refreshed. Restarting connection.")
+                    self.connectionHandler?.restartConnection()
                 }
             }
         } else {
@@ -61,7 +60,11 @@ class CustomLogger: Logger {
     }
 }
 
-class SignalRManager: ObservableObject{
+class SignalRManager: ObservableObject, ConnectionHandler {
+    func getCurrentToken() -> String? {
+         return getJWTFromKeychain(tokenType: "access_token")
+     }
+    
 
     private var hubConnection: HubConnection?
 //    @Published var posts: [PostDetails] = [] // State to hold the posts
@@ -72,7 +75,7 @@ class SignalRManager: ObservableObject{
       var onPostUpdated: ((Post) -> Void)?
       var onPostDeleted: ((String) -> Void)?
         init() {
-            self.customLogger = CustomLogger(signalRManager: self)
+            self.customLogger = CustomLogger(connectionHandler:  self)
             
             guard let logger = customLogger else {
                         fatalError("CustomLogger could not be initialized.")
@@ -201,7 +204,7 @@ class SignalRManager: ObservableObject{
         }
     }
 
-    private func restartConnection() {
+     func restartConnection() {
         if let newToken = getJWTFromKeychain(tokenType: "access_token") {
             hubConnection?.stop()
 
@@ -307,4 +310,91 @@ class ConfirmationManager: ObservableObject {
             }
         })
     }
+}
+
+
+
+class ChatHub: ObservableObject , ConnectionHandler{
+    private var hubConnection: HubConnection?
+    private var customLogger: CustomLogger?
+    
+    var onMessageReceived: ((String, Message) -> Void)? // (postId, message)
+    func getCurrentToken() -> String? {
+           return getJWTFromKeychain(tokenType: "access_token")
+       }
+       
+    init() {
+        self.customLogger = CustomLogger(connectionHandler: self)
+        
+        guard let logger = customLogger else {
+            fatalError("CustomLogger could not be initialized.")
+        }
+        
+        let hubUrl = endpoint("api/chathub")
+        hubConnection = HubConnectionBuilder(url: hubUrl)
+            .withHttpConnectionOptions { options in
+                if let token = getJWTFromKeychain(tokenType: "access_token") {
+                    options.accessTokenProvider = { token }
+                }
+            }
+            .withLogging(minLogLevel: .error, logger: logger)
+            .build()
+        
+        setupListeners()
+    }
+    
+    func startConnection() {
+        guard hubConnection != nil else {
+            print("ChatHub connection not initialized")
+            return
+        }
+        
+        hubConnection?.start()
+    }
+    
+    func stopConnection() {
+        hubConnection?.stop()
+    }
+    
+    private func setupListeners() {
+        hubConnection?.on(method: "ReceiveMessage", callback: { [weak self]
+            (postId: String, message: Message) in
+            
+            print("Received message for post \(postId): \(message.content)")
+            
+            DispatchQueue.main.async {
+                self?.onMessageReceived?(postId, message)
+            }
+        })
+    }
+    
+    // Handle token refresh similar to SignalRManager if needed
+     func restartConnection() {
+        if let newToken = getJWTFromKeychain(tokenType: "access_token") {
+            hubConnection?.stop()
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                self.hubConnection = HubConnectionBuilder(url: endpoint("api/chathub"))
+                    .withHttpConnectionOptions { options in
+                        options.accessTokenProvider = { newToken }
+                    }
+                    .withLogging(minLogLevel: .error)
+                    .build()
+                
+                self.setupListeners()
+                self.hubConnection?.start()
+            }
+        }
+    }
+}
+
+// MARK: - Data Models
+struct Message: Decodable {
+    let content: String
+    let sender: Sender
+}
+
+struct Sender: Decodable {
+    let userId: String
+    let userName: String
 }
