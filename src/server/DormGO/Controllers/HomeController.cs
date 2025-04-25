@@ -23,16 +23,15 @@ public class HomeController : ControllerBase
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ApplicationContext _db;
     private readonly IHubContext<PostHub> _hub;
-    private readonly INotificationService _notificationService;
+    //private readonly INotificationService _notificationService;
     private readonly IMapper _mapper;
-
     public HomeController(UserManager<ApplicationUser> userManager, ApplicationContext db,
-        IHubContext<PostHub> hub, INotificationService notificationService, IMapper mapper)
+        IHubContext<PostHub> hub, IMapper mapper)
     {
         _userManager = userManager;
         _db = db;
         _hub = hub;
-        _notificationService = notificationService;
+        //_notificationService = notificationService;
         _mapper = mapper;
     }
     [HttpPost("create")]
@@ -296,7 +295,7 @@ public class HomeController : ControllerBase
             Message = $"You are now the owner of the post: {post.Title}",
             Post = _mapper.Map<PostDto>(post)
         };
-        await _notificationService.NotifyUserAsync(newOwner.Id, notification);
+        //await _notificationService.NotifyUserAsync(newOwner.Id, notification);
         Log.Information("Ownership of Post {PostId} transferred from {OldOwner} to {NewOwner}.",
             id, userId, newOwner.Id);
         return Ok(new { Message = "Ownership transferred successfully." });
@@ -348,10 +347,10 @@ public class HomeController : ControllerBase
                     Message = $"You have been removed from the post: {post.Title}",
                     Post = post.Adapt<PostDto>()
                 };
-                foreach (var removedUser in users)
-                {
-                    await _notificationService.NotifyUserAsync(removedUser.Id, notification);
-                }
+                // foreach (var removedUser in users)
+                // {
+                //     await _notificationService.NotifyUserAsync(removedUser.Id, notification);
+                // }
                 Log.Information("Removing {Count} members from post {PostId}.", users.Count, id);
                 post.Members = post.Members.Except(users).ToList();
             }
