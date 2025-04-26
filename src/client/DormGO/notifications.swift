@@ -389,12 +389,20 @@ class ChatHub: ObservableObject , ConnectionHandler{
 }
 
 // MARK: - Data Models
-struct Message: Decodable {
+struct Message: Identifiable, Decodable {
+    let messageId: String
     let content: String
     let sender: Sender
-}
 
+    // Conforming to Identifiable by using messageId as the ID
+    var id: String { messageId }
+}
 struct Sender: Decodable {
     let userId: String
     let userName: String
+    
+    enum CodingKeys: String, CodingKey {
+        case userId = "email"     // Mapping 'email' to 'userId'
+        case userName = "name"    // Mapping 'name' to 'userName'
+    }
 }

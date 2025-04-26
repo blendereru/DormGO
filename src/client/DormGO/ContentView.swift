@@ -149,7 +149,7 @@ struct YourPostsSection: View {
     let posts: [UnifiedPost]
     let columns: [GridItem]
     @StateObject private var postSelectionManager = PostSelectionManager()
-    
+    let user: ProfileInfo
     var body: some View {
         print("Posts passed to YourPostsSection:", posts.map { $0.source })
         return VStack(alignment: .leading, spacing: 16) {
@@ -182,7 +182,7 @@ struct YourPostsSection: View {
                         .sheet(isPresented: $postSelectionManager.isSheetPresented) {
                             if let selectedPost = postSelectionManager.selectedPost {
                                 if post.source == "joined" {
-                                    SheetContent_joined(post: selectedPost)  
+                                    SheetContent_joined(post: selectedPost, user: user)
                                 } else {
                                     SheetContent(post: selectedPost, isUserPost: post.source == "yourPost")
                                 }
@@ -429,14 +429,14 @@ struct MainView: View {
                             // Separate user posts and rest posts
                             YourPostsSection(
                                 posts: unifiedPosts.filter { $0.source == "yourPost" },
-                                columns: columns
+                                columns: columns, user:user
                                 //   isSheetPresented: $isSheet1Presented
                             )
 
                            
                             YourPostsSection(
                                                      posts: unifiedPosts.filter { $0.source == "rest"},
-                                                     columns: columns
+                                                     columns: columns, user: user
                                                  )
                         }
 
@@ -483,7 +483,7 @@ struct MainView: View {
                             // Separate user posts and rest posts
                             YourPostsSection(
                                 posts: unifiedPosts.filter { $0.source == "joined" },
-                                columns: columns
+                                columns: columns, user: user
                                 //   isSheetPresented: $isSheet1Presented
                             )
 
@@ -716,7 +716,8 @@ struct SheetContent: View {
 }
 struct SheetContent_joined: View {
     let post: Post
-   // let isUserPost: Bool
+    let user: ProfileInfo
+    
     @State private var isMembersPopover: Bool = false
     @State private var isPublishSheetPresented: Bool = false
     let shared = PostAPIManager()
@@ -724,72 +725,65 @@ struct SheetContent_joined: View {
     var body: some View {
         VStack(spacing: 16) {
             postDetailsSection
-
             actionButtonsSection
 
-        
+           
+            ChatView(user: user, postId: post.postId)
 
             Spacer()
         }
         .padding()
     }
 
-    // MARK: - Post Details Section
     private var postDetailsSection: some View {
-  
-
         VStack(alignment: .leading, spacing: 8) {
             Text(post.description)
                 .font(.title)
                 .padding(.bottom, 4)
             MapView2(latitude: post.latitude, longitude: post.longitude)
-                            .frame(height: 300)
-                            .cornerRadius(20) // Set the corner radius to make the map rounded
-                            .shadow(radius: 10)
+                .frame(height: 300)
+                .cornerRadius(20)
+                .shadow(radius: 10)
             Text("Price: \(post.currentPrice)₸")
                 .font(.subheadline)
                 .foregroundColor(.gray)
+
             Button(action: {
-                        self.isMembersPopover = true
-               }) {
-                   Text("Members")
-                       .padding()
-               }
-               .background(Color.blue) // Applies to the entire button
-                       .foregroundColor(.white)
-                       .cornerRadius(8)
-               .popover(isPresented: $isMembersPopover) {
-                   VStack(alignment: .leading){
-                       Text("Dividers")
-                           .font(.headline)
-                           .padding()
-                       Divider()
-                       
-                       ScrollView{
-                           VStack(alignment:.leading,spacing:8){
-                               if post.members.isEmpty{
-                                   Text("No members yet")
-                                       .foregroundColor(.gray)
-                                       .padding()
-                               } else{
-                                   ForEach(post.members ){ member in
-                                       Text(member.name)
-                                       
-                                   }
-                               }
-                           }
-                       }
-                   }
-               }
+                self.isMembersPopover = true
+            }) {
+                Text("Members")
+                    .padding()
+            }
+            .background(Color.blue)
+            .foregroundColor(.white)
+            .cornerRadius(8)
+            .popover(isPresented: $isMembersPopover) {
+                VStack(alignment: .leading) {
+                    Text("Dividers")
+                        .font(.headline)
+                        .padding()
+                    Divider()
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 8) {
+                            if post.members.isEmpty {
+                                Text("No members yet")
+                                    .foregroundColor(.gray)
+                                    .padding()
+                            } else {
+                                ForEach(post.members) { member in
+                                    Text(member.name)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
         .padding(.horizontal)
     }
 
-    // MARK: - Action Buttons Section
     private var actionButtonsSection: some View {
         VStack(spacing: 8) {
-          
-
             Button(action: {
                 shared.unjoin(postId: post.postId)
             }) {
@@ -797,8 +791,92 @@ struct SheetContent_joined: View {
             }
         }
     }
+}
 
-    // MARK: - User Post Buttons Section
+
+
+struct ChatView: View {
+    @State private var messages: [Message] = []
+    @State private var newMessage: String = ""
+    @StateObject private var chatHub = ChatHub()
+    let user: ProfileInfo
+    let postId: String
+
+    init(user: ProfileInfo, postId: String) {
+        self.user = user
+        self.postId = postId
+    }
+    
+    private func setupChatHub() {
+        chatHub.onMessageReceived = { receivedPostId, message in
+            if receivedPostId == postId {
+                messages.append(message)
+            }
+        }
+    }
+    
+    private func fetchMessages() {
+        PostAPIManager.shared.fetchMessagesForPost(postId: postId) { fetchedMessages in
+            if let fetchedMessages = fetchedMessages {
+                messages = fetchedMessages
+            }
+        }
+    }
+    
+    private func sendMessage() {
+        guard !newMessage.isEmpty else { return }
+
+        PostAPIManager.shared.sendMessageToPost(postId: postId, message: newMessage) { chatResponse in
+            if let chatResponse = chatResponse {
+             
+                let sender = Sender(userId: user.email, userName: user.name)
+                
+                // Create a new Message object
+                let newMessage = Message( messageId: UUID().uuidString, content: chatResponse.message, sender: sender)
+                
+                // Append the new Message to the messages array
+                messages.append(newMessage)
+                
+                // Clear the input after sending the message
+                self.newMessage = ""
+            }
+        }
+    }
+    
+    var body: some View {
+        VStack {
+            List(messages) { message in
+                VStack(alignment: .leading) {
+                    Text(message.sender.userName)
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                    Text(message.content)
+                        .font(.body)
+                }
+                .padding(8)
+            }
+            
+            HStack {
+                TextField("Enter message...", text: $newMessage)
+                    .padding(8)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                
+                Button(action: {
+                    sendMessage()
+                }) {
+                    Text("Send")
+                        .padding(8)
+                }
+                .disabled(newMessage.isEmpty)
+            }
+            .padding(.horizontal)
+            
+        }
+        .onAppear {
+            setupChatHub()
+            fetchMessages() // Fetch existing messages when the view appears
+        }
+    }
 }
 // MARK: - ActionButton Component
 struct ActionButton: View {

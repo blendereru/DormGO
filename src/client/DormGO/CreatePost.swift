@@ -255,6 +255,7 @@ class PostAPIManager{
         
         task.resume()
     }
+    
     func update(postId: String ,Title: String,Description: String, CurrentPrice: Double, Latitude: Double, Longitude: Double, CreatedAt: String, MaxPeople: Int,Members:[ProtectedResponse], completion: @escaping (ProtectedResponse?) -> Void) {
         let url = endpoint("api/post/update/\(postId)")
         
@@ -506,6 +507,166 @@ class PostAPIManager{
                         }
                     } else {
                         print("No data received")
+                    }
+                }
+            }
+        }
+
+        task.resume()
+    }
+    
+    // Chat function: Send a message to a post
+    func sendMessageToPost(postId: String, message: String, completion: @escaping (ChatResponse?) -> Void) {
+        let url = endpoint("api/chat/\(postId)/messages")
+
+        // Retrieve the JWT token from Keychain
+        guard let token = getJWTFromKeychain(tokenType: "access_token") else {
+            print("Access token missing. Attempting to refresh token.")
+            refreshToken2 { success in
+                if success {
+                    self.sendMessageToPost(postId: postId, message: message, completion: completion)
+                } else {
+                    print("Unable to refresh token. Exiting.")
+                    completion(nil)
+                }
+            }
+            return
+        }
+        
+        print("JWT Token: \(token)")
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"  // Make sure the method is POST
+        
+        // Set the JWT token in the Authorization header
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let body: [String: Any] = [
+            "content": message
+        ]
+        
+        // Convert body to JSON data
+        guard let jsonData = try? JSONSerialization.data(withJSONObject: body, options: []) else {
+            print("Error: Unable to convert body to JSON")
+            return
+        }
+        
+        request.httpBody = jsonData
+        
+        // Print the headers to terminal
+        if let allHeaders = request.allHTTPHeaderFields {
+            print("Request Headers: \(allHeaders)")
+        }
+        
+        let task = URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("Error: \(error.localizedDescription)")
+                    return
+                }
+                
+                if let httpResponse = response as? HTTPURLResponse {
+                    print("HTTP Status Code: \(httpResponse.statusCode)")
+                    
+                    if httpResponse.statusCode == 401 {
+                        print("Token expired. Refreshing...")
+                        self.refreshToken2 { success in
+                            if success {
+                                self.sendMessageToPost(postId: postId, message: message, completion: completion)
+                            } else {
+                                print("Failed to refresh token.")
+                                completion(nil)
+                            }
+                        }
+                        return
+                    }
+                    
+                    if let data = data, let responseString = String(data: data, encoding: .utf8) {
+                        print("Response Body: \(responseString)")
+                        do {
+                            let decoder = JSONDecoder()
+                            let chatResponse = try decoder.decode(ChatResponse.self, from: data)
+                            completion(chatResponse)
+                        } catch {
+                            print("Error decoding JSON: \(error.localizedDescription)")
+                            completion(nil)
+                        }
+                    } else {
+                        print("No data received")
+                        completion(nil)
+                    }
+                }
+            }
+        }
+        
+        task.resume()
+    }
+
+    // Chat function: Fetch messages for a specific post
+    func fetchMessagesForPost(postId: String, completion: @escaping ([Message]?) -> Void) {
+        let url = endpoint("api/chat/\(postId)/messages")
+
+        // Retrieve the JWT token from Keychain
+        guard let token = getJWTFromKeychain(tokenType: "access_token") else {
+            print("Access token missing. Attempting to refresh token.")
+            refreshToken2 { success in
+                if success {
+                    self.fetchMessagesForPost(postId: postId, completion: completion)
+                } else {
+                    print("Unable to refresh token. Exiting.")
+                    completion(nil)
+                }
+            }
+            return
+        }
+
+        print("JWT Token: \(token)")
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"  // Fetch messages using GET method
+
+        // Set the JWT token in the Authorization header
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let task = URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("Error: \(error.localizedDescription)")
+                    completion(nil)
+                    return
+                }
+
+                if let httpResponse = response as? HTTPURLResponse {
+                    print("HTTP Status Code: \(httpResponse.statusCode)")
+
+                    if httpResponse.statusCode == 401 {
+                        print("Token expired. Refreshing...")
+                        self.refreshToken2 { success in
+                            if success {
+                                self.fetchMessagesForPost(postId: postId, completion: completion)
+                            } else {
+                                print("Failed to refresh token.")
+                                completion(nil)
+                            }
+                        }
+                        return
+                    }
+
+                    if let data = data, let responseString = String(data: data, encoding: .utf8) {
+                        print("Response Body: \(responseString)")
+                        do {
+                            let decoder = JSONDecoder()
+                            let messages = try decoder.decode([Message].self, from: data)
+                            completion(messages)
+                        } catch {
+                            print("Error decoding JSON: \(error.localizedDescription)")
+                            completion(nil)
+                        }
+                    } else {
+                        print("No data received")
+                        completion(nil)
                     }
                 }
             }
@@ -1433,3 +1594,8 @@ struct MapView2: UIViewRepresentable {
 //        parent.longitude = String(coordinate.longitude)
 //    }
 //}
+
+struct ChatResponse: Codable {
+    var success: Bool
+    var message: String
+}
