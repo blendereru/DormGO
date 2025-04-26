@@ -35,7 +35,7 @@ struct PostsResponse: Codable {
     var restPosts: [Post]
 }
 //https://8035-2-135-65-38.ngrok-free.app
-let baseURL = URL(string: "https://974e-37-99-3-19.ngrok-free.app")! // https://dormgo.azurewebsites.net    http://localhost:8080
+let baseURL = URL(string: "https://9d01-37-99-38-62.ngrok-free.app")! // https://dormgo.azurewebsites.net    http://localhost:8080
 
 
 
@@ -49,7 +49,7 @@ class PostAPIManager{
     private var isRefreshing = false
     private var pendingRequests: [(Bool) -> Void] = []
     private let lockQueue = DispatchQueue(label: "com.example.PostAPIManager.lock")
-    func sendProtectedRequest2(Description: String, CurrentPrice: Double, Latitude: Double, Longitude: Double, CreatedAt: String, MaxPeople: Int, completion: @escaping (ProtectedResponse?) -> Void) {
+    func sendProtectedRequest2(Title:String,Description: String, CurrentPrice: Double, Latitude: Double, Longitude: Double, CreatedAt: String, MaxPeople: Int, completion: @escaping (ProtectedResponse?) -> Void) {
         let url = endpoint("api/post/create")
         
         // Retrieve the JWT token from Keychain
@@ -58,6 +58,7 @@ class PostAPIManager{
             refreshToken2 { success in
                 if success {
                     self.sendProtectedRequest2(
+                        Title:Title,
                         Description: Description,
                         CurrentPrice: CurrentPrice,
                         Latitude: Latitude,
@@ -84,6 +85,7 @@ class PostAPIManager{
         
         // Use the dynamic body passed into the function
         let body: [String: Any] = [
+            "Title":Title,
             "Description": Description,
             "CurrentPrice": CurrentPrice,
             "Latitude": Latitude,
@@ -124,6 +126,7 @@ class PostAPIManager{
                         self.refreshToken2 { success in
                             if success {
                                 self.sendProtectedRequest2(
+                                    Title: Title,
                                     Description: Description,
                                     CurrentPrice: CurrentPrice,
                                     Latitude: Latitude,
@@ -252,7 +255,7 @@ class PostAPIManager{
         
         task.resume()
     }
-    func update(postId: String ,Description: String, CurrentPrice: Double, Latitude: Double, Longitude: Double, CreatedAt: String, MaxPeople: Int,Members:[ProtectedResponse], completion: @escaping (ProtectedResponse?) -> Void) {
+    func update(postId: String ,Title: String,Description: String, CurrentPrice: Double, Latitude: Double, Longitude: Double, CreatedAt: String, MaxPeople: Int,Members:[ProtectedResponse], completion: @escaping (ProtectedResponse?) -> Void) {
         let url = endpoint("api/post/update/\(postId)")
         
         // Retrieve the JWT token from Keychain
@@ -262,6 +265,7 @@ class PostAPIManager{
                 if success {
                     self.update(
                         postId: postId,
+                        Title:Title,
                         Description: Description,
                         CurrentPrice: CurrentPrice,
                         Latitude: Latitude,
@@ -291,6 +295,7 @@ class PostAPIManager{
         let body: [String: Any] = [
             "PostId": postId,
             "Description": Description,
+            "Title": Title,
             "CurrentPrice": CurrentPrice,
             "Latitude": Latitude,
             "Longitude": Longitude,
@@ -337,7 +342,7 @@ class PostAPIManager{
                         self.refreshToken2 { success in
                             if success {
                                 self.sendProtectedRequest2(
-                                    Description: Description,
+                                    Title:Title, Description: Description,
                                     CurrentPrice: CurrentPrice,
                                     Latitude: Latitude,
                                     Longitude: Longitude,
@@ -940,6 +945,7 @@ struct PublishContent: View {
     @State private var message = ""
     @StateObject private var locationManager = LocationManager()
     // State variables to bind to the form fields
+    @State private var title = ""
     @State private var description = ""
     @State private var currentPrice = ""
     @State private var latitude = ""
@@ -958,10 +964,11 @@ struct PublishContent: View {
     
     @State private var selectedCoordinate: CLLocationCoordinate2D?
     // Function to send data to the server
-    func sendCreateRequest(Description: String, CurrentPrice: Double, Latitude: Double, Longitude: Double, CreatedAt: String, MaxPeople: Int) {
+    func sendCreateRequest(Title:String,Description: String, CurrentPrice: Double, Latitude: Double, Longitude: Double, CreatedAt: String, MaxPeople: Int) {
         let url = endpoint("api/post/create")
 
         let body: [String: Any] = [
+            "Title":Title,
             "Description": Description,
             "CurrentPrice": CurrentPrice,
             "Latitude": Latitude,
@@ -1022,7 +1029,9 @@ struct PublishContent: View {
     
     var body: some View {
         VStack {
-            
+            TextField("Title",text:$title)
+                .extensionTextFieldView(roundedCornes: 6, startColor: .white, endColor: .blue)
+                .padding()
             TextField("Description", text: $description)
               //  .padding()
                 .extensionTextFieldView(roundedCornes: 6, startColor: .white, endColor: .blue)
@@ -1069,7 +1078,7 @@ struct PublishContent: View {
             Button(action: {
             
                         // Fetch the creator details using sendProtectedRequest
-                PostAPIManager.shared.sendProtectedRequest2(Description: description,
+                PostAPIManager.shared.sendProtectedRequest2(Title: title, Description: description,
                                       CurrentPrice: Double(currentPrice) ?? 0.0,
                                       Latitude: Double(latitude) ?? 0.0,
                                       Longitude: Double(longitude) ?? 0.0,
@@ -1089,7 +1098,7 @@ struct PublishContent: View {
                             
                                 
                                 // Call sendCreateRequest with creator data
-                                sendCreateRequest(Description: description,
+                                sendCreateRequest(Title: title, Description: description,
                                                   CurrentPrice: price,
                                                   Latitude: lat,
                                                   Longitude: lon,
@@ -1120,6 +1129,7 @@ struct UpdateContent: View {
     @State private var message = ""
     @StateObject private var locationManager = LocationManager()
     // State variables to bind to the form fields
+    @State private var title = ""
     @State private var description = ""
     @State private var currentPrice = ""
     @State private var latitude = ""
@@ -1202,7 +1212,7 @@ struct UpdateContent: View {
     
     var body: some View {
         VStack {
-            
+            TextField("Title", text:$title)
             TextField("Description", text: $description)
               //  .padding()
                 .extensionTextFieldView(roundedCornes: 6, startColor: .white, endColor: .blue)
@@ -1250,7 +1260,7 @@ struct UpdateContent: View {
                 createdAt = getCurrentTime()
             
                         // Fetch the creator details using sendProtectedRequest
-                PostAPIManager.shared.update(postId:postId,Description: description,
+                PostAPIManager.shared.update(postId:postId, Title: title,Description: description,
                                       CurrentPrice: Double(currentPrice) ?? 0.0,
                                       Latitude: Double(latitude) ?? 0.0,
                                       Longitude: Double(longitude) ?? 0.0,
