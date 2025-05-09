@@ -3,7 +3,8 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text.Encodings.Web;
 using DormGO.Data;
-using DormGO.DTOs;
+using DormGO.DTOs.RequestDTO;
+using DormGO.DTOs.ResponseDTO;
 using DormGO.Hubs;
 using DormGO.Models;
 using DormGO.Services;
@@ -36,10 +37,14 @@ public class AccountController : ControllerBase
     }
 
     [HttpPost("signup")]
-    public async Task<IActionResult> Register([FromBody] UserDto dto)
+    public async Task<IActionResult> Register([FromBody] UserRequestDto dto)
     {
         Log.Information("Register: Signup request received for email {Email}.", dto.Email);
-
+        if (string.IsNullOrEmpty(dto.Password))
+        {
+            Log.Information("Register: Failed to create the user as the password is not provided");
+            return BadRequest(new { Message =  "Couldn't register user. Password is not provided"});
+        }
         var user = _mapper.Map<ApplicationUser>(dto);
         user.RegistrationDate = DateTime.UtcNow;
 
@@ -62,10 +67,14 @@ public class AccountController : ControllerBase
     }
 
     [HttpPost("signin")]
-    public async Task<IActionResult> Login([FromBody] UserDto dto)
+    public async Task<IActionResult> Login([FromBody] UserRequestDto dto)
     {
         Log.Information("Login: Signin request received for email {Email}.", dto.Email);
-
+        if (string.IsNullOrEmpty(dto.Password))
+        {
+            Log.Information("Login: User {Email} didn't provide his password", dto.Email);
+            return BadRequest(new { Message = "Login failed. Password is not provided" });
+        }
         var user = await _db.Users.Include(u => u.RefreshSessions).FirstOrDefaultAsync(u => u.Email == dto.Email);
 
         if (user == null)
@@ -120,18 +129,18 @@ public class AccountController : ControllerBase
     }
 
     [HttpPost("forgot-password")]
-    public async Task<IActionResult> ForgotPassword([FromBody] EmailDto emailDto)
+    public async Task<IActionResult> ForgotPassword([FromBody] UserRequestDto requestDto)
     {
-        Log.Information("ForgotPassword: Request received for email {Email}.", emailDto.Email);
+        Log.Information("ForgotPassword: Request received for email {Email}.", requestDto.Email);
 
-        var user = await _userManager.FindByEmailAsync(emailDto.Email);
+        var user = await _userManager.FindByEmailAsync(requestDto.Email);
         if (user == null)
         {
-            Log.Warning("ForgotPassword: User {Email} not found.", emailDto.Email);
+            Log.Warning("ForgotPassword: User {Email} not found.", requestDto.Email);
             return NotFound(new { Message = "User not found."});
         }
 
-        Log.Information("ForgotPassword: Sending forgot password email to {Email}.", emailDto.Email);
+        Log.Information("ForgotPassword: Sending forgot password email to {Email}.", requestDto.Email);
         await SendForgotPasswordEmailAsync(user);
 
         return Ok(new { Message = "Forgot password email sent successfully."});
@@ -193,7 +202,7 @@ public class AccountController : ControllerBase
     }
 
     [HttpPost("reset-password")]
-    public async Task<IActionResult> ResetPassword(ResetPasswordDto model)
+    public async Task<IActionResult> ResetPassword(ResetPasswordRequestDto model)
     {
         Log.Information("ResetPassword: Attempt to reset password for email {Email}.", model.Email);
 
@@ -217,7 +226,7 @@ public class AccountController : ControllerBase
         return Ok(new { Message = "Your password has been reset successfully." });
     }
     [HttpDelete("signout")]
-    public async Task<IActionResult> Logout([FromBody] TokenDto dto)
+    public async Task<IActionResult> Logout([FromBody] RefreshTokenRequestDto dto)
     {
         Log.Information("Logout initiated for refresh token: {RefreshToken}", dto.RefreshToken);
 
@@ -273,7 +282,7 @@ public class AccountController : ControllerBase
         _db.RefreshSessions.Add(session);
         await _db.SaveChangesAsync();
         Log.Information("New session created for UserId: {UserId} with RefreshToken: {RefreshToken}", userId, refreshToken);
-        var dto = new TokenDto
+        var dto = new RefreshTokenResponseDto()
         {
             AccessToken = accessToken,
             RefreshToken = refreshToken
@@ -293,34 +302,34 @@ public class AccountController : ControllerBase
     }
 
     [HttpPost("resend-confirmation-email")]
-    public async Task<IActionResult> ResendConfirmationEmail([FromBody] EmailDto emailDto)
+    public async Task<IActionResult> ResendConfirmationEmail([FromBody] UserRequestDto requestDto)
     {
-        Log.Information("Resending confirmation email for Email: {Email}", emailDto.Email);
-        var user = await _userManager.FindByEmailAsync(emailDto.Email);
+        Log.Information("Resending confirmation email for Email: {Email}", requestDto.Email);
+        var user = await _userManager.FindByEmailAsync(requestDto.Email);
         if (user == null)
         {
-            Log.Warning("Resend confirmation email failed. User not found: {Email}", emailDto.Email);
+            Log.Warning("Resend confirmation email failed. User not found: {Email}", requestDto.Email);
             return NotFound(new { Message = "User not found."});
         }
         if (await _userManager.IsEmailConfirmedAsync(user))
         {
-            Log.Information("Resend confirmation email skipped. Email already confirmed: {Email}", emailDto.Email);
+            Log.Information("Resend confirmation email skipped. Email already confirmed: {Email}", requestDto.Email);
             return BadRequest(new { Message = "Email is already confirmed." });
         }
-        user.Fingerprint = emailDto.VisitorId;
+        user.Fingerprint = requestDto.VisitorId;
         await SendConfirmationEmailAsync(user);
-        Log.Information("Resent confirmation email successfully for Email: {Email}", emailDto.Email);
+        Log.Information("Resent confirmation email successfully for Email: {Email}", requestDto.Email);
         return Ok(new { Message = "Confirmation email sent successfully." });
     }
 
     [HttpPut("refresh-tokens")]
-    public async Task<IActionResult> RefreshTokens([FromBody] RefreshTokenDto dto)
+    public async Task<IActionResult> RefreshTokens([FromBody] RefreshTokenRequestDto dto)
     {
         Log.Information("Refresh token request initiated. AccessToken: {AccessToken}, RefreshToken: {RefreshToken}", dto.AccessToken, dto.RefreshToken);
-        if (string.IsNullOrEmpty(dto.AccessToken) || string.IsNullOrEmpty(dto.RefreshToken))
+        if (string.IsNullOrEmpty(dto.AccessToken))
         {
-            Log.Warning("Refresh token request failed. Missing tokens.");
-            return BadRequest(new { Message = "Access token and refresh token are required." });
+            Log.Warning("Refresh token request failed. Missing access token.");
+            return BadRequest(new { Message = "Access token is required." });
         }
 
         var principal = GetPrincipalFromExpiredToken(dto.AccessToken);

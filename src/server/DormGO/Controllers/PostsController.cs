@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using DormGO.Data;
-using DormGO.DTOs;
+using DormGO.DTOs.RequestDTO;
+using DormGO.DTOs.ResponseDTO;
 using DormGO.Hubs;
 using DormGO.Models;
 using DormGO.Services;
@@ -35,7 +36,7 @@ public class PostsController : ControllerBase
         _mapper = mapper;
     }
     [HttpPost("create")]
-    public async Task<IActionResult> CreatePost([FromBody] PostDto postDto)
+    public async Task<IActionResult> CreatePost([FromBody] PostRequestDto postDto)
     {
         var creatorEmail = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email);
         if (creatorEmail == null)
@@ -57,7 +58,7 @@ public class PostsController : ControllerBase
         post.Creator = user;
         _db.Posts.Add(post);
         await _db.SaveChangesAsync();
-        var postDtoMapped = post.Adapt<PostDto>();
+        var postDtoMapped = post.Adapt<PostResponseDto>();
         await _hub.Clients.User(user.Id).SendAsync("PostCreated", true, postDtoMapped);
         await _hub.Clients.AllExcept(connectionIds).SendAsync("PostCreated", false, postDtoMapped);
         Log.Information("Post created successfully by {Email}, Post ID: {PostId}", creatorEmail, post.Id);
@@ -65,7 +66,7 @@ public class PostsController : ControllerBase
     }
 
     [HttpGet("search")]
-    public async Task<IActionResult> SearchPosts([FromQuery] SearchPostDto searchDto)
+    public async Task<IActionResult> SearchPosts([FromQuery] SearchPostRequestDto searchDto)
     {
         var emailClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email);
         if (emailClaim == null)
@@ -115,7 +116,7 @@ public class PostsController : ControllerBase
                 if (!users.Any())
                 {
                     Log.Information("No users found for provided member emails");
-                    return Ok(new List<PostDto>());
+                    return Ok(new List<PostResponseDto>());
                 }
                 Log.Debug("Found {UserCount} matching users in database", users.Count);
                 var userIds = users.Select(u => u.Id).ToList();
@@ -137,7 +138,7 @@ public class PostsController : ControllerBase
             var posts = await query
                 .Include(p => p.Creator)
                 .Include(p => p.Members)
-                .ProjectToType<PostDto>()
+                .ProjectToType<PostResponseDto>()
                 .ToListAsync();
             Log.Information("Search completed for {Email}. Found {PostCount} results", 
                 emailClaim.Value, posts.Count);
@@ -171,7 +172,7 @@ public class PostsController : ControllerBase
             var postsWhereMember = await _db.Posts
                 .Where(p => p.Members.Any(m => m.Id == user.Id))
                 .Include(p => p.Members)
-                .ProjectToType<PostDto>()
+                .ProjectToType<PostResponseDto>()
                 .ToListAsync();
             Log.Information("ReadPosts: Retrieved joined posts for user {Email}.", emailClaim.Value);
             return Ok(new
@@ -182,12 +183,12 @@ public class PostsController : ControllerBase
         var yourPosts = await _db.Posts
             .Where(p => p.Creator == user)
             .Include(p => p.Members)
-            .ProjectToType<PostDto>()
+            .ProjectToType<PostResponseDto>()
             .ToListAsync();
         var restPosts = await _db.Posts
             .Where(p => p.Creator != user && !p.Members.Contains(user))
             .Include(p => p.Members)
-            .ProjectToType<PostDto>()
+            .ProjectToType<PostResponseDto>()
             .ToListAsync();
         Log.Information("ReadPosts: Retrieved posts for user {Email}.", emailClaim.Value);
         return Ok(new
@@ -210,7 +211,7 @@ public class PostsController : ControllerBase
             Log.Warning("ReadPost: Post with id {Id} is not found", id);
             return BadRequest(new { Message = "The post with specified id is not found" });
         }
-        var postDto = _mapper.Map<PostDto>(post);
+        var postDto = _mapper.Map<PostResponseDto>(post);
         Log.Information("ReadPost: successfully read post: {Id}", id);
         return Ok(postDto);
     }
@@ -256,14 +257,14 @@ public class PostsController : ControllerBase
         }
         post.Members.Add(user);
         await _db.SaveChangesAsync();
-        var updatedPostDto = _mapper.Map<PostDto>(post);
+        var updatedPostDto = _mapper.Map<PostResponseDto>(post);
         await _hub.Clients.All.SendAsync("PostJoined", updatedPostDto);
         Log.Warning("JoinPost: The user with email {Email} is a member of the post", user.Email);
         return Ok(new { Message = "The user was successfully added to the members of the post" });
     }
 
     [HttpPut("{id}/transfer-ownership")]
-    public async Task<IActionResult> TransferPostOwnership(string id, [FromBody] MemberDto memberDto)
+    public async Task<IActionResult> TransferPostOwnership(string id, [FromBody] UserRequestDto userDto)
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId))
@@ -282,19 +283,19 @@ public class PostsController : ControllerBase
             Log.Warning("TransferOwnership: User {UserId} is not the creator of post {PostId}.", userId, id);
             return Unauthorized(new { Message = "Only the creator can transfer ownership." });
         }
-        var newOwner = post.Members.FirstOrDefault(m => m.Email == memberDto.Email);
+        var newOwner = post.Members.FirstOrDefault(m => m.Email == userDto.Email);
         if (newOwner == null)
         {
-            Log.Warning("TransferOwnership: New owner {NewOwnerEmail} is not a member of post {PostId}.", memberDto.Email, id);
+            Log.Warning("TransferOwnership: New owner {NewOwnerEmail} is not a member of post {PostId}.", userDto.Email, id);
             return BadRequest(new { Message = "The new owner must be a member of the post." });
         }
         post.CreatorId = newOwner.Id;
         post.Members.Remove(newOwner);
         await _db.SaveChangesAsync();
-        var notification = new NotificationDto()
+        var notification = new NotificationResponseDto()
         {
             Message = $"You are now the owner of the post: {post.Title}",
-            Post = _mapper.Map<PostDto>(post)
+            Post = _mapper.Map<PostResponseDto>(post)
         };
         await _notificationService.NotifyUserAsync(newOwner.Id, notification);
         Log.Information("Ownership of Post {PostId} transferred from {OldOwner} to {NewOwner}.",
@@ -302,7 +303,7 @@ public class PostsController : ControllerBase
         return Ok(new { Message = "Ownership transferred successfully." });
     }
     [HttpPut("update/{id}")]
-    public async Task<IActionResult> UpdatePost(string id, [FromBody] UpdatePostDto postDto)
+    public async Task<IActionResult> UpdatePost(string id, [FromBody] PostRequestDto postDto)
     {
         Log.Information("UpdatePost called with post ID: {PostId} by user: {UserEmail}", id, User.Identity?.Name);
         var userEmail = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value;
@@ -341,12 +342,12 @@ public class PostsController : ControllerBase
             var users = await _db.Users
                 .Where(u => memberEmails.Contains(u.Email))
                 .ToListAsync();
-            if (users.Any())
+            if (users.Count > 0)
             {
-                var notification = new NotificationDto()
+                var notification = new NotificationResponseDto()
                 {
                     Message = $"You have been removed from the post: {post.Title}",
-                    Post = post.Adapt<PostDto>()
+                    Post = post.Adapt<PostResponseDto>()
                 };
                 foreach (var removedUser in users)
                 {
@@ -359,14 +360,14 @@ public class PostsController : ControllerBase
         post.UpdatedAt = DateTime.UtcNow;
         _db.Posts.Update(post);
         await _db.SaveChangesAsync();
-        var updatedPostDto = post.Adapt<PostDto>();
+        var updatedPostDto = post.Adapt<PostResponseDto>();
         Log.Information("Post {PostId} updated successfully by user {UserId}.", id, user.Id);
         foreach (var member in post.Members)
         {
-            var notification = new NotificationDto()
+            var notification = new NotificationResponseDto()
             {
                 Message = "Post's settings were updated. Check the updates",
-                Post = post.Adapt<PostDto>()
+                Post = post.Adapt<PostResponseDto>()
             };
             await _notificationService.NotifyUserAsync(member.Id, notification);
         }
@@ -426,7 +427,7 @@ public class PostsController : ControllerBase
         }
         post.Members.Remove(user);
         await _db.SaveChangesAsync(); 
-        var updatedPostDto = _mapper.Map<PostDto>(post);
+        var updatedPostDto = _mapper.Map<PostResponseDto>(post);
         await _hub.Clients.All.SendAsync("PostUnjoined", updatedPostDto);
         Log.Information("User {UserId} successfully removed from post {PostId}.", user.Id, id);
         return Ok(new { Message = "The user was successfully removed from the post's members." });

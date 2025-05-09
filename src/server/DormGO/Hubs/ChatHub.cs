@@ -1,6 +1,6 @@
 using System.Security.Claims;
 using DormGO.Data;
-using DormGO.DTOs;
+using DormGO.DTOs.ResponseDTO;
 using DormGO.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -73,7 +73,7 @@ public class ChatHub : Hub
         }
     }
     
-    public async Task SendMessageToPostMembers(string postId, MessageDto message)
+    public async Task SendMessageToPostMembers(string postId, MessageResponseDto message)
     {
         var userId = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId))

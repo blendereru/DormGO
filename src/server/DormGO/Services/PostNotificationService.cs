@@ -1,5 +1,6 @@
 using DormGO.Data;
-using DormGO.DTOs;
+using DormGO.DTOs.RequestDTO;
+using DormGO.DTOs.ResponseDTO;
 using DormGO.Hubs;
 using DormGO.Models;
 using Mapster;
@@ -16,13 +17,13 @@ public class PostNotificationService : INotificationService
         _db = db;
         _hub = hub;
     }
-    public async Task NotifyUserAsync(string userId, NotificationDto notificationDto)
+    public async Task NotifyUserAsync(string userId, NotificationResponseDto notificationDto)
     {
         var notification = notificationDto.Adapt<PostNotification>();
         notification.UserId = userId;
         _db.Notifications.Add(notification);
         await _db.SaveChangesAsync();
-        var updatedNotificationDto = notification.Adapt<NotificationDto>();
+        var updatedNotificationDto = notification.Adapt<NotificationResponseDto>();
         await _hub.Clients.User(userId).SendAsync("ReceiveNotification", updatedNotificationDto);
     }
 }

@@ -1,6 +1,6 @@
 using System.Security.Claims;
 using DormGO.Data;
-using DormGO.DTOs;
+using DormGO.DTOs.ResponseDTO;
 using DormGO.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -66,7 +66,7 @@ public class PostHub : Hub
             Context.Abort();
         }
     }
-    public async Task NotifyPostCreated(string userId, PostDto post)
+    public async Task NotifyPostCreated(string userId, PostResponseDto post)
     {
         if (string.IsNullOrEmpty(userId))
         {
@@ -84,7 +84,7 @@ public class PostHub : Hub
             Log.Error(ex, "Error occurred while notifying post creation. UserId: {UserId}, PostId: {PostId}", userId, post.PostId);
         }
     }
-    public async Task NotifyPostUpdated(PostDto post)
+    public async Task NotifyPostUpdated(PostResponseDto post)
     {
         try
         {
@@ -96,7 +96,7 @@ public class PostHub : Hub
             Log.Error(ex, "Error occurred while notifying post update. PostId: {PostId}", post.PostId);
         }
     }
-    public async Task NotifyPostJoined(PostDto post)
+    public async Task NotifyPostJoined(PostResponseDto post)
     {
         try
         {
@@ -109,7 +109,7 @@ public class PostHub : Hub
         }
     }
 
-    public async Task NotifyPostUnjoined(PostDto post)
+    public async Task NotifyPostUnjoined(PostResponseDto post)
     {
         try
         {
@@ -134,7 +134,7 @@ public class PostHub : Hub
         }
     }
 
-    public async Task SendNotification(string userId, NotificationDto notification)
+    public async Task SendNotification(string userId, NotificationResponseDto notification)
     {
         try
         {

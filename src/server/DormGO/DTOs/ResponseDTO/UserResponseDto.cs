@@ -1,8 +1,8 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace DormGO.DTOs;
+namespace DormGO.DTOs.ResponseDTO;
 
-public class MemberDto
+public class UserResponseDto
 {
     [Required]
     [EmailAddress]

@@ -1,6 +1,8 @@
 using System.Security.Claims;
 using DormGO.Data;
 using DormGO.DTOs;
+using DormGO.DTOs.RequestDTO;
+using DormGO.DTOs.ResponseDTO;
 using DormGO.Hubs;
 using DormGO.Models;
 using Mapster;
@@ -69,14 +71,14 @@ public class ChatController : ControllerBase
             .Where(m => m.PostId == postId)
             .OrderBy(m => m.SentAt)
             .Include(m => m.Sender)
-            .ProjectToType<MessageDto>()
+            .ProjectToType<MessageResponseDto>()
             .ToListAsync();
 
         return Ok(messages);
     }
 
     [HttpPost("{postId}/messages")]
-    public async Task<IActionResult> AddMessageToPost(string postId, [FromBody] MessageDto messageDto)
+    public async Task<IActionResult> AddMessageToPost(string postId, [FromBody] MessageRequestDto messageDto)
     {
         if (string.IsNullOrWhiteSpace(postId))
         {
@@ -121,7 +123,7 @@ public class ChatController : ControllerBase
             .Where(uc => uc.UserId == user.Id && uc.Hub == "/api/chathub")
             .Select(uc => uc.ConnectionId)
             .ToListAsync();
-        var responseDto = _mapper.Map<MessageDto>(message);
+        var responseDto = _mapper.Map<MessageResponseDto>(message);
         await _hub.Clients.GroupExcept(postId, excludedConnectionIds).SendAsync("ReceiveMessage", postId, responseDto);
         return Ok(responseDto);
     }

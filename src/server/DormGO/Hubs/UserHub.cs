@@ -1,5 +1,6 @@
 using DormGO.Data;
 using DormGO.DTOs;
+using DormGO.DTOs.ResponseDTO;
 using DormGO.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
@@ -91,7 +92,7 @@ public class UserHub : Hub
         await base.OnDisconnectedAsync(exception);
     }
 
-    public async Task NotifyEmailConfirmed(string userName, TokenDto dto)
+    public async Task NotifyEmailConfirmed(string userName, RefreshTokenResponseDto dto)
     {
         await Clients.Caller.SendAsync("EmailConfirmed", userName, dto);
     }

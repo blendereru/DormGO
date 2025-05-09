@@ -1,8 +1,8 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace DormGO.DTOs;
+namespace DormGO.DTOs.RequestDTO;
 
-public class ResetPasswordDto
+public class ResetPasswordRequestDto
 {
     [Required]
     public string Email { get; set; }

@@ -1,6 +1,8 @@
 using System.Security.Claims;
 using DormGO.Data;
 using DormGO.DTOs;
+using DormGO.DTOs.RequestDTO;
+using DormGO.DTOs.ResponseDTO;
 using Mapster;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -21,7 +23,7 @@ public class NotificationController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<NotificationDto>>> GetAllNotifications()
+    public async Task<ActionResult<IEnumerable<NotificationRequestDto>>> GetAllNotifications()
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(userId))
@@ -38,10 +40,10 @@ public class NotificationController : ControllerBase
         if (!notifications.Any())
         {
             Log.Information("GetAllNotifications: No notifications found for user {UserId}.", userId);
-            return Ok(new List<NotificationDto>());
+            return Ok(new List<NotificationResponseDto>());
         }
 
-        var notificationDtos = notifications.Adapt<List<NotificationDto>>();
+        var notificationDtos = notifications.Adapt<List<NotificationResponseDto>>();
         Log.Information("GetAllNotifications: Retrieved {Count} notifications for user {UserId}.", notificationDtos.Count, userId);
         return Ok(notificationDtos);
     }

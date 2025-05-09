@@ -1,22 +1,26 @@
 using System.ComponentModel.DataAnnotations;
-using DormGO.Models;
 
-namespace DormGO.DTOs;
+namespace DormGO.DTOs.RequestDTO;
 
-public class PostDto
+public class PostRequestDto
 {
-    public string? PostId { get; set; }
+    [Required]
     public string Title { get; set; }
+
+    [Required]
     public string Description { get; set; }
+
+    [Required]
     public decimal CurrentPrice { get; set; }
 
+    [Required]
     public double Latitude { get; set; }
 
+    [Required]
     public double Longitude { get; set; }
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-
+    [Required]
     public int MaxPeople { get; set; }
-    public MemberDto? Creator { get; set; }
-    public List<MemberDto> Members { get; set; } = new List<MemberDto>();
+
+    public IList<UserRequestDto> MembersToRemove { get; set; } = new List<UserRequestDto>();
 }
