@@ -71,6 +71,7 @@ builder.Services.AddSignalR();
 builder.Services.AddMapster();
 MapsterConfig.Configure();
 builder.Services.AddTransient<IEmailSender, EmailSender>();
+builder.Services.AddScoped<INotificationService, PostNotificationService>();
 var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {

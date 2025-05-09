@@ -24,4 +24,8 @@
     <ItemGroup>
         <ProjectReference Include="..\..\src\server\DormGO\DormGO.csproj" />
     </ItemGroup>
+    <ItemGroup>
+      <Folder Include="IntegrationTests\" />
+      <Folder Include="UnitTests\" />
+    </ItemGroup>
 </Project>

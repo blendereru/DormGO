@@ -22,6 +22,7 @@ public class PostNotificationService : INotificationService
         notification.UserId = userId;
         _db.Notifications.Add(notification);
         await _db.SaveChangesAsync();
-        await _hub.Clients.User(userId).SendAsync("ReceiveNotification", notificationDto);
+        var updatedNotificationDto = notification.Adapt<NotificationDto>();
+        await _hub.Clients.User(userId).SendAsync("ReceiveNotification", updatedNotificationDto);
     }
 }

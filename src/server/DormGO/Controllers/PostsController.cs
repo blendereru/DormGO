@@ -18,20 +18,20 @@ namespace DormGO.Controllers;
 [Authorize]
 [ApiController]
 [Route("api/post")]
-public class HomeController : ControllerBase
+public class PostsController : ControllerBase
 {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ApplicationContext _db;
     private readonly IHubContext<PostHub> _hub;
-    //private readonly INotificationService _notificationService;
+    private readonly INotificationService _notificationService;
     private readonly IMapper _mapper;
-    public HomeController(UserManager<ApplicationUser> userManager, ApplicationContext db,
-        IHubContext<PostHub> hub, IMapper mapper)
+    public PostsController(UserManager<ApplicationUser> userManager, ApplicationContext db,
+        INotificationService notificationService, IHubContext<PostHub> hub, IMapper mapper)
     {
         _userManager = userManager;
         _db = db;
         _hub = hub;
-        //_notificationService = notificationService;
+        _notificationService = notificationService;
         _mapper = mapper;
     }
     [HttpPost("create")]
@@ -289,13 +289,14 @@ public class HomeController : ControllerBase
             return BadRequest(new { Message = "The new owner must be a member of the post." });
         }
         post.CreatorId = newOwner.Id;
+        post.Members.Remove(newOwner);
         await _db.SaveChangesAsync();
         var notification = new NotificationDto()
         {
             Message = $"You are now the owner of the post: {post.Title}",
             Post = _mapper.Map<PostDto>(post)
         };
-        //await _notificationService.NotifyUserAsync(newOwner.Id, notification);
+        await _notificationService.NotifyUserAsync(newOwner.Id, notification);
         Log.Information("Ownership of Post {PostId} transferred from {OldOwner} to {NewOwner}.",
             id, userId, newOwner.Id);
         return Ok(new { Message = "Ownership transferred successfully." });
@@ -347,10 +348,10 @@ public class HomeController : ControllerBase
                     Message = $"You have been removed from the post: {post.Title}",
                     Post = post.Adapt<PostDto>()
                 };
-                // foreach (var removedUser in users)
-                // {
-                //     await _notificationService.NotifyUserAsync(removedUser.Id, notification);
-                // }
+                foreach (var removedUser in users)
+                {
+                    await _notificationService.NotifyUserAsync(removedUser.Id, notification);
+                }
                 Log.Information("Removing {Count} members from post {PostId}.", users.Count, id);
                 post.Members = post.Members.Except(users).ToList();
             }
@@ -360,6 +361,15 @@ public class HomeController : ControllerBase
         await _db.SaveChangesAsync();
         var updatedPostDto = post.Adapt<PostDto>();
         Log.Information("Post {PostId} updated successfully by user {UserId}.", id, user.Id);
+        foreach (var member in post.Members)
+        {
+            var notification = new NotificationDto()
+            {
+                Message = "Post's settings were updated. Check the updates",
+                Post = post.Adapt<PostDto>()
+            };
+            await _notificationService.NotifyUserAsync(member.Id, notification);
+        }
         await _hub.Clients.All.SendAsync("PostUpdated", updatedPostDto);
         return Ok(new { Message = "The post was successfully updated.", Post = updatedPostDto });
     }
@@ -387,30 +397,35 @@ public class HomeController : ControllerBase
             Log.Warning("UnjoinPost failed. Post with ID {PostId} was not found.", id);
             return NotFound(new { Message = "The post with the specified ID was not found." });
         }
-        if (!post.Members.Any(m => m.Id == user.Id))
-        {
-            Log.Warning("UnjoinPost failed. User {UserId} is not a member of post {PostId}.", user.Id, id);
-            return BadRequest(new { Message = "The user is not a member of the post." });
-        }
         if (post.CreatorId == user.Id)
         {
-            if (post.Members.Count == 1)
+            if (post.Members.Count <= 0)
             {
                 _db.Posts.Remove(post);
                 await _db.SaveChangesAsync();
                 Log.Information("Post {PostId} deleted because the creator left and there were no other members.", id);
                 return Ok(new { Message = "Post deleted because there were no other members." });
+                
             }
             var newCreator = post.Members.FirstOrDefault(m => m.Id != user.Id);
-            if (newCreator != null)
+            if (newCreator == null)
             {
-                post.CreatorId = newCreator.Id;
-                Log.Information("Ownership of Post {PostId} transferred from User {OldCreatorId} to User {NewCreatorId}.",
-                    id, user.Id, newCreator.Id);
+                return BadRequest(new { Messsage = "Couldn't find other members of the post" });
+            }
+            post.CreatorId = newCreator.Id;
+            Log.Information("Ownership of Post {PostId} transferred from User {OldCreatorId} to User {NewCreatorId}.",
+                id, user.Id, newCreator.Id);
+        }
+        else
+        {
+            if (!post.Members.Any(m => m.Id == user.Id))
+            {
+                Log.Warning("UnjoinPost failed. User {UserId} is not a member of post {PostId}.", user.Id, id);
+                return BadRequest(new { Message = "The user is not a member of the post." });
             }
         }
         post.Members.Remove(user);
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(); 
         var updatedPostDto = _mapper.Map<PostDto>(post);
         await _hub.Clients.All.SendAsync("PostUnjoined", updatedPostDto);
         Log.Information("User {UserId} successfully removed from post {PostId}.", user.Id, id);
