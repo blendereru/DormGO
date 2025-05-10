@@ -1,7 +1,6 @@
 ## API
-The API contains a number of endpoints to which a client can send requests to. All the endpoints are written
-using HttpGet and HttpPost http methods, but this behaviour can be rewritten using REST APIs(e.g. adding
-different http methods).
+The API contains a number of endpoints to which a client can send requests to. The table below shows the successful
+response that server returns for each request type.
 
 ##  Endpoints
 <table border="1">
@@ -151,8 +150,7 @@ different http methods).
       <td>
         <pre lang="json">{
   "email": "&lt;your_gmail_here&gt;",
-  "name": "&lt;your_name&gt;",
-  "registeredAt": "&lt;your_registration_date&gt;"
+  "name": "&lt;your_name&gt;"
 }</pre>
       </td>
     </tr>
@@ -165,7 +163,6 @@ different http methods).
         <pre lang="json">{
   "email": "&lt;users_gmail&gt;",
   "name": "&lt;user_name&gt;",
-  "registeredAt": "&lt;user_registration_date&gt;"
 }</pre>
       </td>
     </tr>
@@ -175,11 +172,11 @@ different http methods).
       <td>Create a new post and make it visible to all users.</td>
       <td>
         <pre lang="json">{
+  "title": "<your_post_title>",
   "description": "&lt;your_post_description&gt;",
   "currentPrice": 0,
   "latitude": 0,
   "longitude": 0,
-  "createdAt": "&lt;date_of_creation&gt;",
   "maxPeople": 0
 }</pre>
       </td>
@@ -195,6 +192,7 @@ different http methods).
       <td>Update the information of a specific post.</td>
       <td>
         <pre lang="json">{
+  "title": "<your_post_title>",
   "description": "&lt;your_post_description&gt;",
   "currentPrice": 0,
   "latitude": 0,
@@ -213,6 +211,7 @@ different http methods).
   "message": "The post was successfully updated.",
   "post": {
     "postId": "&lt;post_id&gt;",
+    "title": "<your_post_title>",
     "description": "&lt;your_post_description&gt;",
     "currentPrice": 0,
     "latitude": 0,
@@ -249,6 +248,7 @@ different http methods).
       <td>
         <pre lang="json">{
   "postId": "&lt;post_id&gt;",
+  "title": "<your_post_title>",
   "description": "&lt;your_post_description&gt;",
   "currentPrice": 0,
   "latitude": 0,
@@ -304,6 +304,7 @@ different http methods).
   "yourPosts": [
     {
       "postId": "&lt;your_post_id&gt;",
+      "title": "<your_post_title>",
       "description": "&lt;your_post_description&gt;",
       "currentPrice": 0,
       "latitude": 0,
@@ -320,6 +321,7 @@ different http methods).
   "restPosts": [
     {
       "postId": "&lt;other_post_id&gt;",
+      "title": "<your_post_title>",
       "description": "&lt;other_post_description&gt;",
       "currentPrice": 0,
       "latitude": 0,
@@ -346,6 +348,7 @@ different http methods).
   "postsWhereMember": [
     {
       "postId": "&lt;other_post_id&gt;",
+      "title": "<your_post_title>",
       "description": "&lt;other_post_description&gt;",
       "currentPrice": 0,
       "latitude": 0,
@@ -384,6 +387,7 @@ different http methods).
     <pre lang="json">[
   {
     "postId": "&lt;post_id&gt;",
+    "title": "<your_post_title>",
     "description": "&lt;post_description&gt;",
     "currentPrice": 0,
     "latitude": 0,
@@ -407,6 +411,7 @@ different http methods).
   },
   {
     "postId": "&lt;another_post_id&gt;",
+    "title": "<your_post_title>",
     "description": "&lt;another_description&gt;",
     "currentPrice": 0,
     "latitude": 0,
@@ -440,6 +445,7 @@ different http methods).
         "createdAt": "2025-02-05T21:38:47Z",
         "post": {
           "postId": "post_id",
+          "title": "<your_post_title>",
           "description": "Post description",
           "currentPrice": 1500,
           "latitude": 12.345,
@@ -468,7 +474,7 @@ different http methods).
   <td>
     <pre lang="json">{
       "message": "The notification was marked as read."
-    }</pre>
+  }</pre>
   </td>
 </tr>
 
@@ -599,6 +605,7 @@ on view.
     true,
     {
       "postId": "post_id",
+      "title": "<your_post_title>",
       "description": "your_description",
       "currentPrice": 1500,
       "latitude": 12.345,
@@ -624,7 +631,8 @@ on view.
   "target": "PostUpdated",
   "arguments": [
     {
-      "postId": "post_id",
+      "postId": "post_id", 
+      "title": "<your_post_title>",
       "description": "your_description",
       "currentPrice": 1500,
       "latitude": 12.345,
@@ -651,6 +659,7 @@ on view.
   "arguments": [
     {
       "postId": "post_id",
+      "title": "<your_post_title>",
       "description": "post_description",
       "currentPrice": 1500,
       "latitude": 12.345,
@@ -682,6 +691,7 @@ on view.
   "arguments": [
     {
       "postId": "post_id",
+      "title": "<your_post_title>",
       "description": "post_description",
       "currentPrice": 1500,
       "latitude": 12.345,
@@ -730,6 +740,7 @@ on view.
       "createdAt": "2025-02-05T21:38:47Z",
       "post": {
         "postId": "post_id",
+        "title": "<your_post_title>",
         "description": "post_description",
         "currentPrice": 1500,
         "latitude": 12.345,

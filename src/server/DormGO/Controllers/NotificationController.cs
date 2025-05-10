@@ -37,7 +37,7 @@ public class NotificationController : ControllerBase
             .OrderByDescending(n => n.CreatedAt)
             .ToListAsync();
 
-        if (!notifications.Any())
+        if (notifications.Count <= 0)
         {
             Log.Information("GetAllNotifications: No notifications found for user {UserId}.", userId);
             return Ok(new List<NotificationResponseDto>());
