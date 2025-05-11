@@ -535,14 +535,37 @@ response that server returns for each request type.
       </td>
     </tr>
     <tr>
-      <td>DELETE</td>
-      <td>/api/chat/messages/{messageId}</td>
-      <td>Delete the message from the post.</td>
-      <td>No request body required,</td>
-      <td>
-        <pre lang="json">"The message was successfully removed"</pre>
-      </td>
-    </tr>
+  <td>PUT</td>
+  <td>/api/chat/posts/{postId}/messages/{messageId}</td>
+  <td>Update the content of a specific message within a post.</td>
+  <td>
+    <pre lang="json">
+{
+  "content": "string"
+}
+    </pre>
+  </td>
+  <td>
+    <pre lang="json">
+{
+  "message": "The message was successfully updated."
+}
+    </pre>
+  </td>
+</tr>
+<tr>
+  <td>DELETE</td>
+  <td>/api/chat/posts/{postId}/messages/{messageId}</td>
+  <td>Delete a specific message from a post.</td>
+  <td>No request body required.</td>
+  <td>
+    <pre lang="json">
+{
+  "message": "The message was successfully removed."
+}
+    </pre>
+  </td>
+</tr>
   </tbody>
 </table>
 
@@ -768,23 +791,57 @@ on view.
   "arguments": [
     "post_id",
     {
+      "messageId": "message_id",
       "content": "Message content from sender",
       "sender": {
         "userId": "sender_user_id",
         "userName": "sender_user_name"
-      }
+      },
+      "sentAt": "2025-05-11T19:41:50Z",
+      "updatedAt": null
     }
   ]
 }</pre>
   </td>
-  <td>Gets triggered when a user sends a message to the members of a post. The message contains the post ID and the content along with the sender details.</td>
+  <td>Triggered when a user sends a new message to a post. Broadcasts the message to all other connected clients in the post group, excluding the sender.</td>
+</tr>
+<tr>
+  <td>/api/chathub</td>
+  <td>UpdateMessage</td>
+  <td>
+    <pre lang="json">{
+  "target": "UpdateMessage",
+  "arguments": [
+    "post_id",
+    "message_id",
+    {
+      "messageId": "message_id",
+      "content": "Updated message content",
+      "sender": {
+        "userId": "sender_user_id",
+        "userName": "sender_user_name"
+      },
+      "sentAt": "2025-05-11T19:30:00Z",
+      "updatedAt": "2025-05-11T19:45:00Z"
+    }
+  ]
+}</pre>
+  </td>
+  <td>Triggered when a user updates an existing message. Notifies all other clients in the post group about the updated content, excluding the sender.</td>
+</tr>
+<tr>
+  <td>/api/chathub</td>
+  <td>DeleteMessage</td>
+  <td>
+    <pre lang="json">{
+  "target": "DeleteMessage",
+  "arguments": [
+    "post_id",
+    "message_id"
+  ]
+}</pre>
+  </td>
+  <td>Triggered when a user deletes a message. Informs all other clients in the post group to remove the specified message, excluding the sender.</td>
 </tr>
   </tbody>
 </table>
-
-
-
-
-
-
- 

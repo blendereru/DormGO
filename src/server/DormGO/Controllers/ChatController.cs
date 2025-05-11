@@ -1,8 +1,8 @@
-using System.Security.Claims;
+using DormGO.Constants;
 using DormGO.Data;
-using DormGO.DTOs;
 using DormGO.DTOs.RequestDTO;
 using DormGO.DTOs.ResponseDTO;
+using DormGO.Filters;
 using DormGO.Hubs;
 using DormGO.Models;
 using Mapster;
@@ -15,9 +15,9 @@ using Microsoft.EntityFrameworkCore;
 using Serilog;
 
 namespace DormGO.Controllers;
-
 [Authorize]
 [ApiController]
+[ServiceFilter<ValidateUserEmailFilter>]
 [Route("api/chat")]
 public class ChatController : ControllerBase
 {
@@ -38,26 +38,15 @@ public class ChatController : ControllerBase
     [HttpGet("{postId}/messages")]
     public async Task<IActionResult> GetMessagesForPost(string postId)
     {
+        if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
+        {
+            return Unauthorized(new { Message = "User information is missing." });
+        }
         if (string.IsNullOrWhiteSpace(postId))
         {
             Log.Warning("GetMessagesForPost: Invalid postId provided.");
             return BadRequest(new { Message = "The post ID is invalid." });
         }
-
-        var emailClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email);
-        if (emailClaim == null)
-        {
-            Log.Warning("GetMessagesForPost: Email claim not found.");
-            return Unauthorized(new { Message = "The email claim is not found." });
-        }
-
-        var user = await _userManager.FindByEmailAsync(emailClaim.Value);
-        if (user == null)
-        {
-            Log.Warning("GetMessagesForPost: User not found with email: {Email}", emailClaim.Value);
-            return NotFound(new { Message = "The user is not found." });
-        }
-
         var postExists = await _db.Posts.AnyAsync(p => p.Id == postId);
         if (!postExists)
         {
@@ -80,6 +69,11 @@ public class ChatController : ControllerBase
     [HttpPost("{postId}/messages")]
     public async Task<IActionResult> AddMessageToPost(string postId, [FromBody] MessageRequestDto messageDto)
     {
+        if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
+        {
+            return Unauthorized(new { Message = "User information is missing." });
+        }
+        
         if (string.IsNullOrWhiteSpace(postId))
         {
             Log.Warning("AddMessageToPost: Invalid postId provided.");
@@ -90,20 +84,6 @@ public class ChatController : ControllerBase
         {
             Log.Warning("AddMessageToPost: Invalid message content.");
             return BadRequest(new { Message = "Message content cannot be null or empty." });
-        }
-
-        var emailClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value;
-        if (string.IsNullOrEmpty(emailClaim))
-        {
-            Log.Warning("AddMessageToPost: Unauthorized access attempt. Email claim missing.");
-            return Unauthorized(new { Message = "The email claim is missing from the token." });
-        }
-
-        var user = await _userManager.FindByEmailAsync(emailClaim);
-        if (user == null)
-        {
-            Log.Warning("AddMessageToPost: User not found with email: {Email}", emailClaim);
-            return NotFound(new { Message = "The user with the provided email is not found." });
         }
         var post = await _db.Posts
             .Include(p => p.Members)
@@ -128,32 +108,47 @@ public class ChatController : ControllerBase
         return Ok(responseDto);
     }
 
-    // [HttpPut]
-    // public async Task<IActionResult> UpdateMessage(string messageId, [FromBody] MessageRequestDto messageRequestDto)
-    // {
-    //     
-    // }
-    [HttpDelete("messages/{messageId}")]
-    public async Task<IActionResult> DeleteMessage(string messageId)
+    [HttpPut("{postId}/messages/{messageId}")]
+    public async Task<IActionResult> UpdateMessage(string postId, string messageId, [FromBody] MessageRequestDto messageRequestDto)
     {
-        var emailClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value;
-        if (string.IsNullOrEmpty(emailClaim))
+        if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
-            Log.Warning("DeleteMessage: Unauthorized access attempt. Email claim missing.");
-            return Unauthorized(new { Message = "The email claim is missing from the token." });
+            return Unauthorized(new { Message = "User information is missing." });
+        }
+        
+        var message = await _db.Messages.FirstOrDefaultAsync(m => m.Id == messageId && m.PostId == postId);
+        if (message == null)
+        {
+            Log.Warning("UpdateMessage: Message not found with messageId: {MessageId} and postId: {PostId}", messageId, postId);
+            return NotFound(new { Message = "Message not found." });
         }
 
-        var user = await _userManager.FindByEmailAsync(emailClaim);
-        if (user == null)
+        if (message.SenderId != user.Id)
         {
-            Log.Warning("DeleteMessage: User not found with email: {Email}", emailClaim);
-            return NotFound(new { Message = "The user with the provided email is not found." });
+            Log.Warning("UpdateMessage: Unauthorized attempt to update message. UserId: {UserId}, MessageId: {MessageId}, PostId: {PostId}", user.Id, messageId, postId);
+            return Forbid();
         }
 
-        var message = await _db.Messages
-            .Include(m => m.Sender)
-            .FirstOrDefaultAsync(m => m.Id == messageId);
-
+        message.UpdatedAt = DateTime.UtcNow;
+        message.Content = messageRequestDto.Content;
+        await _db.SaveChangesAsync();
+        Log.Information("UpdateMessage: Message {MessageId} updated by user {UserId} in post {PostId}", message.Id, user.Id, postId);
+        var excludedConnectionIds = await _db.UserConnections
+            .Where(uc => uc.UserId == user.Id && uc.Hub == "/api/chathub")
+            .Select(uc => uc.ConnectionId)
+            .ToListAsync();
+        var responseDto = _mapper.Map<MessageResponseDto>(message);
+        await _hub.Clients.GroupExcept(postId, excludedConnectionIds).SendAsync("UpdateMessage", postId, messageId, responseDto);
+        return Ok(new { Message = "The message was successfully updated." });
+    }
+    [HttpDelete("{postId}/messages/{messageId}")]
+    public async Task<IActionResult> DeleteMessage(string postId, string messageId)
+    {
+        if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
+        {
+            return Unauthorized(new { Message = "User information is missing." });
+        }
+        var message = await _db.Messages.FirstOrDefaultAsync(m => m.Id == messageId && m.PostId == postId);
         if (message == null)
         {
             Log.Warning("DeleteMessage: Message not found with messageId: {MessageId}", messageId);
@@ -162,11 +157,16 @@ public class ChatController : ControllerBase
         if (message.SenderId != user.Id)
         {
             Log.Warning("DeleteMessage: Unauthorized attempt to delete message. UserId: {UserId}, MessageId: {MessageId}", user.Id, messageId);
-            return BadRequest(new { Message = "You are not authorized to delete this message." });
+            return Forbid();
         }
         _db.Messages.Remove(message);
         await _db.SaveChangesAsync();
         Log.Information("User {UserId} deleted Message {MessageId}.", user.Id, messageId);
+        var excludedConnectionIds = await _db.UserConnections
+            .Where(uc => uc.UserId == user.Id && uc.Hub == "/api/chathub")
+            .Select(uc => uc.ConnectionId)
+            .ToListAsync();
+        await _hub.Clients.GroupExcept(postId, excludedConnectionIds).SendAsync("DeleteMessage", postId, messageId);
         return Ok(new { Message = "The message was successfully removed" });
     }
 }

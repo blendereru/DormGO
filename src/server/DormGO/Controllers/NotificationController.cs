@@ -1,8 +1,8 @@
 using System.Security.Claims;
 using DormGO.Data;
-using DormGO.DTOs;
 using DormGO.DTOs.RequestDTO;
 using DormGO.DTOs.ResponseDTO;
+using DormGO.Filters;
 using Mapster;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -12,6 +12,7 @@ using Serilog;
 namespace DormGO.Controllers;
 [Authorize]
 [ApiController]
+[ServiceFilter<ValidateUserEmailFilter>]
 [Route("/api/notifications/")]
 public class NotificationController : ControllerBase
 {

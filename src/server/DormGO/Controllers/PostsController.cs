@@ -17,9 +17,9 @@ using Microsoft.EntityFrameworkCore;
 using Serilog;
 
 namespace DormGO.Controllers;
-[ServiceFilter(typeof(ValidateUserEmailFilter))]
 [Authorize]
 [ApiController]
+[ServiceFilter<ValidateUserEmailFilter>]
 [Route("api/post")]
 public class PostsController : ControllerBase
 {
@@ -40,18 +40,6 @@ public class PostsController : ControllerBase
     [HttpPost("create")]
     public async Task<IActionResult> CreatePost([FromBody] PostRequestDto postDto)
     {
-        // var creatorEmail = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email);
-        // if (creatorEmail == null)
-        // {
-        //     Log.Warning("CreatePost: Missing email claim.");
-        //     return BadRequest(new { Message = "The user's email was not found from jwt token" });
-        // }
-        // var user = await _userManager.FindByEmailAsync(creatorEmail.Value);
-        // if (user == null)
-        // {
-        //     Log.Warning("CreatePost: User not found with email: {Email}", creatorEmail);
-        //     return BadRequest(new { Message = $"User with email {creatorEmail.Value} not found." });
-        // }
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
             return Unauthorized(new { Message = "User information is missing." });
@@ -74,20 +62,12 @@ public class PostsController : ControllerBase
     [HttpGet("search")]
     public async Task<IActionResult> SearchPosts([FromQuery] SearchPostRequestDto searchDto)
     {
-        var emailClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email);
-        if (emailClaim == null)
+        if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
-            Log.Warning("SearchPosts: Email claim not found in JWT token");
-            return Unauthorized(new { Message = "The email claim is not found" });
-        }
-        var user = await _userManager.FindByEmailAsync(emailClaim.Value);
-        if (user == null)
-        {
-            Log.Warning("SearchPosts: User not found with email: {Email}", emailClaim.Value);
-            return NotFound(new { Message = "The user is not found" });
+            return Unauthorized(new { Message = "User information is missing." });
         }
         Log.Information("SearchPosts: Search initiated by {Email} with filters - Text: {SearchText}, Dates: {StartDate}-{EndDate}, MaxPeople: {MaxPeople}, Members: {MemberCount}",
-            emailClaim.Value,
+            user.Email,
             searchDto.SearchText,
             searchDto.StartDate,
             searchDto.EndDate,
@@ -147,32 +127,22 @@ public class PostsController : ControllerBase
                 .ProjectToType<PostResponseDto>()
                 .ToListAsync();
             Log.Information("Search completed for {Email}. Found {PostCount} results", 
-                emailClaim.Value, posts.Count);
+                user.Email, posts.Count);
             return Ok(posts);
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "SearchPosts: Error occurred during search for {Email}", emailClaim.Value);
+            Log.Error(ex, "SearchPosts: Error occurred during search for {Email}", user.Email);
             return StatusCode(500, "An error occurred while processing your request");
         }
     }
     [HttpGet("read")]
     public async Task<IActionResult> ReadPosts(bool joined)
     {
-        var emailClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email);
-        if (emailClaim == null)
+        if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
-            Log.Warning("ReadPosts: Email claim not found.");
-            return Unauthorized(new {Message = "The email claim is not found" });
+            return Unauthorized(new { Message = "User information is missing." });
         }
-
-        var user = await _userManager.FindByEmailAsync(emailClaim.Value);
-        if (user == null)
-        {
-            Log.Warning("ReadPosts: User not found with email: {Email}", emailClaim.Value);
-            return NotFound(new { Message = "The user is not found" });
-        }
-
         if (joined)
         {
             var postsWhereMember = await _db.Posts
@@ -180,7 +150,7 @@ public class PostsController : ControllerBase
                 .Include(p => p.Members)
                 .ProjectToType<PostResponseDto>()
                 .ToListAsync();
-            Log.Information("ReadPosts: Retrieved joined posts for user {Email}.", emailClaim.Value);
+            Log.Information("ReadPosts: Retrieved joined posts for user {Email}.", user.Email);
             return Ok(new
             {
                 postsWhereMember
@@ -196,7 +166,7 @@ public class PostsController : ControllerBase
             .Include(p => p.Members)
             .ProjectToType<PostResponseDto>()
             .ToListAsync();
-        Log.Information("ReadPosts: Retrieved posts for user {Email}.", emailClaim.Value);
+        Log.Information("ReadPosts: Retrieved posts for user {Email}.", user.Email);
         return Ok(new
         {
             yourPosts,
@@ -208,6 +178,10 @@ public class PostsController : ControllerBase
     public async Task<IActionResult> ReadPost(string id)
     {
         Log.Information("ReadPost: reading post with id: {PostId}", id);
+        if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
+        {
+            return Unauthorized(new { Message = "User information is missing." });
+        }
         var post = await _db.Posts
             .Include(p => p.Members)
             .Include(p => p.Creator)
@@ -225,6 +199,10 @@ public class PostsController : ControllerBase
     [HttpPut("join/{id}")]
     public async Task<IActionResult> JoinPost(string id)
     {
+        if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
+        {
+            return Unauthorized(new { Message = "User information is missing." });
+        }
         var post = await _db.Posts
             .Include(p => p.Members)
             .FirstOrDefaultAsync(p => p.Id == id);
@@ -233,19 +211,6 @@ public class PostsController : ControllerBase
             Log.Warning("JoinPost: Post with id {Id} is not found", id);
             return NotFound(new { Message = "The post with the specified ID is not found" });
         }
-        var emailClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email);
-        if (emailClaim == null)
-        {
-            Log.Warning("JoinPost: Missing email claim.");
-            return Unauthorized(new {Message = "The email claim is not found" });
-        }
-        var user = await _userManager.FindByEmailAsync(emailClaim.Value);
-        if (user == null)
-        {
-            Log.Warning("JoinPost: User not found with email: {Email}", emailClaim.Value);
-            return NotFound(new { Message = "The user is not found" });
-        }
-
         if (post.CreatorId == user.Id)
         {
             Log.Warning("JoinPost: Attempt to join the post created by user himself. PostId: {PostId}, Email: {Email}", post.Id, user.Email);
@@ -312,17 +277,9 @@ public class PostsController : ControllerBase
     public async Task<IActionResult> UpdatePost(string id, [FromBody] PostRequestDto postDto)
     {
         Log.Information("UpdatePost called with post ID: {PostId} by user: {UserEmail}", id, User.Identity?.Name);
-        var userEmail = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value;
-        if (string.IsNullOrEmpty(userEmail))
+        if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
-            Log.Warning("Unauthorized attempt to update post. User's email is missing in the JWT token.");
-            return Unauthorized(new { Message = "User's email not found in the JWT token." });
-        }
-        var user = await _userManager.FindByEmailAsync(userEmail);
-        if (user == null)
-        {
-            Log.Warning("Unauthorized attempt to update post. User with email {Email} does not exist.", userEmail);
-            return Unauthorized(new { Message = "The user does not exist." });
+            return Unauthorized(new { Message = "User information is missing." });
         }
         var post = await _db.Posts
             .Include(p => p.Members)
@@ -335,7 +292,7 @@ public class PostsController : ControllerBase
         }
         if (post.CreatorId != user.Id)
         {
-            Log.Warning("Unauthorized update attempt by user {UserEmail} on post {PostId}.", userEmail, id);
+            Log.Warning("Unauthorized update attempt by user {UserEmail} on post {PostId}.", user.Email, id);
             return BadRequest(new { Message = "You are not authorized to update this post." });
         }
         Log.Information("Updating post {PostId} by user {UserId}.", id, user.Id);
@@ -384,17 +341,9 @@ public class PostsController : ControllerBase
     public async Task<IActionResult> UnjoinPost(string id)
     {
         Log.Information("UnjoinPost called for post ID: {PostId} by user: {UserEmail}", id, User.Identity?.Name);
-        var emailClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value;
-        if (string.IsNullOrEmpty(emailClaim))
+        if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
-            Log.Warning("Unauthorized attempt to unjoin post. User's email is missing in the JWT token.");
-            return Unauthorized(new { Message = "User's email not found in the JWT token." });
-        }
-        var user = await _userManager.FindByEmailAsync(emailClaim);
-        if (user == null)
-        {
-            Log.Warning("UnjoinPost failed. User with email {Email} does not exist.", emailClaim);
-            return NotFound(new { Message = "The user does not exist." });
+            return Unauthorized(new { Message = "User information is missing." });
         }
         var post = await _db.Posts
             .Include(p => p.Members)
@@ -443,18 +392,9 @@ public class PostsController : ControllerBase
     public async Task<IActionResult> RemovePost(string id)
     {
         Log.Information("RemovePost: Request received to delete post with ID {PostId} by user {UserEmail}.", id, User.Identity?.Name);
-
-        var userEmail = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value;
-        if (string.IsNullOrEmpty(userEmail))
+        if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
-            Log.Warning("RemovePost: Unauthorized attempt to delete post with ID {PostId}. User's email is missing in the JWT token.", id);
-            return Unauthorized(new { Message = "User's email not found in the JWT token." });
-        }
-        var user = await _userManager.FindByEmailAsync(userEmail);
-        if (user == null)
-        {
-            Log.Warning("RemovePost: Unauthorized attempt to delete post with ID {PostId}. User with email {UserEmail} does not exist.", id, userEmail);
-            return Unauthorized(new { Message = "The user does not exist." });
+            return Unauthorized(new { Message = "User information is missing." });
         }
         var post = await _db.Posts
             .Include(p => p.Members)
@@ -466,7 +406,7 @@ public class PostsController : ControllerBase
         }
         if (post.CreatorId != user.Id)
         {
-            Log.Warning("RemovePost: Unauthorized attempt by user {UserEmail} to delete post {PostId}.", userEmail, id);
+            Log.Warning("RemovePost: Unauthorized attempt by user {UserEmail} to delete post {PostId}.", user.Email, id);
             return Unauthorized(new { Message = "You are not authorized to delete this post." });
         }
         Log.Information("RemovePost: Deleting post with ID {PostId} by user {UserId}.", id, user.Id);

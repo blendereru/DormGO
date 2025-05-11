@@ -2,6 +2,7 @@ using System.Security.Claims;
 using DormGO.Data;
 using DormGO.DTOs.ResponseDTO;
 using DormGO.Models;
+using MapsterMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
@@ -14,10 +15,12 @@ public class ChatHub : Hub
 {
     private readonly ApplicationContext _db;
     private readonly UserManager<ApplicationUser> _userManager;
-    public ChatHub(ApplicationContext db, UserManager<ApplicationUser> userManager)
+    private readonly IMapper _mapper;
+    public ChatHub(ApplicationContext db, UserManager<ApplicationUser> userManager, IMapper mapper)
     {
         _db = db;
         _userManager = userManager;
+        _mapper = mapper;
     }
     public override async Task OnConnectedAsync()
     {
@@ -73,7 +76,7 @@ public class ChatHub : Hub
         }
     }
     
-    public async Task SendMessageToPostMembers(string postId, MessageResponseDto message)
+    public async Task SendMessage(string postId, string content)
     {
         var userId = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId))
@@ -98,6 +101,14 @@ public class ChatHub : Hub
                 return;
             }
 
+            var message = new Message()
+            {
+                Content = content,
+                SenderId = user.Id,
+                PostId = post.Id
+            };
+            _db.Messages.Add(message);
+            await _db.SaveChangesAsync();
             var excludedConnectionIds = await _db.UserConnections
                 .Where(uc => uc.UserId == user.Id && uc.Hub == "/api/chathub")
                 .Select(uc => uc.ConnectionId)
@@ -111,6 +122,102 @@ public class ChatHub : Hub
             Log.Error(ex, "Error occurred while sending message to post members. ConnectionId: {ConnectionId}", Context.ConnectionId);
         }
     }
+    public async Task UpdateMessage(string postId, string messageId, string newContent)
+    { 
+        var userId = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value; 
+        if (string.IsNullOrEmpty(userId)) 
+        { 
+            Log.Warning("UpdateMessage aborted: Missing or empty user ID. ConnectionId: {ConnectionId}", Context.ConnectionId); 
+            return; 
+        }
+        
+        try 
+        { 
+            var user = await _userManager.FindByIdAsync(userId); 
+            if (user == null) 
+            { 
+                Log.Warning("UpdateMessage aborted: User not found. UserId: {UserId}, ConnectionId: {ConnectionId}", userId, Context.ConnectionId); 
+                return; 
+            } 
+            var message = await _db.Messages
+                .Include(m => m.Sender)
+                .FirstOrDefaultAsync(m => m.Id == messageId && m.PostId == postId);
+            
+            if (message == null) 
+            { 
+                Log.Warning("UpdateMessage aborted: Message not found. MessageId: {MessageId}, PostId: {PostId}", messageId, postId); 
+                return; 
+            }
+            
+            if (message.SenderId != user.Id) 
+            { 
+                Log.Warning("UpdateMessage aborted: Unauthorized attempt to update message. UserId: {UserId}, MessageId: {MessageId}, PostId: {PostId}", user.Id, messageId, postId); 
+                return; 
+            } 
+            message.Content = newContent; 
+            message.UpdatedAt = DateTime.UtcNow; 
+            await _db.SaveChangesAsync(); 
+            var responseDto = _mapper.Map<MessageResponseDto>(message);
+            var excludedConnectionIds = await _db.UserConnections
+                .Where(uc => uc.UserId == user.Id && uc.Hub == "/api/chathub")
+                .Select(uc => uc.ConnectionId)
+                .ToListAsync(); 
+            await Clients.GroupExcept(postId, excludedConnectionIds).SendAsync("UpdateMessage", postId, messageId, responseDto); 
+            Log.Information("Message updated. PostId: {PostId}, MessageId: {MessageId}, UserId: {UserId}", postId, messageId, user.Id); 
+        }
+        catch (Exception ex) 
+        { 
+            Log.Error(ex, "Error occurred while updating message. ConnectionId: {ConnectionId}", Context.ConnectionId); 
+        } 
+    }
+    public async Task DeleteMessage(string postId, string messageId)
+    {
+        var userId = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+        {
+            Log.Warning("DeleteMessage aborted: Missing or empty user ID. ConnectionId: {ConnectionId}", Context.ConnectionId);
+            return;
+        }
+
+        try
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null)
+            {
+                Log.Warning("DeleteMessage aborted: User not found. UserId: {UserId}, ConnectionId: {ConnectionId}", userId, Context.ConnectionId);
+                return;
+            }
+
+            var message = await _db.Messages.FirstOrDefaultAsync(m => m.Id == messageId && m.PostId == postId);
+            if (message == null)
+            {
+                Log.Warning("DeleteMessage aborted: Message not found. MessageId: {MessageId}, PostId: {PostId}", messageId, postId);
+                return;
+            }
+
+            if (message.SenderId != user.Id)
+            {
+                Log.Warning("DeleteMessage aborted: Unauthorized attempt to delete message. UserId: {UserId}, MessageId: {MessageId}, PostId: {PostId}", user.Id, messageId, postId);
+                return;
+            }
+
+            _db.Messages.Remove(message);
+            await _db.SaveChangesAsync();
+
+            var excludedConnectionIds = await _db.UserConnections
+                .Where(uc => uc.UserId == user.Id && uc.Hub == "/api/chathub")
+                .Select(uc => uc.ConnectionId)
+                .ToListAsync();
+
+            await Clients.GroupExcept(postId, excludedConnectionIds).SendAsync("DeleteMessage", postId, messageId);
+            Log.Information("Message deleted. PostId: {PostId}, MessageId: {MessageId}, UserId: {UserId}", postId, messageId, user.Id);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error occurred while deleting message. ConnectionId: {ConnectionId}", Context.ConnectionId);
+        }
+    }
+
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
         try

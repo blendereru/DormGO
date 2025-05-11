@@ -1,4 +1,5 @@
-using System.Security.Claims;
+using DormGO.Constants;
+using DormGO.Filters;
 using DormGO.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -8,6 +9,7 @@ using Serilog;
 namespace DormGO.Controllers;
 [Authorize]
 [ApiController]
+[ServiceFilter<ValidateUserEmailFilter>]
 [Route("api/profile")]
 public class ProfileController : ControllerBase
 {
@@ -19,22 +21,14 @@ public class ProfileController : ControllerBase
     [HttpGet("me")]
     public async Task<IActionResult> GetMyProfile()
     {
-        var emailClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value;
-        if (string.IsNullOrEmpty(emailClaim))
+        if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
-            Log.Warning("GetMyProfile: Email claim not found.");
-            return Unauthorized(new { Message = "The email claim is not found." });
+            return Unauthorized(new { Message = "User information is missing." });
         }
-        var user = await _userManager.FindByEmailAsync(emailClaim);
-        if (user == null)
-        {
-            Log.Warning("GetMyProfile: User not found with email: {Email}", emailClaim);
-            return NotFound(new { Message = "The user with the provided email is not found." });
-        }
-        Log.Information("GetMyProfile: Profile read for user: {Email}", emailClaim);
+        Log.Information("GetMyProfile: Profile read for user: {Email}", user.Email);
         return Ok(new
         {
-            Email = emailClaim,
+            Email = user.Email,
             Name = user.UserName,
             RegisteredAt = user.RegistrationDate
         });
@@ -43,23 +37,27 @@ public class ProfileController : ControllerBase
     [HttpGet("{email}")]
     public async Task<IActionResult> GetUserProfile(string email)
     {
+        if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
+        {
+            return Unauthorized(new { Message = "User information is missing." });
+        }
         if (string.IsNullOrEmpty(email))
         {
             Log.Warning("GetUserProfile: The email is missing");
             return BadRequest(new { Message = "Email is required." });
         }
-        var user = await _userManager.FindByEmailAsync(email);
-        if (user == null)
+        var userToSearch = await _userManager.FindByEmailAsync(email);
+        if (userToSearch == null)
         {
             Log.Warning("GetUserProfile: The user with email {Email} is not found", email);
             return NotFound(new { Message = "User not found." });
         }
-        Log.Information("GetUserProfile: Successfully retrieved user info. User id {UserId}", user.Id);
+        Log.Information("GetUserProfile: Successfully retrieved user info. User id {UserId}", userToSearch.Id);
         return Ok(new 
         {
-            Email = user.Email,
-            Name = user.UserName,
-            RegisteredAt = user.RegistrationDate
+            Email = userToSearch.Email,
+            Name = userToSearch.UserName,
+            RegisteredAt = userToSearch.RegistrationDate
         });
     }
 }

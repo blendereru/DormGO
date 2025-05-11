@@ -37,7 +37,8 @@ public static class MapsterConfig
             .Map(dest => dest.MessageId, src => src.Id)
             .Map(dest => dest.Content, src => src.Content)
             .Map(dest => dest.SentAt, src => src.SentAt)
-            .Map(dest => dest.Sender, src => src.Sender.Adapt<UserResponseDto>());
+            .Map(dest => dest.Sender, src => src.Sender.Adapt<UserResponseDto>())
+            .Map(dest => dest.UpdatedAt, src => src.UpdatedAt);
         TypeAdapterConfig<NotificationRequestDto, PostNotification>.NewConfig()
             .Map(dest => dest.Message, src => src.Message);
         TypeAdapterConfig<PostNotification, NotificationResponseDto>.NewConfig()
