@@ -128,6 +128,11 @@ public class ChatController : ControllerBase
         return Ok(responseDto);
     }
 
+    // [HttpPut]
+    // public async Task<IActionResult> UpdateMessage(string messageId, [FromBody] MessageRequestDto messageRequestDto)
+    // {
+    //     
+    // }
     [HttpDelete("messages/{messageId}")]
     public async Task<IActionResult> DeleteMessage(string messageId)
     {

@@ -8,6 +8,7 @@ public class UserRequestDto
     [EmailAddress]
     public string Email { get; set; }
     public string Password { get; set; }
+    [Required]
     public string Name { get; set; }
     [Required]
     public string VisitorId { get; set; }

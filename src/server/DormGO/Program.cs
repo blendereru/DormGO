@@ -1,6 +1,8 @@
 using System.Security.Claims;
 using DormGO;
+using DormGO.Constants;
 using DormGO.Data;
+using DormGO.Filters;
 using DormGO.Hubs;
 using DormGO.Mappings;
 using DormGO.Models;
@@ -58,6 +60,7 @@ builder.Services.AddAuthentication(opts =>
             },
             OnTokenValidated = context =>
             {
+               
                 Console.WriteLine("Token successfully validated.");
                 return Task.CompletedTask;
             }
@@ -72,6 +75,7 @@ builder.Services.AddMapster();
 MapsterConfig.Configure();
 builder.Services.AddTransient<IEmailSender, EmailSender>();
 builder.Services.AddScoped<INotificationService, PostNotificationService>();
+builder.Services.AddScoped<ValidateUserEmailFilter>();
 var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {

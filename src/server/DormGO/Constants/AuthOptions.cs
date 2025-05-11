@@ -1,7 +1,7 @@
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
 
-namespace DormGO;
+namespace DormGO.Constants;
 
 public static class AuthOptions
 {

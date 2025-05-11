@@ -1,7 +1,9 @@
 using System.Security.Claims;
+using DormGO.Constants;
 using DormGO.Data;
 using DormGO.DTOs.RequestDTO;
 using DormGO.DTOs.ResponseDTO;
+using DormGO.Filters;
 using DormGO.Hubs;
 using DormGO.Models;
 using DormGO.Services;
@@ -15,7 +17,7 @@ using Microsoft.EntityFrameworkCore;
 using Serilog;
 
 namespace DormGO.Controllers;
-
+[ServiceFilter(typeof(ValidateUserEmailFilter))]
 [Authorize]
 [ApiController]
 [Route("api/post")]
@@ -38,17 +40,21 @@ public class PostsController : ControllerBase
     [HttpPost("create")]
     public async Task<IActionResult> CreatePost([FromBody] PostRequestDto postDto)
     {
-        var creatorEmail = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email);
-        if (creatorEmail == null)
+        // var creatorEmail = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email);
+        // if (creatorEmail == null)
+        // {
+        //     Log.Warning("CreatePost: Missing email claim.");
+        //     return BadRequest(new { Message = "The user's email was not found from jwt token" });
+        // }
+        // var user = await _userManager.FindByEmailAsync(creatorEmail.Value);
+        // if (user == null)
+        // {
+        //     Log.Warning("CreatePost: User not found with email: {Email}", creatorEmail);
+        //     return BadRequest(new { Message = $"User with email {creatorEmail.Value} not found." });
+        // }
+        if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
-            Log.Warning("CreatePost: Missing email claim.");
-            return BadRequest(new { Message = "The user's email was not found from jwt token" });
-        }
-        var user = await _userManager.FindByEmailAsync(creatorEmail.Value);
-        if (user == null)
-        {
-            Log.Warning("CreatePost: User not found with email: {Email}", creatorEmail);
-            return BadRequest(new { Message = $"User with email {creatorEmail.Value} not found." });
+            return Unauthorized(new { Message = "User information is missing." });
         }
         var connectionIds = await _db.UserConnections
             .Where(c => c.UserId == user.Id && c.Hub == "/api/posthub")
@@ -61,7 +67,7 @@ public class PostsController : ControllerBase
         var postDtoMapped = post.Adapt<PostResponseDto>();
         await _hub.Clients.User(user.Id).SendAsync("PostCreated", true, postDtoMapped);
         await _hub.Clients.AllExcept(connectionIds).SendAsync("PostCreated", false, postDtoMapped);
-        Log.Information("Post created successfully by {Email}, Post ID: {PostId}", creatorEmail, post.Id);
+        Log.Information("Post created successfully by {Email}, Post ID: {PostId}", user.Email, post.Id);
         return Ok(new { Message = "The post was saved to the database" });
     }
 
