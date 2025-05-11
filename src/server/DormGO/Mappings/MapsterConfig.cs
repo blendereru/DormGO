@@ -10,7 +10,7 @@ public static class MapsterConfig
     {
         TypeAdapterConfig<UserRequestDto, ApplicationUser>.NewConfig()
             .Map(dest => dest.Email, src => src.Email)
-            .Map(dest => dest.UserName, src => src.Name)
+            .Map(dest => dest.UserName, src => src.Name ?? src.Email)
             .Map(dest => dest.Fingerprint, src => src.VisitorId);
         TypeAdapterConfig<ApplicationUser, UserResponseDto>.NewConfig()
             .Map(dest => dest.Email, src => src.Email)

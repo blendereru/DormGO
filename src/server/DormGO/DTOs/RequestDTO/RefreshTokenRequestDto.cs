@@ -4,7 +4,7 @@ namespace DormGO.DTOs.RequestDTO;
 
 public class RefreshTokenRequestDto
 {
-    public string AccessToken { get; set; }
+    public string? AccessToken { get; set; }
     [Required]
     public string RefreshToken { get; set; }
     [Required]
