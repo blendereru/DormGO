@@ -142,7 +142,7 @@ public class AccountController : ControllerBase
         }
 
         Log.Information("ForgotPassword: Sending forgot password email to {Email}.", requestDto.Email);
-        await SendForgotPasswordEmailAsync(user);
+        await SendResetPasswordAsync(user);
 
         return Ok(new { Message = "Forgot password email sent successfully."});
     }
@@ -404,17 +404,17 @@ public class AccountController : ControllerBase
     }
 
     [NonAction]
-    private async Task SendForgotPasswordEmailAsync(ApplicationUser user)
+    public async Task SendResetPasswordAsync(ApplicationUser user)
     {
         ArgumentNullException.ThrowIfNull(user, nameof(user));
-        string token = await _userManager.GeneratePasswordResetTokenAsync(user);
-        string resetLink = Url.Action(
+        var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+        var resetLink = Url.Action(
             "ResetPassword",
             "Account",
             new { userId = user.Id, token = token },
             protocol: HttpContext.Request.Scheme);
-        string emailSubject = "Reset Your Password";
-        string emailBody = $@"
+        var emailSubject = "Reset Your Password";
+        var emailBody = $@"
         <p>Hi {user.UserName},</p>
         <p>You requested to reset your password. Click the link below to reset it:</p>
         <p><a href='{resetLink}'>Reset Password</a></p>
