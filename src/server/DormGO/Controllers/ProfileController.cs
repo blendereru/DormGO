@@ -1,12 +1,11 @@
 using DormGO.Constants;
-using DormGO.Data;
 using DormGO.DTOs.RequestDTO;
 using DormGO.Filters;
 using DormGO.Models;
+using DormGO.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Serilog;
 
 namespace DormGO.Controllers;
 [Authorize]
@@ -16,11 +15,17 @@ namespace DormGO.Controllers;
 public class ProfileController : ControllerBase
 {
     private readonly UserManager<ApplicationUser> _userManager;
-    private readonly ApplicationContext _db;
-    public ProfileController(UserManager<ApplicationUser> userManager, ApplicationContext db)
+    private readonly IEmailSender<ApplicationUser> _emailSender;
+    private readonly ILogger<ProfileController> _logger;
+
+    public ProfileController(UserManager<ApplicationUser> userManager, IEmailSender<ApplicationUser> emailSender,
+        ILogger<ProfileController> logger)
     {
-        _userManager = userManager;
-        _db = db;
+        {
+            _userManager = userManager;
+            _emailSender = emailSender;
+            _logger = logger;
+        }
     }
     [HttpGet("me")]
     public async Task<IActionResult> GetMyProfile()
@@ -29,7 +34,7 @@ public class ProfileController : ControllerBase
         {
             return Unauthorized(new { Message = "User information is missing." });
         }
-        Log.Information("GetMyProfile: Profile read for user: {Email}", user.Email);
+        _logger.LogInformation("Profile read successfully. UserId: {UserId}", user.Id);
         return Ok(new
         {
             Email = user.Email,
@@ -38,7 +43,7 @@ public class ProfileController : ControllerBase
         });
     }
 
-    [HttpPut]
+    [HttpPut("username")]
     public async Task<IActionResult> UpdateUsername([FromBody] UsernameUpdateRequestDto updateRequest)
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
@@ -48,12 +53,59 @@ public class ProfileController : ControllerBase
         var result = await _userManager.SetUserNameAsync(user, updateRequest.UserName);
         if (!result.Succeeded)
         {
-            Log.Warning("UpdateUsername: Failed to update username. UserId: {UserId}. Errors: {Errors}",
-                user.Id, result.Errors.Select(e => e.Description));
-            return BadRequest(result.Errors);
+            var errors = result.Errors.Select(e => e.Description).ToList();
+            _logger.LogWarning("Username update failed. UserId: {UserId}, Errors: {Errors}", user.Id, errors);
+            return BadRequest(errors);
         }
-        Log.Information("Update username: Username updated successfully. UserId: {UserId}", user.Id);
+        _logger.LogInformation("Username updated successfully. UserId: {UserId}", user.Id);
         return Ok(new { Message = "Username updated successfully" });
+    }
+    [HttpPut("email")]
+    public async Task<IActionResult> UpdateEmail([FromBody] EmailUpdateRequestDto updateRequest)
+    {
+        if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
+        {
+            return Unauthorized(new { Message = "User information is missing." });
+        }
+        if (_emailSender is not EmailSender emailSender)
+        {
+            _logger.LogWarning("EmailSender type doesn't match.");
+            return StatusCode(500, new { Message = "Email sending service is not available" });
+        }
+        var token = await _userManager.GenerateChangeEmailTokenAsync(user, updateRequest.NewEmail);
+        var changeLink = Url.Action("UpdateEmail", "Account", new
+        {
+            userId = user.Id,
+            newEmail = updateRequest.NewEmail,
+            token
+        }, Request.Scheme);
+        await emailSender.SendEmailChangeLinkAsync(user, updateRequest.NewEmail, changeLink!);
+        return Ok(new { Message = "Please confirm the link sent to new email" });
+    }
+
+    [HttpPost("password/check")]
+    public async Task<IActionResult> CheckCurrentPassword([FromBody] CurrentPasswordCheckRequestDto passwordCheckRequestDto)
+    {
+        if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
+        {
+            return Unauthorized(new { Message = "User information is missing." });
+        }
+
+        var isPasswordValid = await _userManager.CheckPasswordAsync(user, passwordCheckRequestDto.CurrentPassword);
+        if (!isPasswordValid)
+        {
+            _logger.LogWarning("Password is incorrect for UserId {UserId}", user.Id);
+            return BadRequest(new { Message = "Password is incorrect" });
+        }
+
+        var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+        var resetLink = Url.Action("ResetPassword", "Account", new
+        {
+            userId = user.Id,
+            token
+        }, Request.Scheme);
+        await _emailSender.SendPasswordResetLinkAsync(user, user.Email!, resetLink!);
+        return Ok(new { Message = "Password verified successfully" });
     }
     [HttpGet("{email}")]
     public async Task<IActionResult> GetUserProfile(string email)
@@ -64,16 +116,16 @@ public class ProfileController : ControllerBase
         }
         if (string.IsNullOrEmpty(email))
         {
-            Log.Warning("GetUserProfile: The email is missing");
+            _logger.LogWarning("Email of user to search is not provided during profile search. UserId: {UserId}", user.Id);
             return BadRequest(new { Message = "Email is required." });
         }
         var userToSearch = await _userManager.FindByEmailAsync(email);
         if (userToSearch == null)
         {
-            Log.Warning("GetUserProfile: The user with email {Email} is not found", email);
+            _logger.LogInformation("User with specified email not found during profile search. UserId: {UserId}", user.Id);
             return NotFound(new { Message = "User not found." });
         }
-        Log.Information("GetUserProfile: Successfully retrieved user info. User id {UserId}", userToSearch.Id);
+        _logger.LogInformation("User profile search completed successfully. UserToSearchId: {UserToSearchId}, UserId: {UserId}", userToSearch.Id, user.Id);
         return Ok(new 
         {
             Email = userToSearch.Email,

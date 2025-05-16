@@ -23,6 +23,7 @@ public static class MapsterConfig
             .Map(dest => dest.Longitude, src => src.Longitude)
             .Map(dest => dest.MaxPeople, src => src.MaxPeople);
         TypeAdapterConfig<Post, PostResponseDto>.NewConfig()
+            .Map(dest => dest.PostId, src => src.Id)
             .Map(dest => dest.Title, src => src.Title)
             .Map(dest => dest.Description, src => src.Description)
             .Map(dest => dest.CurrentPrice, src => src.CurrentPrice)

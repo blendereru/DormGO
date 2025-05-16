@@ -12,23 +12,16 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
-using Serilog.Events;
 
-Log.Logger = new LoggerConfiguration()
-    .MinimumLevel.Information()
-    .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
-    .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Information)
-    .MinimumLevel.Override("Microsoft.Hosting", LogEventLevel.Information)
-    .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Information )
-    .Enrich.FromLogContext()
-    .WriteTo.Console()
-    .CreateLogger();
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews().AddNewtonsoftJson();
 builder.Services.AddIdentityCore<ApplicationUser>()
     .AddEntityFrameworkStores<ApplicationContext>()
     .AddDefaultTokenProviders();
-builder.Host.UseSerilog();
+builder.Host.UseSerilog((context, loggerConfig) =>
+{
+    loggerConfig.ReadFrom.Configuration(context.Configuration);
+});
 builder.Configuration.AddEnvironmentVariables();
 builder.Services.AddAuthentication(opts =>
     {
@@ -72,7 +65,7 @@ builder.Services.AddDbContext<ApplicationContext>(opts =>
 builder.Services.AddSignalR();
 builder.Services.AddMapster();
 MapsterConfig.Configure();
-builder.Services.AddTransient<IEmailSender, EmailSender>();
+builder.Services.AddSingleton<IEmailSender<ApplicationUser>, EmailSender>();
 builder.Services.AddScoped<INotificationService, PostNotificationService>();
 builder.Services.AddScoped<ValidateUserEmailFilter>();
 var app = builder.Build();

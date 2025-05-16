@@ -1,6 +1,6 @@
 namespace DormGO.DTOs.RequestDTO;
 
-public class SearchPostRequestDto
+public class PostSearchRequestDto
 {
     public string? SearchText { get; set; }
     public DateTime? StartDate { get; set; }

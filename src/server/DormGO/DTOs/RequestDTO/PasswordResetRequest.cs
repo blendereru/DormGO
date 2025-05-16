@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace DormGO.DTOs.RequestDTO;
 
-public class ResetPasswordRequestDto
+public class PasswordResetRequest
 {
     [Required]
     public string Email { get; set; }
@@ -11,6 +11,6 @@ public class ResetPasswordRequestDto
     public string Token { get; set; }
 
     [Required]
-    [MinLength(6)]
+    [DataType(DataType.Password)]
     public string NewPassword { get; set; }
 }
