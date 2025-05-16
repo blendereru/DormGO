@@ -323,15 +323,22 @@ class ChatHub: ObservableObject , ConnectionHandler{
            return getJWTFromKeychain(tokenType: "access_token")
        }
        
-    init() {
+    private var postId: String
+
+    init(postId: String) {
+        self.postId = postId
         self.customLogger = CustomLogger(connectionHandler: self)
-        
+    }
+    
+    func startConnection() {
+        print("start")
         guard let logger = customLogger else {
-            fatalError("CustomLogger could not be initialized.")
+            fatalError("Logger not set")
         }
-        
+
+
         let hubUrl = endpoint("api/chathub")
-        hubConnection = HubConnectionBuilder(url: hubUrl)
+        self.hubConnection = HubConnectionBuilder(url: hubUrl)
             .withHttpConnectionOptions { options in
                 if let token = getJWTFromKeychain(tokenType: "access_token") {
                     options.accessTokenProvider = { token }
@@ -340,15 +347,7 @@ class ChatHub: ObservableObject , ConnectionHandler{
             .withLogging(minLogLevel: .error, logger: logger)
             .build()
         
-        setupListeners()
-    }
-    
-    func startConnection() {
-        guard hubConnection != nil else {
-            print("ChatHub connection not initialized")
-            return
-        }
-        
+        setupListeners() // VERY IMPORTANT
         hubConnection?.start()
     }
     
@@ -357,17 +356,31 @@ class ChatHub: ObservableObject , ConnectionHandler{
     }
     
     private func setupListeners() {
-        hubConnection?.on(method: "ReceiveMessage", callback: { [weak self]
-            (postId: String, message: Message) in
-            
-            print("Received message for post \(postId): \(message.content)")
-            
-            DispatchQueue.main.async {
-                self?.onMessageReceived?(postId, message)
+        print("Setting up chat listeners...")
+//        hubConnection?.on(method: "ReceiveMessage", callback: { args in
+//            print("Raw args received:", args)
+//        })
+          hubConnection?.on(method: "ReceiveMessage", callback: { [weak self] (postId: String, message: Message) in
+            print("tor")
+            guard let self = self else {
+                print("ChatHub: Self deallocated, cannot handle message")
+                return
             }
+            
+            print("Received raw message for post \(postId): \(message)")
+            self.handleIncomingMessage(postId: postId, message: message)
         })
     }
-    
+
+    private func handleIncomingMessage(postId: String, message: Message) {
+        let timestamp = Date()
+        print("[\(timestamp)] Received message for post \(postId)")
+        
+        DispatchQueue.main.async { [weak self] in
+            self?.onMessageReceived?(postId, message)
+            print("Processed message: \(message.content)")
+        }
+    }
     // Handle token refresh similar to SignalRManager if needed
      func restartConnection() {
         if let newToken = getJWTFromKeychain(tokenType: "access_token") {
@@ -388,21 +401,24 @@ class ChatHub: ObservableObject , ConnectionHandler{
     }
 }
 
+
 // MARK: - Data Models
 struct Message: Identifiable, Decodable {
     let messageId: String
     let content: String
     let sender: Sender
-
+    let sentAt:String
+    let updatedAt: String?
     // Conforming to Identifiable by using messageId as the ID
     var id: String { messageId }
 }
 struct Sender: Decodable {
+    let email: String
+    let name: String
+    
+
+}
+struct ChatSender: Decodable {
     let userId: String
     let userName: String
-    
-    enum CodingKeys: String, CodingKey {
-        case userId = "email"     // Mapping 'email' to 'userId'
-        case userName = "name"    // Mapping 'name' to 'userName'
-    }
 }

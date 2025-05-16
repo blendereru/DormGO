@@ -17,6 +17,6 @@ services:
     container_name: sql_server
     environment:
       - ACCEPT_EULA=Y
-      - MSSQL_SA_PASSWORD=<your_password>
+      - MSSQL_SA_PASSWORD=
     ports:
       - "8002:1433"

@@ -184,7 +184,7 @@ struct YourPostsSection: View {
                                 if post.source == "joined" {
                                     SheetContent_joined(post: selectedPost, user: user)
                                 } else {
-                                    SheetContent(post: selectedPost, isUserPost: post.source == "yourPost")
+                                    SheetContent(post: selectedPost, isUserPost: post.source == "yourPost", user: user)
                                 }
                             }
                         }
@@ -602,12 +602,19 @@ struct RideInfoButton: View {
 }
 
 struct SheetContent: View {
+    @StateObject private var chatHub: ChatHub
+   let user: ProfileInfo
     @State private var isMembersPopover: Bool = false
     let post: Post
     let isUserPost: Bool
     @State private var isPublishSheetPresented: Bool = false
     let shared = PostAPIManager()
-
+    init(post: Post, isUserPost: Bool, user: ProfileInfo) {
+        self._chatHub = StateObject(wrappedValue: ChatHub(postId: post.postId))
+        self.post = post
+        self.isUserPost = isUserPost
+        self.user = user
+    }
     var body: some View {
         VStack(spacing: 16) {
             postDetailsSection
@@ -615,11 +622,11 @@ struct SheetContent: View {
                 actionButtonsSection
             }
            
-
+            
             if isUserPost {
                 userPostButtonsSection
             }
-
+            ChatView(chatHub: chatHub, user: user, postId: post.postId)
             Spacer()
         }
         .padding()
@@ -717,18 +724,22 @@ struct SheetContent: View {
 struct SheetContent_joined: View {
     let post: Post
     let user: ProfileInfo
-    
+    @StateObject private var chatHub: ChatHub
     @State private var isMembersPopover: Bool = false
     @State private var isPublishSheetPresented: Bool = false
     let shared = PostAPIManager()
-
+    init(post: Post, user: ProfileInfo) {
+        self.post = post
+        self.user = user
+        _chatHub = StateObject(wrappedValue: ChatHub(postId: post.postId))
+    }
     var body: some View {
         VStack(spacing: 16) {
             postDetailsSection
             actionButtonsSection
 
            
-            ChatView(user: user, postId: post.postId)
+            ChatView(chatHub: chatHub, user: user, postId: post.postId)
 
             Spacer()
         }
@@ -798,18 +809,27 @@ struct SheetContent_joined: View {
 struct ChatView: View {
     @State private var messages: [Message] = []
     @State private var newMessage: String = ""
-    @StateObject private var chatHub = ChatHub()
+ //   @StateObject private var chatHub = ChatHub()
+    @ObservedObject var chatHub: ChatHub
     let user: ProfileInfo
     let postId: String
-
-    init(user: ProfileInfo, postId: String) {
+    let sentAt: String
+    init(chatHub: ChatHub,user: ProfileInfo, postId: String) {
+        self.chatHub = chatHub
+         // 👈 Setup
+    
         self.user = user
         self.postId = postId
+        self.sentAt = ""
+    
+        
     }
+    
     
     private func setupChatHub() {
         chatHub.onMessageReceived = { receivedPostId, message in
             if receivedPostId == postId {
+                print("multo")
                 messages.append(message)
             }
         }
@@ -829,10 +849,16 @@ struct ChatView: View {
         PostAPIManager.shared.sendMessageToPost(postId: postId, message: newMessage) { chatResponse in
             if let chatResponse = chatResponse {
              
-                let sender = Sender(userId: user.email, userName: user.name)
+                let sender = Sender(email: user.email, name: user.name)
                 
                 // Create a new Message object
-                let newMessage = Message( messageId: UUID().uuidString, content: chatResponse.message, sender: sender)
+                let newMessage = Message(
+                    messageId: UUID().uuidString,
+                    content: chatResponse.message.content,
+                    sender: sender,
+                    sentAt:  sentAt, updatedAt: nil
+              
+                )
                 
                 // Append the new Message to the messages array
                 messages.append(newMessage)
@@ -847,7 +873,7 @@ struct ChatView: View {
         VStack {
             List(messages) { message in
                 VStack(alignment: .leading) {
-                    Text(message.sender.userName)
+                    Text(message.sender.email)
                         .font(.caption)
                         .foregroundColor(.gray)
                     Text(message.content)
@@ -874,7 +900,9 @@ struct ChatView: View {
         }
         .onAppear {
             setupChatHub()
-            fetchMessages() // Fetch existing messages when the view appears
+                fetchMessages()
+                chatHub.startConnection()
+     
         }
     }
 }

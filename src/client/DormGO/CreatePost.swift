@@ -35,7 +35,7 @@ struct PostsResponse: Codable {
     var restPosts: [Post]
 }
 //https://8035-2-135-65-38.ngrok-free.app
-let baseURL = URL(string: "https://9d01-37-99-38-62.ngrok-free.app")! // https://dormgo.azurewebsites.net    http://localhost:8080
+let baseURL = URL(string: "http://localhost:8080")! // https://dormgo.azurewebsites.net    http://localhost:8080
 
 
 
@@ -1596,6 +1596,17 @@ struct MapView2: UIViewRepresentable {
 //}
 
 struct ChatResponse: Codable {
-    var success: Bool
-    var message: String
+    var message: Message
+    
+    struct Message: Codable {
+        var messageId: String
+        var content: String
+        var sender: Sender
+        var sentAt: String
+        
+        struct Sender: Codable {
+            var email: String
+            var name: String
+        }
+    }
 }
