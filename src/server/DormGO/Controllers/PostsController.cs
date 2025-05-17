@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using DormGO.Constants;
 using DormGO.Data;
 using DormGO.DTOs.RequestDTO;
@@ -25,16 +24,18 @@ public class PostsController : ControllerBase
     private readonly IHubContext<PostHub> _hub;
     private readonly INotificationService _notificationService;
     private readonly ILogger<PostsController> _logger;
+    private readonly IInputSanitizer _inputSanitizer;
     private readonly IMapper _mapper;
 
     public PostsController(ApplicationContext db,
         INotificationService notificationService, IHubContext<PostHub> hub, ILogger<PostsController> logger,
-        IMapper mapper)
+        IInputSanitizer inputSanitizer, IMapper mapper)
     {
         _db = db;
         _hub = hub;
         _notificationService = notificationService;
         _logger = logger;
+        _inputSanitizer = inputSanitizer;
         _mapper = mapper;
     }
     [HttpPost("create")]
@@ -72,7 +73,8 @@ public class PostsController : ControllerBase
             var query = _db.Posts.AsQueryable();
             if (!string.IsNullOrEmpty(postSearchRequest.SearchText))
             {
-                _logger.LogDebug("Applying text filter: {SearchText}", postSearchRequest.SearchText);
+                var sanitizedSearchText = _inputSanitizer.Sanitize(postSearchRequest.SearchText);
+                _logger.LogDebug("Applying text filter: {SearchText}", sanitizedSearchText);
                 var searchTerm = postSearchRequest.SearchText.ToLower();
                 query = query.Where(p => p.Description.ToLower().Contains(searchTerm));
             }
@@ -305,7 +307,7 @@ public class PostsController : ControllerBase
                 {
                     await _notificationService.NotifyUserAsync(removedUser.Id, notification);
                 }
-                _logger.LogInformation("Removing {Count} members from post {PostId}.", users.Count, id);
+                _logger.LogInformation("Removing {Count} members from post {PostId}.", users.Count, post.Id);
                 post.Members = post.Members.Except(users).ToList();
             }
         }
@@ -348,7 +350,7 @@ public class PostsController : ControllerBase
             {
                 _db.Posts.Remove(post);
                 await _db.SaveChangesAsync();
-                _logger.LogInformation("Post removed because the creator left and there were no other members. UserId: {UserId}, PostId: {PostId}", user.Id, id);
+                _logger.LogInformation("Post removed because the creator left and there were no other members. UserId: {UserId}, PostId: {PostId}", user.Id, post.Id);
                 return Ok(new { Message = "Post deleted because there were no other members." });
                 
             }

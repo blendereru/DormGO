@@ -5,6 +5,7 @@ using DormGO.DTOs.ResponseDTO;
 using DormGO.Filters;
 using DormGO.Hubs;
 using DormGO.Models;
+using DormGO.Services;
 using Mapster;
 using MapsterMapper;
 using Microsoft.AspNetCore.Authorization;
@@ -23,14 +24,16 @@ public class ChatController : ControllerBase
     private readonly ApplicationContext _db;
     private readonly IHubContext<ChatHub> _hub;
     private readonly ILogger<ChatController> _logger;
+    private readonly IInputSanitizer _inputSanitizer;
     private readonly IMapper _mapper;
 
     public ChatController(ApplicationContext db, IHubContext<ChatHub> hub, ILogger<ChatController> logger,
-        IMapper mapper)
+        IInputSanitizer inputSanitizer, IMapper mapper)
     {
         _db = db;
         _hub = hub;
         _logger = logger;
+        _inputSanitizer = inputSanitizer;
         _mapper = mapper;
     }
 
@@ -49,7 +52,8 @@ public class ChatController : ControllerBase
         var postExists = await _db.Posts.AnyAsync(p => p.Id == postId);
         if (!postExists)
         {
-            _logger.LogWarning("Messages read for post requested for non-existent post. UserId: {UserId}, PostId: {PostId}", user.Id, postId);
+            var sanitizedPostId = _inputSanitizer.Sanitize(postId);
+            _logger.LogWarning("Messages read for post requested for non-existent post. UserId: {UserId}, PostId: {PostId}", user.Id, sanitizedPostId);
             return NotFound(new { Message = "The post does not exist." });
         }
         
@@ -87,6 +91,7 @@ public class ChatController : ControllerBase
             .FirstOrDefaultAsync(p => p.Id == postId);
         if (post == null)
         {
+            var sanitizedPostId = _inputSanitizer.Sanitize(postId);
             _logger.LogWarning("Message send requested for non-existent post. UserId: {UserId}, PostId: {PostId}", user.Id, postId);
             return NotFound(new { Message = "The post does not exist." });
         }
@@ -115,11 +120,11 @@ public class ChatController : ControllerBase
         {
             return Unauthorized(new { Message = "User information is missing." });
         }
-        
         var message = await _db.Messages.FirstOrDefaultAsync(m => m.Id == messageId && m.PostId == postId);
+        var sanitizedMessageId = _inputSanitizer.Sanitize(messageId);
         if (message == null)
         {
-            _logger.LogWarning("Message update requested for non-existent message. UserId: {UserId}, MessageId: {MessageId}", user.Id, messageId);
+            _logger.LogWarning("Message update requested for non-existent message. UserId: {UserId}, MessageId: {MessageId}", user.Id, sanitizedMessageId);
             return NotFound(new { Message = "Message not found." });
         }
 
@@ -131,8 +136,8 @@ public class ChatController : ControllerBase
         message.UpdatedAt = DateTime.UtcNow;
         message.Content = messageRequestDto.Content;
         await _db.SaveChangesAsync();
-        _logger.LogInformation("Message updated successfully. UserId: {UserId}. MessageId: {MessageId}", user.Id, messageId);
-        Log.Information("UpdateMessage: Message {MessageId} updated by user {UserId} in post {PostId}", message.Id, user.Id, postId);
+        _logger.LogInformation("Message updated successfully. UserId: {UserId}. MessageId: {MessageId}", user.Id, sanitizedMessageId);
+        Log.Information("UpdateMessage: Message {MessageId} updated by user {UserId}", message.Id, user.Id);
         var excludedConnectionIds = await _db.UserConnections
             .Where(uc => uc.UserId == user.Id && uc.Hub == "/api/chathub")
             .Select(uc => uc.ConnectionId)
@@ -152,9 +157,10 @@ public class ChatController : ControllerBase
             return Unauthorized(new { Message = "User information is missing." });
         }
         var message = await _db.Messages.FirstOrDefaultAsync(m => m.Id == messageId && m.PostId == postId);
+        var sanitizedMessageId = _inputSanitizer.Sanitize(messageId);
         if (message == null)
         {
-            _logger.LogWarning("Message remove requested for non-existent message. UserId: {UserId}, MessageId: {MessageId}", user.Id, messageId);
+            _logger.LogWarning("Message remove requested for non-existent message. UserId: {UserId}, MessageId: {MessageId}", user.Id, sanitizedMessageId);
             return NotFound(new { Message = "Message not found." });
         }
         if (message.SenderId != user.Id)
@@ -164,7 +170,7 @@ public class ChatController : ControllerBase
         }
         _db.Messages.Remove(message);
         await _db.SaveChangesAsync();
-        _logger.LogInformation("Message removed successfully. UserId: {UserId}. MessageId: {MessageId}", user.Id, messageId);
+        _logger.LogInformation("Message removed successfully. UserId: {UserId}. MessageId: {MessageId}", user.Id, message.Id);
         var excludedConnectionIds = await _db.UserConnections
             .Where(uc => uc.UserId == user.Id && uc.Hub == "/api/chathub")
             .Select(uc => uc.ConnectionId)

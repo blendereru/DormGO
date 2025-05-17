@@ -66,6 +66,7 @@ builder.Services.AddSignalR();
 builder.Services.AddMapster();
 MapsterConfig.Configure();
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, EmailSender>();
+builder.Services.AddSingleton<IInputSanitizer, InputSanitizer>();
 builder.Services.AddScoped<INotificationService, PostNotificationService>();
 builder.Services.AddScoped<ValidateUserEmailFilter>();
 var app = builder.Build();

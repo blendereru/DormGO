@@ -1,15 +1,14 @@
-using System.Security.Claims;
 using DormGO.Constants;
 using DormGO.Data;
 using DormGO.DTOs.RequestDTO;
 using DormGO.DTOs.ResponseDTO;
 using DormGO.Filters;
 using DormGO.Models;
+using DormGO.Services;
 using Mapster;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Serilog;
 
 namespace DormGO.Controllers;
 [Authorize]
@@ -20,11 +19,14 @@ public class NotificationController : ControllerBase
 {
     private readonly ApplicationContext _db;
     private readonly ILogger<NotificationController> _logger;
+    private readonly IInputSanitizer _inputSanitizer;
 
-    public NotificationController(ApplicationContext db, ILogger<NotificationController> logger)
+    public NotificationController(ApplicationContext db, ILogger<NotificationController> logger,
+        IInputSanitizer inputSanitizer)
     {
         _db = db;
         _logger = logger;
+        _inputSanitizer = inputSanitizer;
     }
 
     [HttpGet]
@@ -61,12 +63,13 @@ public class NotificationController : ControllerBase
 
         if (notification == null)
         {
-            _logger.LogWarning("Notification marking requested for non-existent notification. UserId: {UserId}, NotificationId: {NotificationId}", user.Id, id);
+            var sanitizedNotificationId = _inputSanitizer.Sanitize(id);
+            _logger.LogWarning("Notification marking requested for non-existent notification. UserId: {UserId}, NotificationId: {NotificationId}", user.Id, sanitizedNotificationId);
             return NotFound(new { Message = "Notification not found." });
         }
         notification.IsRead = true;
         await _db.SaveChangesAsync();
-        _logger.LogInformation("Notification {NotificationId} marked as read for user {UserId}.", id, user.Id);
+        _logger.LogInformation("Notification {NotificationId} marked as read for user {UserId}.", notification.Id, user.Id);
         return Ok(new { Message = "The notification was marked as read." });
     }
 
@@ -82,12 +85,13 @@ public class NotificationController : ControllerBase
             .FirstOrDefaultAsync(n => n.Id == id && n.UserId == user.Id);
         if (notification == null)
         {
-            _logger.LogWarning("Notification remove requested for non-existent notification. UserId: {UserId}, NotificationId: {NotificationId}", user.Id, id);
+            var sanitizedNotificationId = _inputSanitizer.Sanitize(id);
+            _logger.LogWarning("Notification remove requested for non-existent notification. UserId: {UserId}, NotificationId: {NotificationId}", user.Id, sanitizedNotificationId);
             return NotFound(new { Message = "Notification not found." });
         }
         _db.Notifications.Remove(notification);
         await _db.SaveChangesAsync();
-        _logger.LogInformation("Notification {NotificationId} removed. UserId: {UserId}", id, user.Id);
+        _logger.LogInformation("Notification {NotificationId} removed. UserId: {UserId}", notification.Id, user.Id);
         return Ok(new { Message = "The notification was successfully deleted" });
     }
 }
