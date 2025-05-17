@@ -92,7 +92,7 @@ public class ChatController : ControllerBase
         if (post == null)
         {
             var sanitizedPostId = _inputSanitizer.Sanitize(postId);
-            _logger.LogWarning("Message send requested for non-existent post. UserId: {UserId}, PostId: {PostId}", user.Id, postId);
+            _logger.LogWarning("Message send requested for non-existent post. UserId: {UserId}, PostId: {PostId}", user.Id, sanitizedPostId);
             return NotFound(new { Message = "The post does not exist." });
         }
         var message = _mapper.Map<Message>(messageDto);
@@ -100,7 +100,7 @@ public class ChatController : ControllerBase
         message.PostId = postId;
         _db.Messages.Add(message);
         await _db.SaveChangesAsync();
-        _logger.LogInformation("Message sent successfully. UserId: {UserId}, PostId: {PostId}, MessageId: {MessageId}", user.Id, postId, message.Id);
+        _logger.LogInformation("Message sent successfully. UserId: {UserId}, PostId: {PostId}, MessageId: {MessageId}", user.Id, post.Id, message.Id);
         var excludedConnectionIds = await _db.UserConnections
             .Where(uc => uc.UserId == user.Id && uc.Hub == "/api/chathub")
             .Select(uc => uc.ConnectionId)

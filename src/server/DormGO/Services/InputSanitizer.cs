@@ -15,16 +15,19 @@ public class InputSanitizer : IInputSanitizer
             return string.Empty;
         }
         var sanitized = input
+            .Replace("\\", "\\\\")
             .Replace("\n", "")
             .Replace("\r", "")
-            .Replace("\t", "");
+            .Replace("\t", "")
+            .Replace("'", "\\'")
+            .Replace("\"", "\\\"");
         if (sanitized != input)
         {
-            _logger.LogInformation("Input sanitized. Original: '{OriginalInput}', Sanitized: '{SanitizedInput}'", input, sanitized);
+            _logger.LogInformation("Input sanitized. Sanitized: '{SanitizedInput}'", sanitized);
         }
         else
         {
-            _logger.LogDebug("Input did not require sanitization: '{Input}'", input);
+            _logger.LogDebug("Input did not require sanitization: '{SanitizedInput}'", sanitized);
         }
         return sanitized;
     }

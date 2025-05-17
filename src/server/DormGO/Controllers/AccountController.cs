@@ -8,13 +8,12 @@ using DormGO.DTOs.ResponseDTO;
 using DormGO.Hubs;
 using DormGO.Models;
 using DormGO.Services;
-using MapsterMapper;
+using MapsterMapper;    
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using Serilog;
 
 namespace DormGO.Controllers;
 
@@ -48,7 +47,8 @@ public class AccountController : ControllerBase
         {
             var sanitizedVisitorId = _inputSanitizer.Sanitize(dto.VisitorId);
             _logger.LogInformation("Password not provided during user registration. VisitorId: {VisitorId}", sanitizedVisitorId);
-            return BadRequest(new { Message = "Invalid credentials"});
+            ModelState.AddModelError(nameof(dto.Password), "The Password field is required");
+            return ValidationProblem(ModelState);
         }
         var user = _mapper.Map<ApplicationUser>(dto);
         user.RegistrationDate = DateTime.UtcNow;
@@ -57,9 +57,12 @@ public class AccountController : ControllerBase
 
         if (!result.Succeeded)
         {
-            var errors = result.Errors.Select(e => e.Description).ToList();
-            _logger.LogWarning("User registration failed. Errors: {Errors}", errors);
-            return BadRequest(errors);
+            foreach (var error in result.Errors)
+            {
+                ModelState.AddModelError(error.Code, error.Description);
+            }
+            _logger.LogWarning("User registration failed. Errors: {Errors}", result.Errors.Select(e => e.Description));
+            return ValidationProblem(ModelState);
         }
         _logger.LogInformation("User registered successfully. UserId: {UserId}", user.Id);
         var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
@@ -70,7 +73,8 @@ public class AccountController : ControllerBase
             visitorId = user.Fingerprint
         }, protocol: Request.Scheme);
         await _emailSender.SendConfirmationLinkAsync(user, user.Email!, confirmationLink!);
-        return Ok(new { Message = "User registered successfully. Email confirmation is pending." });
+        var profileUrl = Url.Action("GetUserProfile", "Profile", new { email = user.Email });
+        return Created(profileUrl, new { Message = "User registered successfully. Email confirmation is pending." });
     }
 
     [HttpPost("signin")]
@@ -80,27 +84,35 @@ public class AccountController : ControllerBase
         if (string.IsNullOrEmpty(dto.Password))
         {
             _logger.LogInformation("Password not provided during login. VisitorId: {VisitorId}", sanitizedVisitorId);
-            return BadRequest(new { Message = "Invalid credentials" });
+            ModelState.AddModelError(nameof(dto.Password), "The password field is required.");
+            return ValidationProblem(ModelState);
         }
         var user = await _db.Users.Include(u => u.RefreshSessions).FirstOrDefaultAsync(u => u.Email == dto.Email);
-        if (user == null)
+        if (user == null || !await _userManager.CheckPasswordAsync(user, dto.Password))
         {
-            _logger.LogWarning("Login requested for non-existent user. VisitorId: {VisitorId}", sanitizedVisitorId);
-            return Unauthorized(new { Message = "Invalid email" });
+            _logger.LogWarning("Invalid login attempt. VisitorId: {VisitorId}", sanitizedVisitorId);
+            var problem = new ProblemDetails
+            {
+                Title = "Invalid credentials",
+                Type = "https://datatracker.ietf.org/doc/html/rfc9457#section-3",
+                Status = StatusCodes.Status401Unauthorized,
+                Detail = "Invalid email or password."
+            };
+            return Unauthorized(problem);
         }
         if (!user.EmailConfirmed)
         {
             _logger.LogWarning("User's email is not confirmed yet. Blocking user. UserId: {UserId}", user.Id);
-            return BadRequest(new { Message = "Email is not confirmed. Please check your email for the confirmation link." });
+            var problem = new ProblemDetails
+            {
+                Title = "Email not confirmed",
+                Type = "https://datatracker.ietf.org/doc/html/rfc9457#section-3",
+                Status = StatusCodes.Status403Forbidden,
+                Detail = "Email is not confirmed. Please check your email for the confirmation link.",
+            };
+            return StatusCode(StatusCodes.Status403Forbidden, problem);
         }
-
-        var isPasswordValid = await _userManager.CheckPasswordAsync(user, dto.Password);
-
-        if (!isPasswordValid)
-        {
-            _logger.LogWarning("Invalid password of user. UserId: {UserId}", user.Id);
-            return Unauthorized(new { Message = "Invalid credentials." });
-        }
+        
         if (user.RefreshSessions.Count >= 5)
         {
             _db.RefreshSessions.RemoveRange(user.RefreshSessions);
@@ -124,54 +136,69 @@ public class AccountController : ControllerBase
         _db.RefreshSessions.Add(session);
         await _db.SaveChangesAsync();
         _logger.LogInformation("User successfully logged in. UserId: {UserId}", user.Id);
-        return Ok(new
+        var responseDto = new RefreshTokenResponseDto
         {
-            Message = "Login successful",
-            access_token = accessToken,
-            refresh_token = refreshToken
-        });
+            AccessToken = accessToken,
+            RefreshToken = refreshToken
+        };
+        return Ok(responseDto);
     }
-
+    
     [HttpPost("forgot-password")]
     public async Task<IActionResult> ForgotPassword([FromBody] UserRequestDto requestDto)
     {
         var user = await _userManager.FindByEmailAsync(requestDto.Email);
-        if (user == null)
+        if (user != null)
         {
-            var sanitizedVisitorId = _inputSanitizer.Sanitize(requestDto.VisitorId);
-            _logger.LogWarning("Password forgot requested for non-existent user. VisitorId: {VisitorId}", sanitizedVisitorId);
-            return NotFound(new { Message = "Invalid credentials"});
+            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+            var resetLink = Url.Action("ResetPassword", "Account", new
+            {
+                userId = user.Id,
+                token
+            }, protocol: Request.Scheme);
+            await _emailSender.SendPasswordResetLinkAsync(user, user.Email!, resetLink!);
         }
-        var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-        var resetLink = Url.Action("ResetPassword", "Account", new
-        {
-            userId = user.Id,
-            token
-        }, protocol: Request.Scheme);
-        await _emailSender.SendPasswordResetLinkAsync(user, user.Email!, resetLink!);
-        return Ok(new { Message = "Forgot password email sent successfully."});
+        return NoContent();
     }
     
     [HttpGet("update-email")]
     public async Task<IActionResult> UpdateEmail(string userId, string newEmail, string token, [FromServices] IHubContext<UserHub> hub)
     {
-        if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(token))
+        var sanitizedUserId = _inputSanitizer.Sanitize(userId);
+        if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(token) || string.IsNullOrEmpty(newEmail))
         {
-            _logger.LogWarning("Invalid or expired email change link. UserId: {UserId}", userId);
-            return BadRequest(new { Message = "The link is invalid or expired."});
+            _logger.LogWarning("Invalid or expired email change link. UserId: {UserId}", sanitizedUserId);
+            var problem = new ProblemDetails
+            {
+                Title = "Invalid or expired link",
+                Type = "https://datatracker.ietf.org/doc/html/rfc9457#section-3",
+                Status = StatusCodes.Status400BadRequest,
+                Detail = "The link is invalid, expired, or missing required parameters."
+            };
+            return BadRequest(problem);
         }
         var user = await _userManager.FindByIdAsync(userId);
         if (user == null)
         {
-            _logger.LogWarning("Email change requested for non-existent user. UserId: {UserId}", userId);
-            return NotFound(new { Message = "User is not found." });
+            _logger.LogWarning("Email change requested for non-existent user. UserId: {UserId}", sanitizedUserId);
+            var problem = new ProblemDetails
+            {
+                Title = "User Not Found",
+                Type = "https://datatracker.ietf.org/doc/html/rfc9457#section-3",
+                Status = StatusCodes.Status404NotFound,
+                Detail = "The specified user could not be found."
+            };
+            return NotFound(problem);
         }
         var result = await _userManager.ChangeEmailAsync(user, newEmail, token);
         if (!result.Succeeded)
         {
-            var errors = result.Errors.Select(e => e.Description).ToList();
-            _logger.LogWarning("User email change failed. UserId: {UserId}. Errors: {Errors}", user.Id, errors);
-            return BadRequest(errors);
+            foreach (var error in result.Errors)
+            {
+                ModelState.AddModelError(error.Code, error.Description);
+            }
+            _logger.LogWarning("User email change failed. UserId: {UserId}. Errors: {Errors}", user.Id, result.Errors.Select(e => e.Description));
+            return ValidationProblem(ModelState);
         }
         _logger.LogInformation("Email changed successfully. UserId: {UserId}", user.Id);
         var connections = await _db.UserConnections
@@ -182,19 +209,18 @@ public class AccountController : ControllerBase
         {
             await hub.Clients.Clients(connections).SendAsync("EmailChanged", new
             {
-                Message = "Your email changed successfully.",
-                Email = user.Email!,
-                Token = token,
-                Timestamp = DateTime.UtcNow
+                email = user.Email!,
+                timestamp = DateTime.UtcNow
             });
-            _logger.LogInformation("Message on email change sent to user on hub. UserId: {UserId}, ConnectionsCount: {Count}", user.Id, connections.Count);
+            _logger.LogInformation("Email change notification sent via hub. UserId: {UserId}, ConnectionsCount: {Count}", user.Id, connections.Count);
         }
         else
         {
-            _logger.LogWarning("No active connections found on hub. UserId: {UserId}", user.Id);
+            _logger.LogWarning("No active SignalR connections found. UserId: {UserId}", user.Id);
         }
-        return Ok(new {Message = "Email changed successfully."});
+        return NoContent();
     }
+    
     [HttpGet("reset-password")]
     public async Task<IActionResult> ResetPassword(string userId, string token, [FromServices] IHubContext<UserHub> hub)
     {
@@ -202,101 +228,133 @@ public class AccountController : ControllerBase
         if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(token))
         {
             _logger.LogWarning("Invalid or expired password reset link. UserId: {UserId}", sanitizedUserId);
-            return BadRequest(new { Message = "The link is invalid or expired."});
+            var problem = new ProblemDetails
+            {
+                Title = "Invalid or Expired Link",
+                Type = "https://datatracker.ietf.org/doc/html/rfc9457#section-3",
+                Status = StatusCodes.Status400BadRequest,
+                Detail = "The password reset link is invalid, expired, or missing required parameters."
+            };
+            return BadRequest(problem);
         }
-
         var user = await _userManager.FindByIdAsync(userId);
         if (user == null)
         {
             _logger.LogWarning("User not found during password reset. UserId: {UserId}", sanitizedUserId);
-            return NotFound(new { Message = "The user is not found." });
+            var problem = new ProblemDetails
+            {
+                Title = "User Not Found",
+                Type = "https://datatracker.ietf.org/doc/html/rfc9457#section-3",
+                Status = StatusCodes.Status404NotFound,
+                Detail = "The specified user could not be found."
+            };
+            return NotFound(problem);
         }
         var connections = await _db.UserConnections
             .Where(c => c.UserId == userId)
             .Select(c => c.ConnectionId)
             .ToListAsync();
+
         if (connections.Count > 0)
         {
             await hub.Clients.Clients(connections).SendAsync("PasswordResetLinkValidated", new
             {
-                Message = "Your password reset link has been verified.",
-                Email = user.Email!,
-                Token = token,
-                Timestamp = DateTime.UtcNow
+                email = user.Email!,
+                timestamp = DateTime.UtcNow
             });
-            _logger.LogInformation("Message on password reset sent to user on hub. UserId: {UserId}, ConnectionsCount: {Count}", sanitizedUserId, connections.Count);
+            _logger.LogInformation(
+                "Password reset validation message sent via hub. UserId: {UserId}, ConnectionsCount: {Count}",
+                sanitizedUserId, connections.Count);
         }
         else
         {
-            _logger.LogWarning("No active connections found on hub. UserId: {UserId}.", sanitizedUserId);
+            _logger.LogWarning("No active SignalR connections found. UserId: {UserId}", sanitizedUserId);
         }
-        return Ok(new
-        {
-            Message = "The link is valid. You can now reset your password."
-        });
+        return NoContent();
     }
 
     [HttpPost("reset-password")]
     public async Task<IActionResult> ResetPassword([FromBody] PasswordResetRequest passwordResetRequest)
     {
         var user = await _userManager.FindByEmailAsync(passwordResetRequest.Email);
-        if (user == null)
+        if (user != null)
+        {
+            var result = await _userManager.ResetPasswordAsync(user, passwordResetRequest.Token, passwordResetRequest.NewPassword);
+
+            if (!result.Succeeded)
+            {
+                _logger.LogWarning("Password reset failed. UserId: {UserId}, Errors: {Errors}", user.Id, result.Errors.Select(e => e.Description));
+                // ToDo: implement logic to monitor/fail after repeated failed attempts.
+            }
+            else
+            {
+                _logger.LogInformation("Password successfully reset. UserId: {UserId}", user.Id);
+            }
+        }
+        else
         {
             _logger.LogWarning("Password reset requested for non-existent user.");
-            return NotFound(new { Message = "User is not found."});
         }
-
-        var result = await _userManager.ResetPasswordAsync(user, passwordResetRequest.Token, passwordResetRequest.NewPassword);
-        if (!result.Succeeded)
-        {
-            var errors = result.Errors.Select(e => e.Description).ToList();
-            _logger.LogWarning("Password reset failed. UserId: {UserId}, Errors: {Errors}", user.Id, errors);
-            return BadRequest(errors);
-        }
-        _logger.LogInformation("Password successfully reset. UserId: {UserId}", user.Id);
-        return Ok(new { Message = "Your password has been reset successfully." });
+        return NoContent();
     }
     [HttpDelete("signout")]
     public async Task<IActionResult> Logout([FromBody] RefreshTokenRequestDto dto)
     {
         var session = await _db.RefreshSessions.FirstOrDefaultAsync(x => x.RefreshToken == dto.RefreshToken);
         var sanitizedVisitorId = _inputSanitizer.Sanitize(dto.VisitorId);
-        if (session == null)
+        if (session != null)
+        {
+            _db.RefreshSessions.Remove(session);
+            await _db.SaveChangesAsync();
+            _logger.LogInformation("User logged out successfully. VisitorId: {VisitorId}", sanitizedVisitorId);
+        }
+        else
         {
             _logger.LogWarning("Refresh session not found during logout. VisitorId: {VisitorId}", sanitizedVisitorId);
-            return BadRequest(new { Message = "Invalid token"});
         }
-        _db.RefreshSessions.Remove(session);
-        await _db.SaveChangesAsync();
-        _logger.LogInformation("User logged out successfully. VisitorId: {VisitorId}", sanitizedVisitorId);
-        return Ok(new { Message = "User successfully logged out"});
+        return NoContent();
     }
     [HttpGet("confirm-email")]
-    public async Task<IActionResult> ConfirmEmail(string userId, string token, string visitorId,
-        [FromServices] IHubContext<UserHub> hub)
+    public async Task<IActionResult> ConfirmEmail(string userId, string token, string visitorId, [FromServices] IHubContext<UserHub> hub)
     {
         var sanitizedUserId = _inputSanitizer.Sanitize(userId);
         if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(token))
         {
             _logger.LogWarning("Invalid or expired link parameters. UserId: {UserId}", sanitizedUserId);
-            return BadRequest(new { Message = "The link is invalid or expired."});
+            var problem = new ProblemDetails
+            {
+                Title = "Invalid or Expired Link",
+                Type = "https://datatracker.ietf.org/doc/html/rfc9457#section-3",
+                Status = StatusCodes.Status400BadRequest,
+                Detail = "The email confirmation link is invalid, expired, or missing required parameters."
+            };
+            return BadRequest(problem);
         }
         
         var user = await _userManager.FindByIdAsync(userId);
         if (user == null)
         {
             _logger.LogWarning("Email confirmation requested for non-existent user. UserId: {UserId}", sanitizedUserId);
-            return NotFound(new { Message = "The user is not found"});
+            var problem = new ProblemDetails
+            {
+                Title = "User Not Found",
+                Type = "https://datatracker.ietf.org/doc/html/rfc9457#section-3",
+                Status = StatusCodes.Status404NotFound,
+                Detail = "The specified user could not be found."
+            };
+            return NotFound(problem);
         }
         var result = await _userManager.ConfirmEmailAsync(user, token);
         if (!result.Succeeded)
         {
-            var errors = result.Errors.Select(e => e.Description).ToList();
-            _logger.LogWarning("Email confirmation failed. UserId: {UserId}, Errors: {Errors}", user.Id, errors);
-            return BadRequest(errors);
+            foreach (var error in result.Errors)
+            {
+                ModelState.AddModelError(error.Code, error.Description);
+            }
+            _logger.LogWarning("Email confirmation failed. UserId: {UserId}, Errors: {Errors}", user.Id, result.Errors.Select(e => e.Description));
+            return ValidationProblem(ModelState);
         }
         _logger.LogInformation("Email successfully confirmed. UserId: {UserId}", user.Id);
-        
         var accessToken = GenerateAccessToken(user);
         var refreshToken = GenerateRefreshToken();
         var session = new RefreshSession
@@ -310,52 +368,64 @@ public class AccountController : ControllerBase
         };
         _db.RefreshSessions.Add(session);
         await _db.SaveChangesAsync();
-        var dto = new RefreshTokenResponseDto()
+
+        var dto = new RefreshTokenResponseDto
         {
             AccessToken = accessToken,
             RefreshToken = refreshToken
         };
-
         var connections = await _db.UserConnections
             .Where(c => c.UserId == userId)
             .Select(c => c.ConnectionId)
             .ToListAsync();
 
-        foreach (var connectionId in connections)
+        if (connections.Count > 0)
         {
-            await hub.Clients.Client(connectionId).SendAsync("EmailConfirmed", user.UserName, dto);
-            _logger.LogInformation("Message on email confirmation sent to user on hub. UserId: {UserId}", user.Id);
+            await hub.Clients.Clients(connections).SendAsync("EmailConfirmed", new
+            {
+                userName = user.UserName,
+                timestamp = DateTime.UtcNow
+            });
+            _logger.LogInformation("Email confirmation notification sent via hub. UserId: {UserId}, ConnectionsCount: {Count}", user.Id, connections.Count);
         }
-        return Ok(new { Message = "Email confirmed successfully" });
+        else
+        {
+            _logger.LogWarning("No active SignalR connections found. UserId: {UserId}", user.Id);
+        }
+        return Ok(dto);
     }
 
     [HttpPost("resend-confirmation-email")]
     public async Task<IActionResult> ResendConfirmationEmail([FromBody] UserRequestDto requestDto)
     {
-        var user = await _userManager.FindByEmailAsync(requestDto.Email);
         var sanitizedVisitorId = _inputSanitizer.Sanitize(requestDto.VisitorId);
-        if (user == null)
+        var user = await _userManager.FindByEmailAsync(requestDto.Email);
+        if (user != null)
+        {
+            if (!await _userManager.IsEmailConfirmedAsync(user))
+            {
+                user.Fingerprint = requestDto.VisitorId;
+                var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+                var confirmationLink = Url.Action("ConfirmEmail", "Account", new
+                {
+                    userId = user.Id,
+                    token,
+                    visitorId = user.Fingerprint
+                },Request.Scheme);
+                await _emailSender.SendConfirmationLinkAsync(user, user.Email!, confirmationLink!);
+                _logger.LogInformation("Confirmation email resent. UserId: {UserId}", user.Id);
+            }
+            else
+            {
+                _logger.LogInformation("Email already confirmed. Skipping confirmation resend. UserId: {UserId}", user.Id);
+            }
+        }
+        else
         {
             _logger.LogWarning("Email confirmation resend requested for non-existent user. VisitorId: {VisitorId}", sanitizedVisitorId);
-            return NotFound(new { Message = "User not found."});
         }
-        if (await _userManager.IsEmailConfirmedAsync(user))
-        {
-            _logger.LogInformation("Email already confirmed. Skipping the request. UserId: {UserId}", user.Id);
-            return BadRequest(new { Message = "Email is already confirmed." });
-        }
-        user.Fingerprint = requestDto.VisitorId;
-        var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-        var confirmationLink = Url.Action("ConfirmEmail", "Account", new
-        {
-            userId = user.Id,
-            token,
-            visitorId = user.Fingerprint
-        }, Request.Scheme);
-        await _emailSender.SendConfirmationLinkAsync(user, user.Email!, confirmationLink!);
-        return Ok(new { Message = "Confirmation email sent successfully." });
+        return NoContent();
     }
-
     [HttpPut("refresh-tokens")]
     public async Task<IActionResult> RefreshTokens([FromBody] RefreshTokenRequestDto dto)
     {
@@ -363,44 +433,65 @@ public class AccountController : ControllerBase
         if (string.IsNullOrEmpty(dto.AccessToken))
         {
             _logger.LogWarning("Access token missing during tokens refresh attempt. VisitorId: {VisitorId}", sanitizedVisitorId);
-            return BadRequest(new { Message = "Access token is required." });
+            ModelState.AddModelError(nameof(dto.AccessToken), "The Access token field is required");
+            return ValidationProblem(ModelState);
         }
-        
+
         var principal = GetPrincipalFromExpiredToken(dto.AccessToken);
         if (principal == null)
         {
             _logger.LogWarning("Invalid access token. VisitorId: {VisitorId}", sanitizedVisitorId);
-            return Unauthorized(new { Message = "Invalid access token." });
+            var problem = new ProblemDetails
+            {
+                Title = "Invalid access token",
+                Type = "https://datatracker.ietf.org/doc/html/rfc9457#section-3",
+                Status = StatusCodes.Status401Unauthorized,
+                Detail = "The access token is invalid."
+            };
+            return Unauthorized(problem);
         }
-
         var userEmail = principal.Identity?.Name;
         if (string.IsNullOrEmpty(userEmail))
         {
             _logger.LogWarning("Invalid access token payload. VisitorId: {VisitorId}", sanitizedVisitorId);
-            return Unauthorized(new { Message = "Invalid access token." });
+            var problem = new ProblemDetails
+            {
+                Title = "Invalid token payload",
+                Type = "https://datatracker.ietf.org/doc/html/rfc9457#section-3",
+                Status = StatusCodes.Status401Unauthorized,
+                Detail = "The access token payload is invalid."
+            };
+            return Unauthorized(problem);
         }
-
         var session = await _db.RefreshSessions
             .Include(s => s.User)
             .FirstOrDefaultAsync(s => s.RefreshToken == dto.RefreshToken && s.User.Email == userEmail);
         if (session == null || session.ExpiresIn < DateTimeOffset.UtcNow.ToUnixTimeMilliseconds())
         {
             _logger.LogWarning("Invalid or expired refresh token. VisitorId: {VisitorId}", sanitizedVisitorId);
-            return Unauthorized(new { Message = "Invalid or expired refresh token." });
+            var problem = new ProblemDetails
+            {
+                Title = "Invalid or expired credentials",
+                Type = "https://datatracker.ietf.org/doc/html/rfc9457#section-3",
+                Status = StatusCodes.Status401Unauthorized,
+                Detail = "The credentials provided are invalid or expired."
+            };
+            return Unauthorized(problem);
         }
 
         if (dto.VisitorId != session.Fingerprint)
         {
-            Log.Warning("Forged visitor Id {VisitorId}", sanitizedVisitorId);
-            return BadRequest(new { Message = "Forged visitor ID."});
+            _logger.LogWarning("Forged visitor ID. VisitorId: {VisitorId}", sanitizedVisitorId);
+            var problem = new ProblemDetails
+            {
+                Title = "Invalid credentials",
+                Type = "https://datatracker.ietf.org/doc/html/rfc9457#section-3",
+                Status = StatusCodes.Status401Unauthorized,
+                Detail = "The credentials provided are invalid."
+            };
+            return Unauthorized(problem);
         }
-        var user = await _userManager.FindByEmailAsync(userEmail);
-        if (user == null)
-        {
-            _logger.LogWarning("Refresh tokens requested for non-existent user. VisitorId: {VisitorId}", sanitizedVisitorId);
-            return Unauthorized(new { Message = "User is not found." });
-        }
-
+        var user = session.User;
         var newAccessToken = GenerateAccessToken(user);
         var newRefreshToken = GenerateRefreshToken();
         session.RefreshToken = newRefreshToken;
@@ -410,13 +501,13 @@ public class AccountController : ControllerBase
         _db.RefreshSessions.Update(session);
         await _db.SaveChangesAsync();
         _logger.LogInformation("Tokens refreshed successfully. UserId: {UserId}", user.Id);
-        return Ok(new
+        var responseDto = new RefreshTokenResponseDto()
         {
-            access_token = newAccessToken,
-            refresh_token = newRefreshToken
-        });
+            AccessToken = newAccessToken,
+            RefreshToken = newRefreshToken
+        };
+        return Ok(responseDto);
     }
-    
     [NonAction]
     private string GenerateAccessToken(ApplicationUser user)
     {
