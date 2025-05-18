@@ -144,8 +144,8 @@ public class AccountController : ControllerBase
         return Ok(responseDto);
     }
     
-    [HttpPost("forgot-password")]
-    public async Task<IActionResult> ForgotPassword([FromBody] UserRequestDto requestDto)
+    [HttpPost("password/reset/request")]
+    public async Task<IActionResult> RequestPasswordReset([FromBody] UserRequestDto requestDto)
     {
         var user = await _userManager.FindByEmailAsync(requestDto.Email);
         if (user != null)
@@ -161,7 +161,7 @@ public class AccountController : ControllerBase
         return NoContent();
     }
     
-    [HttpGet("update-email")]
+    [HttpGet("email/change/confirm")]
     public async Task<IActionResult> UpdateEmail(string userId, string newEmail, string token, [FromServices] IHubContext<UserHub> hub)
     {
         var sanitizedUserId = _inputSanitizer.Sanitize(userId);
@@ -180,7 +180,7 @@ public class AccountController : ControllerBase
         var user = await _userManager.FindByIdAsync(userId);
         if (user == null)
         {
-            _logger.LogWarning("Email change requested for non-existent user. UserId: {UserId}", sanitizedUserId);
+            _logger.LogWarning("Email change failed. User not found. UserId: {UserId}", sanitizedUserId);
             var problem = new ProblemDetails
             {
                 Title = "User Not Found",
@@ -221,8 +221,8 @@ public class AccountController : ControllerBase
         return NoContent();
     }
     
-    [HttpGet("reset-password")]
-    public async Task<IActionResult> ResetPassword(string userId, string token, [FromServices] IHubContext<UserHub> hub)
+    [HttpGet("password/reset/validate")]
+    public async Task<IActionResult> ValidatePasswordReset(string userId, string token, [FromServices] IHubContext<UserHub> hub)
     {
         var sanitizedUserId = _inputSanitizer.Sanitize(userId);
         if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(token))
@@ -273,7 +273,7 @@ public class AccountController : ControllerBase
         return NoContent();
     }
 
-    [HttpPost("reset-password")]
+    [HttpPost("password/reset")]
     public async Task<IActionResult> ResetPassword([FromBody] PasswordResetRequest passwordResetRequest)
     {
         var user = await _userManager.FindByEmailAsync(passwordResetRequest.Email);
@@ -314,7 +314,7 @@ public class AccountController : ControllerBase
         }
         return NoContent();
     }
-    [HttpGet("confirm-email")]
+    [HttpGet("email/confirm")]
     public async Task<IActionResult> ConfirmEmail(string userId, string token, string visitorId, [FromServices] IHubContext<UserHub> hub)
     {
         var sanitizedUserId = _inputSanitizer.Sanitize(userId);
@@ -395,7 +395,7 @@ public class AccountController : ControllerBase
         return Ok(dto);
     }
 
-    [HttpPost("resend-confirmation-email")]
+    [HttpPost("email/confirmation/resend")]
     public async Task<IActionResult> ResendConfirmationEmail([FromBody] UserRequestDto requestDto)
     {
         var sanitizedVisitorId = _inputSanitizer.Sanitize(requestDto.VisitorId);
@@ -426,7 +426,7 @@ public class AccountController : ControllerBase
         }
         return NoContent();
     }
-    [HttpPut("refresh-tokens")]
+    [HttpPut("tokens/refresh")]
     public async Task<IActionResult> RefreshTokens([FromBody] RefreshTokenRequestDto dto)
     {
         var sanitizedVisitorId = _inputSanitizer.Sanitize(dto.VisitorId);
