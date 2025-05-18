@@ -28,10 +28,14 @@ public class ValidateUserEmailFilter : IAsyncActionFilter
             if (string.IsNullOrEmpty(emailClaim))
             {
                 _logger.LogWarning("Unauthorized access attempt. Email claim missing. Controller: {Controller}, Action: {Action}", controllerName, actionName);
-                context.Result = new JsonResult(new { Message = "The email claim is missing from the token." })
+                context.Result = new ObjectResult(new ProblemDetails
                 {
-                    StatusCode = StatusCodes.Status401Unauthorized
-                };
+                    Status = StatusCodes.Status401Unauthorized,
+                    Title = "Unauthorized",
+                    Type = "https://tools.ietf.org/html/rfc7235#section-3.1",
+                    Detail = "The email claim is missing from the token.",
+                    Instance = $"{context.HttpContext.Request.Method} {context.HttpContext.Request.Path}"
+                });
                 return;
             }
 
@@ -39,26 +43,32 @@ public class ValidateUserEmailFilter : IAsyncActionFilter
             if (user == null)
             {
                 _logger.LogWarning("User not found. Controller: {Controller}, Action: {Action}", controllerName, actionName);
-                context.Result = new JsonResult(new { Message = "The user is not found." })
+                context.Result = new ObjectResult(new ProblemDetails
                 {
-                    StatusCode = StatusCodes.Status404NotFound
-                };
+                    Status = StatusCodes.Status404NotFound,
+                    Title = "User Not Found",
+                    Type = "https://tools.ietf.org/html/rfc7231#section-6.5.4",
+                    Detail = "The user associated with the provided email was not found.",
+                    Instance = $"{context.HttpContext.Request.Method} {context.HttpContext.Request.Path}"
+                });
                 return;
             }
 
             if (!user.EmailConfirmed)
             {
                 _logger.LogWarning("Email not confirmed for user: {UserId}. Controller: {Controller}, Action: {Action}", user.Id, controllerName, actionName);
-                context.Result = new JsonResult(new { Message = "Email not confirmed." })
+                context.Result = new ObjectResult(new ProblemDetails
                 {
-                    StatusCode = StatusCodes.Status403Forbidden
-                };
+                    Status = StatusCodes.Status403Forbidden,
+                    Title = "Email Not Confirmed",
+                    Type = "https://tools.ietf.org/html/rfc7231#section-6.5.3",
+                    Detail = "Email address has not been confirmed.",
+                    Instance = $"{context.HttpContext.Request.Method} {context.HttpContext.Request.Path}"
+                });
                 return;
             }
-
             context.HttpContext.Items[HttpContextItemKeys.UserItemKey] = user;
         }
-
         await next();
     }
 }
