@@ -43,7 +43,7 @@ public class PostsController : ControllerBase
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
-            _logger.LogWarning("Post create attempted with missing or invalid user context. Path: {Path}", Request.Path);
+            _logger.LogWarning("Post create attempted with missing or invalid user context.");
             return Unauthorized(new ProblemDetails
             {
                 Title = "Unauthorized",
@@ -73,7 +73,7 @@ public class PostsController : ControllerBase
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
-            _logger.LogWarning("Post search attempted with missing or invalid user context. Path: {Path}", Request.Path);
+            _logger.LogWarning("Post search attempted with missing or invalid user context.");
             return Unauthorized(new ProblemDetails
             {
                 Title = "Unauthorized",
@@ -143,7 +143,7 @@ public class PostsController : ControllerBase
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
-            _logger.LogWarning("Post read attempted with missing or invalid user context. Path: {Path}", Request.Path);
+            _logger.LogWarning("Post read attempted with missing or invalid user context.");
             return Unauthorized(new ProblemDetails
             {
                 Title = "Unauthorized",
@@ -227,7 +227,7 @@ public class PostsController : ControllerBase
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
-            _logger.LogWarning("Post read attempted with missing or invalid user context. Path: {Path}", Request.Path);
+            _logger.LogWarning("Post read attempted with missing or invalid user context.");
             return Unauthorized(new ProblemDetails
             {
                 Title = "Unauthorized",
@@ -263,7 +263,7 @@ public class PostsController : ControllerBase
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
-            _logger.LogWarning("Post join attempted with missing or invalid user context. Path: {Path}", Request.Path);
+            _logger.LogWarning("Post join attempted with missing or invalid user context");
             return Unauthorized(new ProblemDetails
             {
                 Title = "Unauthorized",
@@ -314,7 +314,7 @@ public class PostsController : ControllerBase
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
-            _logger.LogWarning("Ownership transfer attempted with missing or invalid user context. Path: {Path}", Request.Path);
+            _logger.LogWarning("Ownership transfer attempted with missing or invalid user context");
             var problem = new ProblemDetails
             {
                 Title = "Unauthorized",
@@ -357,7 +357,7 @@ public class PostsController : ControllerBase
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
-            _logger.LogWarning("Post update attempted with missing or invalid user context. Path: {Path}", Request.Path);
+            _logger.LogWarning("Post update attempted with missing or invalid user context");
             var problem = new ProblemDetails
             {
                 Title = "Unauthorized",
@@ -434,7 +434,7 @@ public class PostsController : ControllerBase
 
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
-            _logger.LogWarning("Post leave attempted with missing or invalid user context. Path: {Path}", Request.Path);
+            _logger.LogWarning("Post leave attempted with missing or invalid user context");
             var problem = new ProblemDetails
             {
                 Title = "Unauthorized",
@@ -517,7 +517,7 @@ public class PostsController : ControllerBase
         var sanitizedPostId = _inputSanitizer.Sanitize(id);
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
-            _logger.LogWarning("Post delete attempted with missing or invalid user context. Path: {Path}", Request.Path);
+            _logger.LogWarning("Post delete attempted with missing or invalid user context");
             var problem = new ProblemDetails
             {
                 Title = "Unauthorized",

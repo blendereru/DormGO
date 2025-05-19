@@ -18,7 +18,7 @@ namespace DormGO.Controllers;
 [Authorize]
 [ApiController]
 [ServiceFilter<ValidateUserEmailFilter>]
-[Route("api/chat")]
+[Route("api/chat/{postId}/messages")]
 public class ChatController : ControllerBase
 {
     private readonly ApplicationContext _db;
@@ -37,67 +37,95 @@ public class ChatController : ControllerBase
         _mapper = mapper;
     }
 
-    [HttpGet("{postId}/messages")]
-    public async Task<IActionResult> GetMessagesForPost(string postId)
+    [HttpGet]
+    public async Task<IActionResult> GetMessagesForPost([FromRoute] string postId)
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
-            return Unauthorized(new { Message = "User information is missing." });
+            _logger.LogWarning("Messages retrieve attempted with missing or invalid user context.");
+            return Unauthorized(new ProblemDetails
+            {
+                Title = "Unauthorized",
+                Detail = "User information is missing.",
+                Status = StatusCodes.Status401Unauthorized,
+                Instance = $"{Request.Method} {Request.Path}"
+            });
         }
         if (string.IsNullOrWhiteSpace(postId))
         {
-            _logger.LogWarning("Post id not provided during messages read for post. UserId: {UserId}", user.Id);
-            return BadRequest(new { Message = "The post ID is invalid." });
+            _logger.LogWarning("Post id not provided during messages retrieve for post. UserId: {UserId}", user.Id);
+            ModelState.AddModelError(nameof(postId), "The postId parameter is required");
+            return ValidationProblem(ModelState);
         }
-        var postExists = await _db.Posts.AnyAsync(p => p.Id == postId);
+        var sanitizedPostId = _inputSanitizer.Sanitize(postId);
+        var postExists = await _db.Posts.AsNoTracking().AnyAsync(p => p.Id == sanitizedPostId);
         if (!postExists)
         {
-            var sanitizedPostId = _inputSanitizer.Sanitize(postId);
-            _logger.LogWarning("Messages read for post requested for non-existent post. UserId: {UserId}, PostId: {PostId}", user.Id, sanitizedPostId);
-            return NotFound(new { Message = "The post does not exist." });
+            _logger.LogWarning("Messages retrieve requested for non-existent post. UserId: {UserId}, PostId: {PostId}", user.Id, sanitizedPostId);
+            return NotFound(new ProblemDetails
+            {
+                Title = "Not Found",
+                Detail = "The post does not exist.",
+                Status = StatusCodes.Status404NotFound,
+                Instance = $"{Request.Method} {Request.Path}"
+            });
         }
-        
         var messages = await _db.Messages
             .Where(m => m.PostId == postId)
             .OrderBy(m => m.SentAt)
             .Include(m => m.Sender)
             .ProjectToType<MessageResponseDto>()
             .ToListAsync();
-        _logger.LogInformation("Messages read for post successfully. UserId: {UserId}, MessagesCount: {MessageCount}", user.Id, messages.Count);
+        _logger.LogInformation("Messages retrieved for post successfully. UserId: {UserId}, MessagesCount: {MessageCount}", user.Id, messages.Count);
         return Ok(messages);
     }
 
-    [HttpPost("{postId}/messages")]
-    public async Task<IActionResult> AddMessageToPost(string postId, [FromBody] MessageRequestDto messageDto)
+    [HttpPost]
+    public async Task<IActionResult> AddMessageToPost([FromRoute] string postId, [FromBody] MessageRequestDto messageDto)
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
-            return Unauthorized(new { Message = "User information is missing." });
+            _logger.LogWarning("Message send attempted with missing or invalid user context.");
+            return Unauthorized(new ProblemDetails
+            {
+                Title = "Unauthorized",
+                Detail = "User information is missing.",
+                Status = StatusCodes.Status401Unauthorized,
+                Instance = $"{Request.Method} {Request.Path}"
+            });
         }
         
         if (string.IsNullOrWhiteSpace(postId))
         {
             _logger.LogWarning("Post id not provided during message send for post. UserId: {UserId}", user.Id);
-            return BadRequest(new { Message = "The post ID is invalid." });
+            ModelState.AddModelError(nameof(postId), "The postId parameter is required.");
+            return ValidationProblem(ModelState);
         }
 
         if (string.IsNullOrWhiteSpace(messageDto.Content))
         {
-            _logger.LogWarning("Message content not provided during messages read for post. UserId: {UserId}", user.Id);
-            return BadRequest(new { Message = "Message content cannot be null or empty." });
+            _logger.LogWarning("Message content not provided during message send for post. UserId: {UserId}", user.Id);
+            ModelState.AddModelError(nameof(messageDto.Content), "Message content cannot be null or empty.");
+            return ValidationProblem(ModelState);
         }
+        var sanitizedPostId = _inputSanitizer.Sanitize(postId);
         var post = await _db.Posts
             .Include(p => p.Members)
-            .FirstOrDefaultAsync(p => p.Id == postId);
+            .FirstOrDefaultAsync(p => p.Id == sanitizedPostId);
         if (post == null)
         {
-            var sanitizedPostId = _inputSanitizer.Sanitize(postId);
             _logger.LogWarning("Message send requested for non-existent post. UserId: {UserId}, PostId: {PostId}", user.Id, sanitizedPostId);
-            return NotFound(new { Message = "The post does not exist." });
+            return NotFound(new ProblemDetails
+            {
+                Title = "Not Found",
+                Detail = "The post does not exist.",
+                Status = StatusCodes.Status404NotFound,
+                Instance = $"{Request.Method} {Request.Path}"
+            });
         }
         var message = _mapper.Map<Message>(messageDto);
         message.SenderId = user.Id;
-        message.PostId = postId;
+        message.PostId = sanitizedPostId;
         _db.Messages.Add(message);
         await _db.SaveChangesAsync();
         _logger.LogInformation("Message sent successfully. UserId: {UserId}, PostId: {PostId}, MessageId: {MessageId}", user.Id, post.Id, message.Id);
@@ -110,28 +138,104 @@ public class ChatController : ControllerBase
         _logger.LogInformation(
             "Message on successful message delivery sent to users on hub. UserId: {UserId}, MessageId: {MessageId}, ExcludedConnectionIdCount: {ExcludedConnectionIdCount}",
             user.Id, message.Id, excludedConnectionIds.Count);
-        return Ok(responseDto);
+        return CreatedAtAction("GetMessageById", new { postId = message.PostId, messageId = message.Id }, responseDto);
     }
 
-    [HttpPut("{postId}/messages/{messageId}")]
-    public async Task<IActionResult> UpdateMessage(string postId, string messageId, [FromBody] MessageRequestDto messageRequestDto)
+    [HttpGet("{messageId}")]
+    public async Task<IActionResult> GetMessageById([FromRoute] string postId, [FromRoute] string messageId)
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
-            return Unauthorized(new { Message = "User information is missing." });
+            _logger.LogWarning("Message retrieve attempted with missing or invalid user context.");
+            return Unauthorized(new ProblemDetails
+            {
+                Title = "Unauthorized",
+                Detail = "User information is missing.",
+                Status = StatusCodes.Status401Unauthorized,
+                Instance = $"{Request.Method} {Request.Path}"
+            });
         }
-        var message = await _db.Messages.FirstOrDefaultAsync(m => m.Id == messageId && m.PostId == postId);
+        if (string.IsNullOrWhiteSpace(postId))
+        {
+            _logger.LogWarning("Post id not provided during message retrieve. UserId: {UserId}", user.Id);
+            ModelState.AddModelError(nameof(postId), "The postId parameter is required.");
+            return ValidationProblem(ModelState);
+        }
+        if (string.IsNullOrWhiteSpace(messageId))
+        {
+            _logger.LogWarning("Message id not provided during message retrieve. UserId: {UserId}", user.Id);
+            ModelState.AddModelError(nameof(messageId), "The messageId parameter is required.");
+            return ValidationProblem(ModelState);
+        }
+        var sanitizedPostId = _inputSanitizer.Sanitize(postId);
         var sanitizedMessageId = _inputSanitizer.Sanitize(messageId);
+        var message = await _db.Messages.FirstOrDefaultAsync(m =>
+            m.Id == sanitizedMessageId &&
+            m.PostId == sanitizedPostId &&
+            m.SenderId == user.Id);
         if (message == null)
         {
-            _logger.LogWarning("Message update requested for non-existent message. UserId: {UserId}, MessageId: {MessageId}", user.Id, sanitizedMessageId);
-            return NotFound(new { Message = "Message not found." });
+            _logger.LogWarning("Message retrieve requested for non-existent or unauthorized message. UserId: {UserId}, MessageId: {MessageId}", user.Id, sanitizedMessageId);
+            return NotFound(new ProblemDetails
+            {
+                Title = "Not Found",
+                Detail = "Message not found.",
+                Status = StatusCodes.Status404NotFound,
+                Instance = $"{Request.Method} {Request.Path}"
+            });
         }
-
-        if (message.SenderId != user.Id)
+        var responseDto = message.Adapt<MessageResponseDto>();
+        _logger.LogInformation("Message retrieved successfully. UserId: {UserId}, MessageId: {MessageId}", user.Id, message.Id);
+        return Ok(responseDto);
+    }
+    [HttpPut("{messageId}")]
+    public async Task<IActionResult> UpdateMessage([FromRoute] string postId, [FromRoute] string messageId, [FromBody] MessageRequestDto messageRequestDto)
+    {
+        if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
-            _logger.LogWarning("Message update requested by user who is not sender of message. UserId: {UserId}, MessageId: {MessageId}", user.Id, message.Id);
-            return Forbid();
+            _logger.LogWarning("Message update attempted with missing or invalid user context.");
+            return Unauthorized(new ProblemDetails
+            {
+                Title = "Unauthorized",
+                Detail = "User information is missing.",
+                Status = StatusCodes.Status401Unauthorized,
+                Instance = $"{Request.Method} {Request.Path}"
+            });
+        }
+        if (string.IsNullOrWhiteSpace(postId))
+        {
+            _logger.LogWarning("Post id not provided during message update. UserId: {UserId}", user.Id);
+            ModelState.AddModelError(nameof(postId), "The postId parameter is required.");
+            return ValidationProblem(ModelState);
+        }
+        if (string.IsNullOrWhiteSpace(messageId))
+        {
+            _logger.LogWarning("Message id not provided during message update. UserId: {UserId}", user.Id);
+            ModelState.AddModelError(nameof(messageId), "The messageId parameter is required.");
+            return ValidationProblem(ModelState);
+        }
+        if (string.IsNullOrWhiteSpace(messageRequestDto.Content))
+        {
+            _logger.LogWarning("Message content not provided during message update. UserId: {UserId}", user.Id);
+            ModelState.AddModelError(nameof(messageRequestDto.Content), "Message content cannot be null or empty.");
+            return ValidationProblem(ModelState);
+        }
+        var sanitizedPostId = _inputSanitizer.Sanitize(postId);
+        var sanitizedMessageId = _inputSanitizer.Sanitize(messageId);
+        var message = await _db.Messages.FirstOrDefaultAsync(m =>
+            m.Id == sanitizedMessageId &&
+            m.PostId == sanitizedPostId &&
+            m.SenderId == user.Id);
+        if (message == null)
+        {
+            _logger.LogWarning("Message update requested for non-existent or unauthorized message. UserId: {UserId}, MessageId: {MessageId}", user.Id, sanitizedMessageId);
+            return NotFound(new ProblemDetails
+            {
+                Title = "Not Found",
+                Detail = "Message not found.",
+                Status = StatusCodes.Status404NotFound,
+                Instance = $"{Request.Method} {Request.Path}"
+            });
         }
         message.UpdatedAt = DateTime.UtcNow;
         message.Content = messageRequestDto.Content;
@@ -147,26 +251,50 @@ public class ChatController : ControllerBase
         _logger.LogInformation(
             "Message on successful message update sent to users on hub. UserId: {UserId}, MessageId: {MessageId}, ExcludedConnectionIdCount: {ExcludedConnectionIdCount}",
             user.Id, message.Id, excludedConnectionIds.Count);
-        return Ok(new { Message = "The message was successfully updated." });
+        return NoContent();
     }
-    [HttpDelete("{postId}/messages/{messageId}")]
-    public async Task<IActionResult> DeleteMessage(string postId, string messageId)
+    [HttpDelete("{messageId}")]
+    public async Task<IActionResult> DeleteMessage([FromRoute] string postId, [FromRoute] string messageId)
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
-            return Unauthorized(new { Message = "User information is missing." });
+            _logger.LogWarning("Message delete attempted with missing or invalid user context.");
+            return Unauthorized(new ProblemDetails
+            {
+                Title = "Unauthorized",
+                Detail = "User information is missing.",
+                Status = StatusCodes.Status401Unauthorized,
+                Instance = $"{Request.Method} {Request.Path}"
+            });
         }
-        var message = await _db.Messages.FirstOrDefaultAsync(m => m.Id == messageId && m.PostId == postId);
+        if (string.IsNullOrWhiteSpace(postId))
+        {
+            _logger.LogWarning("Post id not provided during message delete. UserId: {UserId}", user.Id);
+            ModelState.AddModelError(nameof(postId), "The postId parameter is required.");
+            return ValidationProblem(ModelState);
+        }
+        if (string.IsNullOrWhiteSpace(messageId))
+        {
+            _logger.LogWarning("Message id not provided during message delete. UserId: {UserId}", user.Id);
+            ModelState.AddModelError(nameof(messageId), "The messageId parameter is required.");
+            return ValidationProblem(ModelState);
+        }
+        var sanitizedPostId = _inputSanitizer.Sanitize(postId);
         var sanitizedMessageId = _inputSanitizer.Sanitize(messageId);
+        var message = await _db.Messages.FirstOrDefaultAsync(m =>
+            m.Id == sanitizedMessageId &&
+            m.PostId == sanitizedPostId &&
+            m.SenderId == user.Id);
         if (message == null)
         {
-            _logger.LogWarning("Message remove requested for non-existent message. UserId: {UserId}, MessageId: {MessageId}", user.Id, sanitizedMessageId);
-            return NotFound(new { Message = "Message not found." });
-        }
-        if (message.SenderId != user.Id)
-        {
-            _logger.LogWarning("Message remove requested by user who is not the sender of message. UserId: {UserId}, MessageId: {MessageId}", user.Id, message.Id);
-            return Forbid();
+            _logger.LogWarning("Message delete requested for non-existent or unauthorized message. UserId: {UserId}, MessageId: {MessageId}", user.Id, sanitizedMessageId);
+            return NotFound(new ProblemDetails
+            {
+                Title = "Not Found",
+                Detail = "Message not found.",
+                Status = StatusCodes.Status404NotFound,
+                Instance = $"{Request.Method} {Request.Path}"
+            });
         }
         _db.Messages.Remove(message);
         await _db.SaveChangesAsync();
@@ -179,6 +307,6 @@ public class ChatController : ControllerBase
         _logger.LogInformation(
             "Message on successful message deletion sent to users on hub. UserId: {UserId}, MessageId: {MessageId}, ExcludedConnectionIdCount: {ExcludedConnectionIdCount}",
             user.Id, message.Id, excludedConnectionIds.Count);
-        return Ok(new { Message = "The message was successfully removed" });
+        return NoContent();
     }
 }
