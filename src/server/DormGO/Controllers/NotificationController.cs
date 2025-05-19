@@ -54,7 +54,7 @@ public class NotificationController : ControllerBase
     }
 
     [HttpPatch("{id}")]
-    public async Task<IActionResult> MarkAsRead([FromRoute] string id, [FromBody] NotificationUpdateRequestDto updateRequest)
+    public async Task<IActionResult> MarkAsRead(string id, NotificationUpdateRequestDto updateRequest)
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {

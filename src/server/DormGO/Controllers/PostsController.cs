@@ -39,7 +39,7 @@ public class PostsController : ControllerBase
         _mapper = mapper;
     }
     [HttpPost]
-    public async Task<IActionResult> CreatePost([FromBody] PostRequestDto postDto)
+    public async Task<IActionResult> CreatePost(PostRequestDto postDto)
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
@@ -69,7 +69,7 @@ public class PostsController : ControllerBase
     }
 
     [HttpGet("search")]
-    public async Task<IActionResult> SearchPosts([FromQuery] PostSearchRequestDto postSearchRequest)
+    public async Task<IActionResult> SearchPosts(PostSearchRequestDto postSearchRequest)
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
@@ -139,7 +139,7 @@ public class PostsController : ControllerBase
         return Ok(posts);
     }
     [HttpGet]
-    public async Task<IActionResult> ReadPosts([FromQuery] string? membership = null)
+    public async Task<IActionResult> ReadPosts(string? membership = null)
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
@@ -310,7 +310,7 @@ public class PostsController : ControllerBase
     }
 
     [HttpPut("{id}/ownership")]
-    public async Task<IActionResult> TransferPostOwnership(string id, [FromBody] UserRequestDto userDto)
+    public async Task<IActionResult> TransferPostOwnership(string id, UserRequestDto userDto)
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
@@ -353,7 +353,7 @@ public class PostsController : ControllerBase
         return NoContent();
     }
     [HttpPut("{id}")]
-    public async Task<IActionResult> UpdatePost(string id, [FromBody] PostRequestDto postDto)
+    public async Task<IActionResult> UpdatePost(string id, PostRequestDto postDto)
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {

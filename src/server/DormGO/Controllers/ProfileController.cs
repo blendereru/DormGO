@@ -45,8 +45,8 @@ public class ProfileController : ControllerBase
         _logger.LogInformation("Profile read successfully. UserId: {UserId}", user.Id);
         return Ok(responseDto);
     }
-
-    public async Task<IActionResult> PatchMe([FromBody] UserUpdateRequestDto updateRequest)
+    [HttpPatch("me")]
+    public async Task<IActionResult> PatchMe(UserUpdateRequestDto updateRequest)
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
@@ -102,8 +102,6 @@ public class ProfileController : ControllerBase
             anyChange = true;
             _logger.LogInformation("Email confirmation initiated for UserId: {UserId}", user.Id);
         }
-
-        // Password update
         if (!string.IsNullOrWhiteSpace(updateRequest.NewPassword) || !string.IsNullOrWhiteSpace(updateRequest.ConfirmNewPassword))
         {
             var validationFailed = false;
@@ -172,7 +170,7 @@ public class ProfileController : ControllerBase
         return NoContent();
     }
     [HttpGet("{email}")]
-    public async Task<IActionResult> GetUserProfile([FromRoute] string email)
+    public async Task<IActionResult> GetUserProfile(string email)
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {

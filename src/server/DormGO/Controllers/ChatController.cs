@@ -38,7 +38,7 @@ public class ChatController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetMessagesForPost([FromRoute] string postId)
+    public async Task<IActionResult> GetMessagesForPost(string postId)
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
@@ -81,7 +81,7 @@ public class ChatController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> AddMessageToPost([FromRoute] string postId, [FromBody] MessageRequestDto messageDto)
+    public async Task<IActionResult> AddMessageToPost(string postId, MessageRequestDto messageDto)
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
@@ -142,7 +142,7 @@ public class ChatController : ControllerBase
     }
 
     [HttpGet("{messageId}")]
-    public async Task<IActionResult> GetMessageById([FromRoute] string postId, [FromRoute] string messageId)
+    public async Task<IActionResult> GetMessageById(string postId, string messageId)
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
@@ -189,7 +189,7 @@ public class ChatController : ControllerBase
         return Ok(responseDto);
     }
     [HttpPut("{messageId}")]
-    public async Task<IActionResult> UpdateMessage([FromRoute] string postId, [FromRoute] string messageId, [FromBody] MessageRequestDto messageRequestDto)
+    public async Task<IActionResult> UpdateMessage(string postId, string messageId, MessageRequestDto messageRequestDto)
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
@@ -254,7 +254,7 @@ public class ChatController : ControllerBase
         return NoContent();
     }
     [HttpDelete("{messageId}")]
-    public async Task<IActionResult> DeleteMessage([FromRoute] string postId, [FromRoute] string messageId)
+    public async Task<IActionResult> DeleteMessage(string postId, string messageId)
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {

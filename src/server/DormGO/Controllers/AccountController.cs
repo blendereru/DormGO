@@ -41,7 +41,7 @@ public class AccountController : ControllerBase
     }
 
     [HttpPost("signup")]
-    public async Task<IActionResult> Register([FromBody] UserRequestDto dto)
+    public async Task<IActionResult> Register(UserRequestDto dto)
     {
         if (string.IsNullOrEmpty(dto.Password))
         {
@@ -78,7 +78,7 @@ public class AccountController : ControllerBase
     }
 
     [HttpPost("signin")]
-    public async Task<IActionResult> Login([FromBody] UserRequestDto dto)
+    public async Task<IActionResult> Login(UserRequestDto dto)
     {
         var sanitizedVisitorId = _inputSanitizer.Sanitize(dto.VisitorId);
         if (string.IsNullOrEmpty(dto.Password))
@@ -145,7 +145,7 @@ public class AccountController : ControllerBase
     }
     
     [HttpPost("password/reset/request")]
-    public async Task<IActionResult> RequestPasswordReset([FromBody] UserRequestDto requestDto)
+    public async Task<IActionResult> RequestPasswordReset(UserRequestDto requestDto)
     {
         var user = await _userManager.FindByEmailAsync(requestDto.Email);
         if (user != null)
@@ -274,7 +274,7 @@ public class AccountController : ControllerBase
     }
 
     [HttpPost("password/reset")]
-    public async Task<IActionResult> ResetPassword([FromBody] PasswordResetRequest passwordResetRequest)
+    public async Task<IActionResult> ResetPassword(PasswordResetRequest passwordResetRequest)
     {
         var user = await _userManager.FindByEmailAsync(passwordResetRequest.Email);
         if (user != null)
@@ -298,7 +298,7 @@ public class AccountController : ControllerBase
         return NoContent();
     }
     [HttpDelete("signout")]
-    public async Task<IActionResult> Logout([FromBody] RefreshTokenRequestDto dto)
+    public async Task<IActionResult> Logout(RefreshTokenRequestDto dto)
     {
         var session = await _db.RefreshSessions.FirstOrDefaultAsync(x => x.RefreshToken == dto.RefreshToken);
         var sanitizedVisitorId = _inputSanitizer.Sanitize(dto.VisitorId);
@@ -396,7 +396,7 @@ public class AccountController : ControllerBase
     }
 
     [HttpPost("email/confirmation/resend")]
-    public async Task<IActionResult> ResendConfirmationEmail([FromBody] UserRequestDto requestDto)
+    public async Task<IActionResult> ResendConfirmationEmail(UserRequestDto requestDto)
     {
         var sanitizedVisitorId = _inputSanitizer.Sanitize(requestDto.VisitorId);
         var user = await _userManager.FindByEmailAsync(requestDto.Email);
@@ -427,7 +427,7 @@ public class AccountController : ControllerBase
         return NoContent();
     }
     [HttpPut("tokens/refresh")]
-    public async Task<IActionResult> RefreshTokens([FromBody] RefreshTokenRequestDto dto)
+    public async Task<IActionResult> RefreshTokens(RefreshTokenRequestDto dto)
     {
         var sanitizedVisitorId = _inputSanitizer.Sanitize(dto.VisitorId);
         if (string.IsNullOrEmpty(dto.AccessToken))
