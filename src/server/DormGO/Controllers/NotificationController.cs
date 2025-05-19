@@ -14,7 +14,7 @@ namespace DormGO.Controllers;
 [Authorize]
 [ApiController]
 [ServiceFilter<ValidateUserEmailFilter>]
-[Route("/api/notifications/")]
+[Route("/api/notifications")]
 public class NotificationController : ControllerBase
 {
     private readonly ApplicationContext _db;
@@ -34,43 +34,61 @@ public class NotificationController : ControllerBase
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
-            return Unauthorized(new { Message = "User information is missing." });
+            _logger.LogWarning("Notifications read attempted with missing or invalid user context.");
+            return Unauthorized(new ProblemDetails
+            {
+                Title = "Unauthorized",
+                Detail = "User information is missing.",
+                Status = StatusCodes.Status401Unauthorized,
+                Instance = $"{Request.Method} {Request.Path}"
+            });
         }
         var notifications = await _db.Notifications
             .Where(n => n.UserId == user.Id)
             .OrderByDescending(n => n.CreatedAt)
             .ToListAsync();
 
-        if (notifications.Count <= 0)
-        {
-            _logger.LogInformation("No notifications found for user {UserId}", user.Id);
-            return Ok(new List<NotificationResponseDto>());
-        }
-        var notificationDtos = notifications.Adapt<List<NotificationResponseDto>>();
-        _logger.LogInformation("Notification retrieved successfully. UserId: {UserId}, NotificationsCount: {NotificationCount}", user.Id, notificationDtos.Count);
-        return Ok(notificationDtos);
+        var responseDto = notifications.Adapt<List<NotificationResponseDto>>();
+        _logger.LogInformation("Notifications retrieved successfully. UserId: {UserId}, NotificationsCount: {NotificationCount}", user.Id, responseDto.Count);
+        return Ok(responseDto);
     }
 
-    [HttpPut("{id}/mark-as-read")]
-    public async Task<IActionResult> MarkAsRead(string id)
+    [HttpPatch("{id}")]
+    public async Task<IActionResult> MarkAsRead([FromRoute] string id, [FromBody] NotificationUpdateRequestDto updateRequest)
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
-            return Unauthorized(new { Message = "User information is missing." });
+            _logger.LogWarning("Notification marking attempted with missing or invalid user context.");
+            return Unauthorized(new ProblemDetails
+            {
+                Title = "Unauthorized",
+                Detail = "User information is missing.",
+                Status = StatusCodes.Status401Unauthorized,
+                Instance = $"{Request.Method} {Request.Path}"
+            });
         }
+        var sanitizedNotificationId = _inputSanitizer.Sanitize(id);
         var notification = await _db.Notifications
-            .FirstOrDefaultAsync(n => n.Id == id && n.UserId == user.Id);
-
+            .FirstOrDefaultAsync(n => n.Id == sanitizedNotificationId && n.UserId == user.Id);
         if (notification == null)
         {
-            var sanitizedNotificationId = _inputSanitizer.Sanitize(id);
-            _logger.LogWarning("Notification marking requested for non-existent notification. UserId: {UserId}, NotificationId: {NotificationId}", user.Id, sanitizedNotificationId);
-            return NotFound(new { Message = "Notification not found." });
+            _logger.LogWarning("Notification update requested for non-existent notification. UserId: {UserId}, NotificationId: {NotificationId}", user.Id, sanitizedNotificationId);
+            return NotFound(new ProblemDetails
+            {
+                Title = "Not Found",
+                Detail = "Notification not found.",
+                Status = StatusCodes.Status404NotFound,
+                Instance = $"{Request.Method} {Request.Path}"
+            });
         }
-        notification.IsRead = true;
+        if (updateRequest.IsRead.HasValue)
+        {
+            _logger.LogInformation("Marking the notification as read. UserId: {UserId}, NotificationId: {NotificationId}", user.Id, notification.Id);
+            notification.IsRead = updateRequest.IsRead.Value;
+        }
         await _db.SaveChangesAsync();
-        _logger.LogInformation("Notification {NotificationId} marked as read for user {UserId}.", notification.Id, user.Id);
-        return Ok(new { Message = "The notification was marked as read." });
+        _logger.LogInformation("Notification {NotificationId} updated for user {UserId}.", notification.Id, user.Id);
+        return NoContent();
     }
 
     [HttpDelete("{id}")]
@@ -78,20 +96,32 @@ public class NotificationController : ControllerBase
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
-            return Unauthorized(new { Message = "User information is missing." });
+            _logger.LogWarning("Notification deletion attempted with missing or invalid user context.");
+            return Unauthorized(new ProblemDetails
+            {
+                Title = "Unauthorized",
+                Detail = "User information is missing.",
+                Status = StatusCodes.Status401Unauthorized,
+                Instance = $"{Request.Method} {Request.Path}"
+            });
         }
-        
+        var sanitizedNotificationId = _inputSanitizer.Sanitize(id);
         var notification = await _db.Notifications
-            .FirstOrDefaultAsync(n => n.Id == id && n.UserId == user.Id);
+            .FirstOrDefaultAsync(n => n.Id == sanitizedNotificationId && n.UserId == user.Id);
         if (notification == null)
         {
-            var sanitizedNotificationId = _inputSanitizer.Sanitize(id);
-            _logger.LogWarning("Notification remove requested for non-existent notification. UserId: {UserId}, NotificationId: {NotificationId}", user.Id, sanitizedNotificationId);
-            return NotFound(new { Message = "Notification not found." });
+            _logger.LogWarning("Notification deletion requested for non-existent notification. UserId: {UserId}, NotificationId: {NotificationId}", user.Id, sanitizedNotificationId);
+            return NotFound(new ProblemDetails
+            {
+                Title = "Not Found",
+                Detail = "Notification not found.",
+                Status = StatusCodes.Status404NotFound,
+                Instance = $"{Request.Method} {Request.Path}"
+            });
         }
         _db.Notifications.Remove(notification);
         await _db.SaveChangesAsync();
-        _logger.LogInformation("Notification {NotificationId} removed. UserId: {UserId}", notification.Id, user.Id);
-        return Ok(new { Message = "The notification was successfully deleted" });
+        _logger.LogInformation("Notification {NotificationId} deleted. UserId: {UserId}", notification.Id, user.Id);
+        return NoContent();
     }
 }

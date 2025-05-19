@@ -46,12 +46,11 @@ public class ProfileController : ControllerBase
         return Ok(responseDto);
     }
 
-    [HttpPut("me/username")]
-    public async Task<IActionResult> UpdateUsername([FromBody] UsernameUpdateRequestDto updateRequest)
+    public async Task<IActionResult> PatchMe([FromBody] UserUpdateRequestDto updateRequest)
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
-            _logger.LogWarning("Username update attempted with missing or invalid user context.");
+            _logger.LogWarning("User update attempted with missing or invalid user context.");
             return Unauthorized(new ProblemDetails
             {
                 Title = "Unauthorized",
@@ -60,85 +59,116 @@ public class ProfileController : ControllerBase
                 Instance = $"{Request.Method} {Request.Path}"
             });
         }
-        var result = await _userManager.SetUserNameAsync(user, updateRequest.UserName);
-        if (!result.Succeeded)
+        IdentityResult? result;
+        var anyChange = false;
+        if (!string.IsNullOrWhiteSpace(updateRequest.UserName))
         {
-            foreach (var error in result.Errors)
+            result = await _userManager.SetUserNameAsync(user, updateRequest.UserName);
+            if (!result.Succeeded)
             {
-                ModelState.AddModelError(error.Code, error.Description);
+                foreach (var error in result.Errors)
+                {
+                    ModelState.AddModelError(error.Code, error.Description);
+                }
+                _logger.LogWarning("Username update failed for UserId: {UserId}, Errors: {Errors}", user.Id, result.Errors.Select(e => e.Description));
             }
-            _logger.LogWarning("Username update failed. UserId: {UserId}, Errors: {Errors}", user.Id, result.Errors.Select(e => e.Description));
+            else
+            {
+                anyChange = true;
+                _logger.LogInformation("Username updated for UserId: {UserId}", user.Id);
+            }
+        }
+        if (!string.IsNullOrWhiteSpace(updateRequest.NewEmail))
+        {
+            if (_emailSender is not EmailSender emailSender)
+            {
+                _logger.LogError("Email sending service is not available for UserId: {UserId}", user.Id);
+                return StatusCode(StatusCodes.Status500InternalServerError, new ProblemDetails
+                {
+                    Title = "Internal Server Error",
+                    Detail = "Email sending service is not available.",
+                    Status = StatusCodes.Status500InternalServerError,
+                    Instance = $"{Request.Method} {Request.Path}"
+                });
+            }
+            var token = await _userManager.GenerateChangeEmailTokenAsync(user, updateRequest.NewEmail);
+            var changeLink = Url.Action("UpdateEmail", "Account", new
+            {
+                userId = user.Id,
+                newEmail = updateRequest.NewEmail,
+                token
+            }, Request.Scheme);
+            await emailSender.SendEmailChangeLinkAsync(user, updateRequest.NewEmail, changeLink!);
+            anyChange = true;
+            _logger.LogInformation("Email confirmation initiated for UserId: {UserId}", user.Id);
+        }
+
+        // Password update
+        if (!string.IsNullOrWhiteSpace(updateRequest.NewPassword) || !string.IsNullOrWhiteSpace(updateRequest.ConfirmNewPassword))
+        {
+            var validationFailed = false;
+
+            if (string.IsNullOrWhiteSpace(updateRequest.CurrentPassword))
+            {
+                ModelState.AddModelError(nameof(updateRequest.CurrentPassword), "Current password is required.");
+                validationFailed = true;
+                _logger.LogWarning("Password update failed: missing current password for UserId: {UserId}", user.Id);
+            }
+            if (string.IsNullOrWhiteSpace(updateRequest.NewPassword))
+            {
+                ModelState.AddModelError(nameof(updateRequest.NewPassword), "New password is required.");
+                validationFailed = true;
+                _logger.LogWarning("Password update failed: missing new password for UserId: {UserId}", user.Id);
+            }
+            if (string.IsNullOrWhiteSpace(updateRequest.ConfirmNewPassword))
+            {
+                ModelState.AddModelError(nameof(updateRequest.ConfirmNewPassword), "Please confirm your new password.");
+                validationFailed = true;
+                _logger.LogWarning("Password update failed: missing confirm new password for UserId: {UserId}", user.Id);
+            }
+            if (!validationFailed && updateRequest.NewPassword != updateRequest.ConfirmNewPassword)
+            {
+                ModelState.AddModelError(nameof(updateRequest.ConfirmNewPassword), "New passwords do not match.");
+                validationFailed = true;
+                _logger.LogWarning("Password update failed: new passwords do not match for UserId: {UserId}", user.Id);
+            }
+
+            if (!validationFailed && ModelState.ErrorCount == 0)
+            {
+                result = await _userManager.ChangePasswordAsync(user, updateRequest.CurrentPassword!, updateRequest.NewPassword!);
+                if (!result.Succeeded)
+                {
+                    foreach (var error in result.Errors)
+                    {
+                        ModelState.AddModelError(error.Code, error.Description);
+                    }
+                    _logger.LogWarning("Password change failed for UserId: {UserId}, Errors: {Errors}", user.Id, result.Errors.Select(e => e.Description));
+                }
+                else
+                {
+                    anyChange = true;
+                    _logger.LogInformation("Password changed for UserId: {UserId}", user.Id);
+                }
+            }
+        }
+
+        if (!ModelState.IsValid)
+        {
+            _logger.LogWarning("User update validation failed for UserId: {UserId}. Errors: {Errors}", user.Id, string.Join("; ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage)));
             return ValidationProblem(ModelState);
         }
-        _logger.LogInformation("Username updated successfully. UserId: {UserId}", user.Id);
-        return NoContent();
-    }
-    [HttpPut("me/email")]
-    public async Task<IActionResult> UpdateEmail([FromBody] EmailUpdateRequestDto updateRequest)
-    {
-        if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
+
+        if (!anyChange)
         {
-            _logger.LogWarning("Email update attempted with missing or invalid user context.");
-            return Unauthorized(new ProblemDetails
+            _logger.LogWarning("User update performed with no valid fields for UserId: {UserId}", user.Id);
+            return BadRequest(new ProblemDetails
             {
-                Title = "Unauthorized",
-                Detail = "User information is missing.",
-                Status = StatusCodes.Status401Unauthorized,
+                Title = "No Update Performed",
+                Detail = "No valid fields were provided for update.",
+                Status = StatusCodes.Status400BadRequest,
                 Instance = $"{Request.Method} {Request.Path}"
             });
         }
-        if (_emailSender is not EmailSender emailSender)
-        {
-            _logger.LogWarning("EmailSender type doesn't match.");
-            return StatusCode(StatusCodes.Status500InternalServerError, new ProblemDetails
-            {
-                Title = "Internal Server Error",
-                Detail = "Email sending service is not available.",
-                Status = StatusCodes.Status500InternalServerError,
-                Instance = $"{Request.Method} {Request.Path}"
-            });
-        }
-        var token = await _userManager.GenerateChangeEmailTokenAsync(user, updateRequest.NewEmail);
-        var changeLink = Url.Action("UpdateEmail", "Account", new
-        {
-            userId = user.Id,
-            newEmail = updateRequest.NewEmail,
-            token
-        }, Request.Scheme);
-        await emailSender.SendEmailChangeLinkAsync(user, updateRequest.NewEmail, changeLink!);
-        return Ok(new { Message = "Please confirm the link sent to new email" });
-    }
-
-    [HttpPost("password/check")]
-    public async Task<IActionResult> CheckCurrentPassword([FromBody] CurrentPasswordCheckRequestDto passwordCheckRequestDto)
-    {
-        if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
-        {
-            _logger.LogWarning("Password check attempted with missing or invalid user context.");
-            return Unauthorized(new ProblemDetails
-            {
-                Title = "Unauthorized",
-                Detail = "User information is missing.",
-                Status = StatusCodes.Status401Unauthorized,
-                Instance = $"{Request.Method} {Request.Path}"
-            });
-        }
-
-        var isPasswordValid = await _userManager.CheckPasswordAsync(user, passwordCheckRequestDto.CurrentPassword);
-        if (!isPasswordValid)
-        {
-            _logger.LogWarning("Password is incorrect for UserId {UserId}", user.Id);
-            ModelState.AddModelError(nameof(passwordCheckRequestDto.CurrentPassword), "The password is incorrect");
-            return ValidationProblem(ModelState);
-        }
-
-        var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-        var resetLink = Url.Action("ResetPassword", "Account", new
-        {
-            userId = user.Id,
-            token
-        }, Request.Scheme);
-        await _emailSender.SendPasswordResetLinkAsync(user, user.Email!, resetLink!);
         return NoContent();
     }
     [HttpGet("{email}")]
