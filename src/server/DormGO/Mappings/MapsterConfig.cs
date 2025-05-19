@@ -49,5 +49,10 @@ public static class MapsterConfig
             .Map(dest => dest.Post, src => src.Post.Adapt<PostResponseDto>())
             .Map(dest => dest.IsRead, src => src.IsRead)
             .Map(dest => dest.User, src => src.User.Adapt<UserResponseDto>());
+        TypeAdapterConfig<ApplicationUser, ProfileResponseDto>.NewConfig()
+            .Map(dest => dest.UserId, src => src.Id)
+            .Map(dest => dest.Email, src => src.Email)
+            .Map(dest => dest.Username, src => src.UserName)
+            .Map(dest => dest.RegisteredAt, src => src.RegistrationDate);
     }
 }
