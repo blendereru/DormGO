@@ -31,7 +31,8 @@ public static class MapsterConfig
             .Map(dest => dest.Longitude, src => src.Longitude)
             .Map(dest => dest.MaxPeople, src => src.MaxPeople)
             .Map(dest => dest.Creator, src => src.Creator.Adapt<UserResponseDto>())
-            .Map(dest => dest.Members, src => src.Members.Adapt<List<UserResponseDto>>());
+            .Map(dest => dest.Members, src => src.Members.Adapt<List<UserResponseDto>>())
+            .Map(dest => dest.UpdatedAt, src => src.UpdatedAt);
         TypeAdapterConfig<MessageRequestDto, Message>.NewConfig()
             .Map(dest => dest.Content, src => src.Content);
         TypeAdapterConfig<Message, MessageResponseDto>.NewConfig()
@@ -39,7 +40,8 @@ public static class MapsterConfig
             .Map(dest => dest.Content, src => src.Content)
             .Map(dest => dest.SentAt, src => src.SentAt)
             .Map(dest => dest.Sender, src => src.Sender.Adapt<UserResponseDto>())
-            .Map(dest => dest.UpdatedAt, src => src.UpdatedAt);
+            .Map(dest => dest.UpdatedAt, src => src.UpdatedAt)
+            .Map(dest => dest.Post, src => src.Post.Adapt<PostResponseDto>());
         TypeAdapterConfig<NotificationRequestDto, PostNotification>.NewConfig()
             .Map(dest => dest.Message, src => src.Message);
         TypeAdapterConfig<PostNotification, NotificationResponseDto>.NewConfig()

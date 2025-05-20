@@ -3,14 +3,13 @@ using DormGO.Data;
 using DormGO.DTOs.RequestDTO;
 using DormGO.DTOs.ResponseDTO;
 using DormGO.Filters;
-using DormGO.Hubs;
 using DormGO.Models;
 using DormGO.Services;
+using DormGO.Services.Notifications;
 using Mapster;
 using MapsterMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace DormGO.Controllers;
@@ -21,19 +20,17 @@ namespace DormGO.Controllers;
 public class PostsController : ControllerBase
 {
     private readonly ApplicationContext _db;
-    private readonly IHubContext<PostHub> _hub;
-    private readonly INotificationService _notificationService;
+    private readonly IPostNotificationService _postNotificationService;
     private readonly ILogger<PostsController> _logger;
     private readonly IInputSanitizer _inputSanitizer;
     private readonly IMapper _mapper;
 
     public PostsController(ApplicationContext db,
-        INotificationService notificationService, IHubContext<PostHub> hub, ILogger<PostsController> logger,
+        IPostNotificationService postNotificationService, ILogger<PostsController> logger,
         IInputSanitizer inputSanitizer, IMapper mapper)
     {
         _db = db;
-        _hub = hub;
-        _notificationService = notificationService;
+        _postNotificationService = postNotificationService;
         _logger = logger;
         _inputSanitizer = inputSanitizer;
         _mapper = mapper;
@@ -52,19 +49,13 @@ public class PostsController : ControllerBase
                 Instance = $"{Request.Method} {Request.Path}"
             });
         }
-        var connectionIds = await _db.UserConnections
-            .Where(c => c.UserId == user.Id && c.Hub == "/api/posthub")
-            .Select(uc => uc.ConnectionId)
-            .ToListAsync();
         var post = _mapper.Map<Post>(postDto);
         post.Creator = user;
         _db.Posts.Add(post);
         await _db.SaveChangesAsync();
         _logger.LogInformation("Post successfully created by {UserId}. PostId: {PostId}", user.Id, post.Id);
         var postDtoMapped = post.Adapt<PostResponseDto>();
-        await _hub.Clients.User(user.Id).SendAsync("PostCreated", true, postDtoMapped);
-        await _hub.Clients.AllExcept(connectionIds).SendAsync("PostCreated", false, postDtoMapped);
-        _logger.LogInformation("Message on post creation sent to users on hub. UserId: {UserId}, PostId: {PostId}", user.Id, post.Id);
+        await _postNotificationService.NotifyPostCreatedAsync(user, postDtoMapped);
         return CreatedAtAction("ReadPost", new { id = post.Id }, postDtoMapped);
     }
 
@@ -303,9 +294,7 @@ public class PostsController : ControllerBase
         post.Members.Add(user);
         await _db.SaveChangesAsync();
         _logger.LogInformation("User joined post successfully. UserId: {UserId}, PostId: {PostId}", user.Id, post.Id);
-        var updatedPostDto = _mapper.Map<PostResponseDto>(post);
-        await _hub.Clients.All.SendAsync("PostJoined", updatedPostDto);
-        _logger.LogInformation("Message on post join sent to users on hub. UserId: {UserId}, PostId: {PostId}", user.Id, post.Id);
+        await _postNotificationService.NotifyPostJoinedAsync(user, post.Id);
         return NoContent();
     }
 
@@ -344,12 +333,6 @@ public class PostsController : ControllerBase
         post.Members.Remove(newOwner);
         await _db.SaveChangesAsync();
         _logger.LogInformation("Ownership transferred successfully. NewOwnerId: {NewOwnerId}, PostId: {PostId}", newOwner.Id, post.Id);
-        var notification = new NotificationResponseDto()
-        {
-            Message = $"You are now the owner of the post: {post.Title}",
-            Post = _mapper.Map<PostResponseDto>(post)
-        };
-        await _notificationService.NotifyUserAsync(newOwner.Id, notification);
         return NoContent();
     }
     [HttpPut("{id}")]
@@ -396,15 +379,6 @@ public class PostsController : ControllerBase
 
             if (users.Count > 0)
             {
-                var notification = new NotificationResponseDto()
-                {
-                    Message = $"You have been removed from the post: {post.Title}",
-                    Post = post.Adapt<PostResponseDto>()
-                };
-                foreach (var removedUser in users)
-                {
-                    await _notificationService.NotifyUserAsync(removedUser.Id, notification);
-                }
                 _logger.LogInformation("Removing {Count} members from post {PostId}.", users.Count, post.Id);
                 post.Members = post.Members.Except(users).ToList();
             }
@@ -414,17 +388,7 @@ public class PostsController : ControllerBase
         await _db.SaveChangesAsync();
         _logger.LogInformation("Post updated successfully. UserId: {UserId}, PostId: {PostId}", user.Id, post.Id);
         var updatedPostDto = post.Adapt<PostResponseDto>();
-        foreach (var member in post.Members)
-        {
-            var notification = new NotificationResponseDto()
-            {
-                Message = "Post's settings were updated. Check the updates.",
-                Post = updatedPostDto
-            };
-            await _notificationService.NotifyUserAsync(member.Id, notification);
-        }
-        await _hub.Clients.All.SendAsync("PostUpdated", updatedPostDto);
-        _logger.LogInformation("Message on post update sent to users on hub. UserId: {UserId}, PostId: {PostId}", user.Id, post.Id);
+        await _postNotificationService.NotifyPostUpdatedAsync(user, updatedPostDto);
         return Ok(updatedPostDto);
     }
     [HttpDelete("{id}/membership")]
@@ -481,9 +445,7 @@ public class PostsController : ControllerBase
                 _db.Posts.Remove(post);
                 await _db.SaveChangesAsync();
                 _logger.LogInformation("Post leave succeeded: post deleted as owner left and no members remained. UserId: {UserId}, PostId: {PostId}", user.Id, post.Id);
-                var deletedPostDto = _mapper.Map<PostResponseDto>(post);
-                await _hub.Clients.All.SendAsync("PostUnjoined", deletedPostDto);
-                _logger.LogInformation("Message on post delete sent to users on hub. UserId: {UserId}, PostId: {PostId}", user.Id, post.Id);
+                await _postNotificationService.NotifyPostDeletedAsync(user, post.Id);
                 return NoContent();
             }
             var newOwner = post.Members.FirstOrDefault(m => m.Id != user.Id);
@@ -505,9 +467,7 @@ public class PostsController : ControllerBase
         post.Members.Remove(user);
         await _db.SaveChangesAsync();
         _logger.LogInformation("Post leave succeeded: user left post. UserId: {UserId}, PostId: {PostId}", user.Id, post.Id);
-        var updatedPostDto = _mapper.Map<PostResponseDto>(post);
-        await _hub.Clients.All.SendAsync("PostUnjoined", updatedPostDto);
-        _logger.LogInformation("Message on post update sent to users on hub. UserId: {UserId}, PostId: {PostId}", user.Id, post.Id);
+        await _postNotificationService.NotifyPostLeftAsync(user, post.Id);
         return NoContent();
     }
 
@@ -557,8 +517,7 @@ public class PostsController : ControllerBase
         _db.Posts.Remove(post);
         await _db.SaveChangesAsync();
         _logger.LogInformation("Post delete succeeded. UserId: {UserId}, PostId: {PostId}", user.Id, post.Id);
-        await _hub.Clients.All.SendAsync("PostDeleted", post.Id);
-        _logger.LogInformation("Message on post delete sent to users on hub. PostId: {PostId}", post.Id);
+        await _postNotificationService.NotifyPostDeletedAsync(user, post.Id);
         return NoContent();
     }
 }

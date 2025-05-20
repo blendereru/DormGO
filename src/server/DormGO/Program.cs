@@ -6,6 +6,7 @@ using DormGO.Hubs;
 using DormGO.Mappings;
 using DormGO.Models;
 using DormGO.Services;
+using DormGO.Services.Notifications;
 using Mapster;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http.Features;
@@ -51,9 +52,8 @@ builder.Services.AddAuthentication(opts =>
                 Console.WriteLine($"Authentication failed: {context.Exception.Message}");
                 return Task.CompletedTask;
             },
-            OnTokenValidated = context =>
+            OnTokenValidated = _ =>
             {
-               
                 Console.WriteLine("Token successfully validated.");
                 return Task.CompletedTask;
             }
@@ -79,7 +79,9 @@ builder.Services.AddMapster();
 MapsterConfig.Configure();
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, EmailSender>();
 builder.Services.AddSingleton<IInputSanitizer, InputSanitizer>();
-builder.Services.AddScoped<INotificationService, PostNotificationService>();
+builder.Services.AddScoped<IUserNotificationService, UserNotificationService>();
+builder.Services.AddScoped<IPostNotificationService, PostNotificationService>();
+builder.Services.AddScoped<IChatNotificationService, ChatNotificationService>();
 builder.Services.AddScoped<ValidateUserEmailFilter>();
 var app = builder.Build();
 using (var scope = app.Services.CreateScope())

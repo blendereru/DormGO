@@ -3,14 +3,13 @@ using DormGO.Data;
 using DormGO.DTOs.RequestDTO;
 using DormGO.DTOs.ResponseDTO;
 using DormGO.Filters;
-using DormGO.Hubs;
 using DormGO.Models;
 using DormGO.Services;
+using DormGO.Services.Notifications;
 using Mapster;
 using MapsterMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 
@@ -22,16 +21,16 @@ namespace DormGO.Controllers;
 public class ChatController : ControllerBase
 {
     private readonly ApplicationContext _db;
-    private readonly IHubContext<ChatHub> _hub;
+    private readonly IChatNotificationService _chatNotificationService;
     private readonly ILogger<ChatController> _logger;
     private readonly IInputSanitizer _inputSanitizer;
     private readonly IMapper _mapper;
 
-    public ChatController(ApplicationContext db, IHubContext<ChatHub> hub, ILogger<ChatController> logger,
+    public ChatController(ApplicationContext db, IChatNotificationService chatNotificationService, ILogger<ChatController> logger,
         IInputSanitizer inputSanitizer, IMapper mapper)
     {
         _db = db;
-        _hub = hub;
+        _chatNotificationService = chatNotificationService;
         _logger = logger;
         _inputSanitizer = inputSanitizer;
         _mapper = mapper;
@@ -129,16 +128,8 @@ public class ChatController : ControllerBase
         _db.Messages.Add(message);
         await _db.SaveChangesAsync();
         _logger.LogInformation("Message sent successfully. UserId: {UserId}, PostId: {PostId}, MessageId: {MessageId}", user.Id, post.Id, message.Id);
-        var excludedConnectionIds = await _db.UserConnections
-            .Where(uc => uc.UserId == user.Id && uc.Hub == "/api/chathub")
-            .Select(uc => uc.ConnectionId)
-            .ToListAsync();
-        var responseDto = _mapper.Map<MessageResponseDto>(message);
-        await _hub.Clients.GroupExcept(postId, excludedConnectionIds).SendAsync("ReceiveMessage", postId, responseDto);
-        _logger.LogInformation(
-            "Message on successful message delivery sent to users on hub. UserId: {UserId}, MessageId: {MessageId}, ExcludedConnectionIdCount: {ExcludedConnectionIdCount}",
-            user.Id, message.Id, excludedConnectionIds.Count);
-        return CreatedAtAction("GetMessageById", new { postId = message.PostId, messageId = message.Id }, responseDto);
+        await _chatNotificationService.NotifyMessageSentAsync(user, message.Adapt<MessageResponseDto>());
+        return CreatedAtAction("GetMessageById", new { postId = message.PostId, messageId = message.Id }, message.Adapt<MessageResponseDto>());
     }
 
     [HttpGet("{messageId}")]
@@ -242,15 +233,7 @@ public class ChatController : ControllerBase
         await _db.SaveChangesAsync();
         _logger.LogInformation("Message updated successfully. UserId: {UserId}. MessageId: {MessageId}", user.Id, sanitizedMessageId);
         Log.Information("UpdateMessage: Message {MessageId} updated by user {UserId}", message.Id, user.Id);
-        var excludedConnectionIds = await _db.UserConnections
-            .Where(uc => uc.UserId == user.Id && uc.Hub == "/api/chathub")
-            .Select(uc => uc.ConnectionId)
-            .ToListAsync();
-        var responseDto = _mapper.Map<MessageResponseDto>(message);
-        await _hub.Clients.GroupExcept(postId, excludedConnectionIds).SendAsync("UpdateMessage", postId, messageId, responseDto);
-        _logger.LogInformation(
-            "Message on successful message update sent to users on hub. UserId: {UserId}, MessageId: {MessageId}, ExcludedConnectionIdCount: {ExcludedConnectionIdCount}",
-            user.Id, message.Id, excludedConnectionIds.Count);
+        await _chatNotificationService.NotifyMessageUpdatedAsync(user, message.Adapt<MessageResponseDto>());
         return NoContent();
     }
     [HttpDelete("{messageId}")]
@@ -299,14 +282,7 @@ public class ChatController : ControllerBase
         _db.Messages.Remove(message);
         await _db.SaveChangesAsync();
         _logger.LogInformation("Message removed successfully. UserId: {UserId}. MessageId: {MessageId}", user.Id, message.Id);
-        var excludedConnectionIds = await _db.UserConnections
-            .Where(uc => uc.UserId == user.Id && uc.Hub == "/api/chathub")
-            .Select(uc => uc.ConnectionId)
-            .ToListAsync();
-        await _hub.Clients.GroupExcept(postId, excludedConnectionIds).SendAsync("DeleteMessage", postId, messageId);
-        _logger.LogInformation(
-            "Message on successful message deletion sent to users on hub. UserId: {UserId}, MessageId: {MessageId}, ExcludedConnectionIdCount: {ExcludedConnectionIdCount}",
-            user.Id, message.Id, excludedConnectionIds.Count);
+        await _chatNotificationService.NotifyMessageDeletedAsync(user, message.Adapt<MessageResponseDto>());
         return NoContent();
     }
 }

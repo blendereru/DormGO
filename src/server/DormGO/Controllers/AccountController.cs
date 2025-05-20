@@ -5,13 +5,12 @@ using DormGO.Constants;
 using DormGO.Data;
 using DormGO.DTOs.RequestDTO;
 using DormGO.DTOs.ResponseDTO;
-using DormGO.Hubs;
 using DormGO.Models;
 using DormGO.Services;
+using DormGO.Services.Notifications;
 using MapsterMapper;    
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
@@ -24,17 +23,20 @@ public class AccountController : ControllerBase
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ApplicationContext _db;
     private readonly IEmailSender<ApplicationUser> _emailSender;
+    private readonly IUserNotificationService _userNotificationService;
     private readonly ILogger<AccountController> _logger;
     private readonly IInputSanitizer _inputSanitizer;
     private readonly IMapper _mapper;
 
     public AccountController(UserManager<ApplicationUser> userManager, ApplicationContext db,
-        IEmailSender<ApplicationUser> emailSender, ILogger<AccountController> logger, IInputSanitizer inputSanitizer,
+        IEmailSender<ApplicationUser> emailSender, IUserNotificationService userNotificationService,
+        ILogger<AccountController> logger, IInputSanitizer inputSanitizer,
         IMapper mapper)
     {
         _userManager = userManager;
         _db = db;
         _emailSender = emailSender;
+        _userNotificationService = userNotificationService;
         _logger = logger;
         _inputSanitizer = inputSanitizer;
         _mapper = mapper;
@@ -162,7 +164,7 @@ public class AccountController : ControllerBase
     }
     
     [HttpGet("email/change/confirm")]
-    public async Task<IActionResult> UpdateEmail(string userId, string newEmail, string token, [FromServices] IHubContext<UserHub> hub)
+    public async Task<IActionResult> UpdateEmail(string userId, string newEmail, string token)
     {
         var sanitizedUserId = _inputSanitizer.Sanitize(userId);
         if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(token) || string.IsNullOrEmpty(newEmail))
@@ -201,28 +203,17 @@ public class AccountController : ControllerBase
             return ValidationProblem(ModelState);
         }
         _logger.LogInformation("Email changed successfully. UserId: {UserId}", user.Id);
-        var connections = await _db.UserConnections
-            .Where(c => c.UserId == userId)
-            .Select(c => c.ConnectionId)
-            .ToListAsync();
-        if (connections.Count > 0)
+        var responseDto = new UserResponseDto
         {
-            await hub.Clients.Clients(connections).SendAsync("EmailChanged", new
-            {
-                email = user.Email!,
-                timestamp = DateTime.UtcNow
-            });
-            _logger.LogInformation("Email change notification sent via hub. UserId: {UserId}, ConnectionsCount: {Count}", user.Id, connections.Count);
-        }
-        else
-        {
-            _logger.LogWarning("No active SignalR connections found. UserId: {UserId}", user.Id);
-        }
+            Email = newEmail,
+            Name = user.UserName!
+        };
+        await _userNotificationService.NotifyEmailChangedAsync(user, responseDto);
         return NoContent();
     }
     
     [HttpGet("password/reset/validate")]
-    public async Task<IActionResult> ValidatePasswordReset(string userId, string token, [FromServices] IHubContext<UserHub> hub)
+    public async Task<IActionResult> ValidatePasswordReset(string userId, string token)
     {
         var sanitizedUserId = _inputSanitizer.Sanitize(userId);
         if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(token))
@@ -250,26 +241,13 @@ public class AccountController : ControllerBase
             };
             return NotFound(problem);
         }
-        var connections = await _db.UserConnections
-            .Where(c => c.UserId == userId)
-            .Select(c => c.ConnectionId)
-            .ToListAsync();
 
-        if (connections.Count > 0)
+        var responseDto = new UserResponseDto
         {
-            await hub.Clients.Clients(connections).SendAsync("PasswordResetLinkValidated", new
-            {
-                email = user.Email!,
-                timestamp = DateTime.UtcNow
-            });
-            _logger.LogInformation(
-                "Password reset validation message sent via hub. UserId: {UserId}, ConnectionsCount: {Count}",
-                sanitizedUserId, connections.Count);
-        }
-        else
-        {
-            _logger.LogWarning("No active SignalR connections found. UserId: {UserId}", sanitizedUserId);
-        }
+            Email = user.Email!,
+            Name = user.UserName!
+        };
+        await _userNotificationService.NotifyPasswordResetLinkValidated(user, responseDto);
         return NoContent();
     }
 
@@ -315,7 +293,7 @@ public class AccountController : ControllerBase
         return NoContent();
     }
     [HttpGet("email/confirm")]
-    public async Task<IActionResult> ConfirmEmail(string userId, string token, string visitorId, [FromServices] IHubContext<UserHub> hub)
+    public async Task<IActionResult> ConfirmEmail(string userId, string token, string visitorId)
     {
         var sanitizedUserId = _inputSanitizer.Sanitize(userId);
         if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(token))
@@ -374,24 +352,12 @@ public class AccountController : ControllerBase
             AccessToken = accessToken,
             RefreshToken = refreshToken
         };
-        var connections = await _db.UserConnections
-            .Where(c => c.UserId == userId)
-            .Select(c => c.ConnectionId)
-            .ToListAsync();
-
-        if (connections.Count > 0)
+        var userResponseDto = new UserResponseDto
         {
-            await hub.Clients.Clients(connections).SendAsync("EmailConfirmed", new
-            {
-                userName = user.UserName,
-                timestamp = DateTime.UtcNow
-            });
-            _logger.LogInformation("Email confirmation notification sent via hub. UserId: {UserId}, ConnectionsCount: {Count}", user.Id, connections.Count);
-        }
-        else
-        {
-            _logger.LogWarning("No active SignalR connections found. UserId: {UserId}", user.Id);
-        }
+            Email = user.Email!,
+            Name = user.UserName!
+        };
+        await _userNotificationService.NotifyEmailConfirmedAsync(user, userResponseDto);
         return Ok(dto);
     }
 
