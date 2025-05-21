@@ -36,7 +36,7 @@ public class UserHub : Hub
             var ip = Context.GetHttpContext()?.Connection.RemoteIpAddress?.ToString();
             if (string.IsNullOrEmpty(ip))
             {
-                _logger.LogWarning("[{Hub}] Connection aborted: Missing IP address. UserName: {UserName}, ConnectionId: {ConnectionId}", hubName, userName, connectionId);
+                _logger.LogWarning("[{Hub}] Connection aborted: Missing IP address. ConnectionId: {ConnectionId}", hubName, connectionId);
                 Context.Abort();
                 return;
             }
@@ -44,7 +44,7 @@ public class UserHub : Hub
             var user = await _userManager.FindByEmailAsync(userName);
             if (user == null)
             {
-                _logger.LogWarning("[{Hub}] Connection aborted: User not found in database. UserName: {UserName}, ConnectionId: {ConnectionId}", hubName, userName, connectionId);
+                _logger.LogWarning("[{Hub}] Connection aborted: User not found. ConnectionId: {ConnectionId}", hubName, connectionId);
                 Context.Abort();
                 return;
             }

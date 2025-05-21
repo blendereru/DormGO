@@ -59,7 +59,7 @@ public class PostController : ControllerBase
         await _db.SaveChangesAsync();
         _logger.LogInformation("Post successfully created by {UserId}. PostId: {PostId}", user.Id, post.Id);
         var postDtoMapped = post.Adapt<PostResponseDto>();
-        await _postHubNotificationService.NotifyPostCreatedAsync(user, postDtoMapped);
+        await _postHubNotificationService.NotifyPostCreatedAsync(user, post);
         return CreatedAtAction("ReadPost", new { id = post.Id }, postDtoMapped);
     }
 
@@ -407,9 +407,8 @@ public class PostController : ControllerBase
         _db.Posts.Update(post);
         await _db.SaveChangesAsync();
         _logger.LogInformation("Post updated successfully. UserId: {UserId}, PostId: {PostId}", user.Id, post.Id);
-        var updatedPostDto = post.Adapt<PostResponseDto>();
-        await _postHubNotificationService.NotifyPostUpdatedAsync(user, updatedPostDto);
-        return Ok(updatedPostDto);
+        await _postHubNotificationService.NotifyPostUpdatedAsync(user, post);
+        return NoContent();
     }
     [HttpDelete("{id}/membership")]
     public async Task<IActionResult> LeavePost(string id)
