@@ -7,25 +7,28 @@ using Microsoft.AspNetCore.SignalR;
 
 namespace DormGO.Services;
 
-public class NotificationService : INotificationService
+public class NotificationService<TNotification, TResponseDto> : INotificationService<TNotification, TResponseDto>
+    where TNotification : Notification
+    where TResponseDto : NotificationResponseDto
 {
     private readonly ApplicationContext _db;
-    private readonly IHubContext<PostHub> _postHub;
-    private readonly ILogger<NotificationService> _logger;
+    private readonly IHubContext<NotificationHub> _hub;
+    private readonly ILogger<NotificationService<TNotification, TResponseDto>> _logger;
 
-    public NotificationService(ApplicationContext db, IHubContext<PostHub> postHub, ILogger<NotificationService> logger)
+    public NotificationService(ApplicationContext db, IHubContext<NotificationHub> hub, ILogger<NotificationService<TNotification, TResponseDto>> logger)
     {
         _db = db;
-        _postHub = postHub;
+        _hub = hub;
         _logger = logger;
     }
 
-    public async Task SendPostNotificationAsync(ApplicationUser user, PostNotification postNotification, string eventName)
+    public async Task SendNotificationAsync(ApplicationUser user, TNotification notification, string eventName)
     {
-        postNotification.UserId = user.Id;
+        notification.UserId = user.Id;
+        _db.Set<Notification>().Add(notification);
         await _db.SaveChangesAsync();
-        _logger.LogInformation("Notification saved successfully. UserId: {UserId}, NotificationId: {NotificationId}", user.Id, postNotification.Id);
-        var responseDto = postNotification.Adapt<PostNotificationResponseDto>();
-        await _postHub.Clients.User(user.Id).SendAsync(eventName, responseDto);
+        _logger.LogInformation("Notification saved successfully. UserId: {UserId}, NotificationId: {NotificationId}", user.Id, notification.Id);
+        var responseDto = notification.Adapt<TResponseDto>();
+        await _hub.Clients.User(user.Id).SendAsync(eventName, responseDto);
     }
 }

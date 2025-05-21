@@ -1,158 +1,84 @@
 using System.Security.Claims;
 using DormGO.Data;
-using DormGO.DTOs.ResponseDTO;
 using DormGO.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-using Serilog;
 
 namespace DormGO.Hubs;
+
 [Authorize]
 public class PostHub : Hub
 {
     private readonly ApplicationContext _db;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly ILogger<PostHub> _logger;
 
-    public PostHub(ApplicationContext db, UserManager<ApplicationUser> userManager)
+    public PostHub(ApplicationContext db, UserManager<ApplicationUser> userManager, ILogger<PostHub> logger)
     {
         _db = db;
         _userManager = userManager;
+        _logger = logger;
     }
 
     public override async Task OnConnectedAsync()
     {
+        var hubName = nameof(PostHub);
+        var connectionId = Context.ConnectionId;
         try
         {
-            var userId = Context?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userId = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))
             {
-                Log.Warning("Connection aborted: Missing or empty user ID. ConnectionId: {ConnectionId}", Context.ConnectionId);
+                _logger.LogWarning("[{Hub}] Connection aborted: Missing or empty user ID. ConnectionId: {ConnectionId}", hubName, connectionId);
                 Context.Abort();
                 return;
             }
-            await Groups.AddToGroupAsync(Context.ConnectionId, userId);
-            var ip = Context?.GetHttpContext()?.Connection.RemoteIpAddress?.ToString();
+            await Groups.AddToGroupAsync(connectionId, userId);
+
+            var ip = Context.GetHttpContext()?.Connection.RemoteIpAddress?.ToString();
             if (string.IsNullOrEmpty(ip))
             {
-                Log.Warning("Connection aborted: Missing IP address. UserId: {UserId}, ConnectionId: {ConnectionId}", userId, Context.ConnectionId);
+                _logger.LogWarning("[{Hub}] Connection aborted: Missing IP address. UserId: {UserId}, ConnectionId: {ConnectionId}", hubName, userId, connectionId);
                 Context.Abort();
                 return;
             }
+
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null)
             {
-                Log.Warning("Connection aborted: User not found in database. UserId: {UserId}, ConnectionId: {ConnectionId}", userId, Context.ConnectionId);
+                _logger.LogWarning("[{Hub}] Connection aborted: User not found in database. UserId: {UserId}, ConnectionId: {ConnectionId}", hubName, userId, connectionId);
                 Context.Abort();
                 return;
             }
             var connection = new UserConnection
             {
-                ConnectionId = Context.ConnectionId,
+                ConnectionId = connectionId,
                 UserId = userId,
-                Ip = ip!,
+                Ip = ip,
                 Hub = "/api/posthub",
                 ConnectedAt = DateTime.UtcNow
             };
             _db.UserConnections.Add(connection);
             await _db.SaveChangesAsync();
-            Log.Information("User connected: UserId: {UserId}, IP: {IPAddress}, ConnectionId: {ConnectionId}", userId, ip, Context.ConnectionId);
+            _logger.LogInformation("[{Hub}] User connected. UserId: {UserId}, IP: {IPAddress}, ConnectionId: {ConnectionId}", hubName, userId, ip, connectionId);
             await base.OnConnectedAsync();
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Error occurred during OnConnectedAsync. ConnectionId: {ConnectionId}", Context.ConnectionId);
+            _logger.LogError(ex, "[{Hub}] Error occurred during OnConnectedAsync. ConnectionId: {ConnectionId}", hubName, connectionId);
             Context.Abort();
         }
     }
-    public async Task NotifyPostCreated(string userId, PostResponseDto post)
-    {
-        if (string.IsNullOrEmpty(userId))
-        {
-            Log.Warning("NotifyPostCreated: userId is null or empty. Skipping notification.");
-            return;
-        }
-        try
-        {
-            await Clients.Group(userId).SendAsync("PostCreated", true, post);
-            await Clients.AllExcept(Context.ConnectionId).SendAsync("PostCreated", false, post);
-            Log.Information("PostCreated notification sent. UserId: {UserId}, PostId: {PostId}", userId, post.PostId);
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Error occurred while notifying post creation. UserId: {UserId}, PostId: {PostId}", userId, post.PostId);
-        }
-    }
-    public async Task NotifyPostUpdated(PostResponseDto post)
-    {
-        try
-        {
-            await Clients.All.SendAsync("PostUpdated", post);
-            Log.Information("PostUpdated notification sent for PostId: {PostId}", post.PostId);
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Error occurred while notifying post update. PostId: {PostId}", post.PostId);
-        }
-    }
-    public async Task NotifyPostJoined(PostResponseDto post)
-    {
-        try
-        {
-            await Clients.All.SendAsync("PostJoined", post);
-            Log.Information("PostJoined notification sent for PostId: {PostId}", post.PostId);
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Error notifying PostJoined for PostId: {PostId}", post.PostId);
-        }
-    }
 
-    public async Task NotifyPostUnjoined(PostResponseDto post)
-    {
-        try
-        {
-            await Clients.All.SendAsync("PostUnjoined", post);
-            Log.Information("PostUnjoined notification sent for PostId: {PostId}", post.PostId);
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Error notifying PostUnjoined for PostId: {PostId}", post.PostId);
-        }
-    }
-    public async Task NotifyPostDeleted(string postId)
-    {
-        try
-        {
-            await Clients.All.SendAsync("PostDeleted", postId);
-            Log.Information("PostDeleted notification sent for PostId: {PostId}", postId);
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Error occurred while notifying post deletion. PostId: {PostId}", postId);
-        }
-    }
-
-    public async Task SendNotification(string userId, NotificationResponseDto notification)
-    {
-        try
-        {
-            await Clients.User(userId).SendAsync("ReceiveNotification", notification);
-            Log.Information("Notification sent to UserId: {UserId}", userId);
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Error occurred while sending notification to user {UserId}", userId);
-        }
-    }
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
+        var hubName = nameof(PostHub);
+        var connectionId = Context.ConnectionId;
         try
         {
-            var connectionId = Context.ConnectionId;
-            var userId = Context?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
+            var userId = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (!string.IsNullOrEmpty(userId))
             {
                 await Groups.RemoveFromGroupAsync(connectionId, userId);
@@ -162,20 +88,20 @@ public class PostHub : Hub
             {
                 _db.UserConnections.Remove(userConnection);
                 await _db.SaveChangesAsync();
-                Log.Information("User disconnected: UserId: {UserId}, ConnectionId: {ConnectionId}", userConnection.UserId, connectionId);
+                _logger.LogInformation("[{Hub}] User disconnected. UserId: {UserId}, ConnectionId: {ConnectionId}", hubName, userConnection.UserId, connectionId);
             }
             else
             {
-                Log.Warning("Connection not found in the database during disconnection. ConnectionId: {ConnectionId}", connectionId);
+                _logger.LogWarning("[{Hub}] Connection not found in the database during disconnection. ConnectionId: {ConnectionId}", hubName, connectionId);
             }
             if (exception != null)
             {
-                Log.Error(exception, "An error occurred during disconnection. ConnectionId: {ConnectionId}", connectionId);
+                _logger.LogError(exception, "[{Hub}] An error occurred during disconnection. ConnectionId: {ConnectionId}", hubName, connectionId);
             }
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Error occurred while processing OnDisconnectedAsync. ConnectionId: {ConnectionId}", Context.ConnectionId);
+            _logger.LogError(ex, "[{Hub}] Error occurred while processing OnDisconnectedAsync. ConnectionId: {ConnectionId}", hubName, connectionId);
         }
         await base.OnDisconnectedAsync(exception);
     }

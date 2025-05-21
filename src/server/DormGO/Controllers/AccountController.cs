@@ -8,6 +8,7 @@ using DormGO.DTOs.ResponseDTO;
 using DormGO.Models;
 using DormGO.Services;
 using DormGO.Services.HubNotifications;
+using Mapster;
 using MapsterMapper;    
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -76,7 +77,8 @@ public class AccountController : ControllerBase
         }, protocol: Request.Scheme);
         await _emailSender.SendConfirmationLinkAsync(user, user.Email!, confirmationLink!);
         var profileUrl = Url.Action("GetUserProfile", "Profile", new { email = user.Email });
-        return Created(profileUrl, new { Message = "User registered successfully. Email confirmation is pending." });
+        var responseDto = user.Adapt<UserResponseDto>();
+        return Created(profileUrl, responseDto);
     }
 
     [HttpPost("signin")]
@@ -203,12 +205,7 @@ public class AccountController : ControllerBase
             return ValidationProblem(ModelState);
         }
         _logger.LogInformation("Email changed successfully. UserId: {UserId}", user.Id);
-        var responseDto = new UserResponseDto
-        {
-            Email = newEmail,
-            Name = user.UserName!
-        };
-        await _userHubNotificationService.NotifyEmailChangedAsync(user, responseDto);
+        await _userHubNotificationService.NotifyEmailChangedAsync(user);
         return NoContent();
     }
     
@@ -241,13 +238,7 @@ public class AccountController : ControllerBase
             };
             return NotFound(problem);
         }
-
-        var responseDto = new UserResponseDto
-        {
-            Email = user.Email!,
-            Name = user.UserName!
-        };
-        await _userHubNotificationService.NotifyPasswordResetLinkValidated(user, responseDto);
+        await _userHubNotificationService.NotifyPasswordResetLinkValidated(user);
         return NoContent();
     }
 
@@ -346,19 +337,13 @@ public class AccountController : ControllerBase
         };
         _db.RefreshSessions.Add(session);
         await _db.SaveChangesAsync();
-
-        var dto = new RefreshTokenResponseDto
+        var tokensDto = new RefreshTokenResponseDto
         {
             AccessToken = accessToken,
             RefreshToken = refreshToken
         };
-        var userResponseDto = new UserResponseDto
-        {
-            Email = user.Email!,
-            Name = user.UserName!
-        };
-        await _userHubNotificationService.NotifyEmailConfirmedAsync(user, userResponseDto);
-        return Ok(dto);
+        await _userHubNotificationService.NotifyEmailConfirmedAsync(user, tokensDto);
+        return Ok("good on you");
     }
 
     [HttpPost("email/confirmation/resend")]

@@ -83,7 +83,7 @@ builder.Services.AddScoped<IUserHubNotificationService, UserHubNotificationServi
 builder.Services.AddScoped<IPostHubNotificationService, PostHubNotificationService>();
 builder.Services.AddScoped<IChatHubNotificationService, ChatHubNotificationService>();
 builder.Services.AddScoped<ValidateUserEmailFilter>();
-builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped(typeof(INotificationService<,>), typeof(NotificationService<,>));
 var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
@@ -102,5 +102,6 @@ app.MapControllers();
 app.MapHub<UserHub>("/api/userhub");
 app.MapHub<PostHub>("/api/posthub");
 app.MapHub<ChatHub>("/api/chathub");
+app.MapHub<NotificationHub>("/api/notificationhub");
 app.Run();
 public partial class Program {}

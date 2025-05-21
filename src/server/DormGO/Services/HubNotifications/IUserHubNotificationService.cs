@@ -5,7 +5,7 @@ namespace DormGO.Services.HubNotifications;
 
 public interface IUserHubNotificationService
 {
-    Task NotifyEmailChangedAsync(ApplicationUser user, UserResponseDto userResponseDto);
-    Task NotifyPasswordResetLinkValidated(ApplicationUser user, UserResponseDto userResponseDto);
-    Task NotifyEmailConfirmedAsync(ApplicationUser user, UserResponseDto userResponseDto);
+    Task NotifyEmailChangedAsync(ApplicationUser user);
+    Task NotifyPasswordResetLinkValidated(ApplicationUser user);
+    Task NotifyEmailConfirmedAsync(ApplicationUser user, RefreshTokenResponseDto tokenResponseDto);
 }

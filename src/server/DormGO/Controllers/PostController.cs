@@ -17,18 +17,19 @@ namespace DormGO.Controllers;
 [ApiController]
 [ServiceFilter<ValidateUserEmailFilter>]
 [Route("api/posts")]
-public class PostsController : ControllerBase
+public class PostController : ControllerBase
 {
     private readonly ApplicationContext _db;
     private readonly IPostHubNotificationService _postHubNotificationService;
-    private readonly INotificationService _notificationService;
-    private readonly ILogger<PostsController> _logger;
+    private readonly INotificationService<PostNotification, PostNotificationResponseDto> _notificationService;
+    private readonly ILogger<PostController> _logger;
     private readonly IInputSanitizer _inputSanitizer;
     private readonly IMapper _mapper;
 
-    public PostsController(ApplicationContext db,
-        IPostHubNotificationService postHubNotificationService, INotificationService notificationService,
-        ILogger<PostsController> logger,
+    public PostController(ApplicationContext db,
+        IPostHubNotificationService postHubNotificationService,
+        INotificationService<PostNotification, PostNotificationResponseDto> notificationService,
+        ILogger<PostController> logger,
         IInputSanitizer inputSanitizer, IMapper mapper)
     {
         _db = db;
@@ -342,7 +343,7 @@ public class PostsController : ControllerBase
             Description = $"You are now the owner of the post: {post.Title}",
             Post = post
         };
-        await _notificationService.SendPostNotificationAsync(user, notification, "OwnershipTransferred"); 
+        await _notificationService.SendNotificationAsync(newOwner, notification, "OwnershipTransferred"); 
         return NoContent();
     }
     [HttpPut("{id}")]
@@ -396,7 +397,7 @@ public class PostsController : ControllerBase
                 };
                 foreach (var removedUser in users)
                 {
-                    await _notificationService.SendPostNotificationAsync(removedUser, notification, "PostLeft");
+                    await _notificationService.SendNotificationAsync(removedUser, notification, "PostLeft");
                 }
                 _logger.LogInformation("Removing {Count} members from post {PostId}.", users.Count, post.Id);
                 post.Members = post.Members.Except(users).ToList();

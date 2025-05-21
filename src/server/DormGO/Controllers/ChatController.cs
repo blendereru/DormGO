@@ -128,7 +128,7 @@ public class ChatController : ControllerBase
         _db.Messages.Add(message);
         await _db.SaveChangesAsync();
         _logger.LogInformation("Message sent successfully. UserId: {UserId}, PostId: {PostId}, MessageId: {MessageId}", user.Id, post.Id, message.Id);
-        await _chatHubNotificationService.NotifyMessageSentAsync(user, message.Adapt<MessageResponseDto>());
+        await _chatHubNotificationService.NotifyMessageSentAsync(user, message);
         return CreatedAtAction("GetMessageById", new { postId = message.PostId, messageId = message.Id }, message.Adapt<MessageResponseDto>());
     }
 
@@ -233,7 +233,7 @@ public class ChatController : ControllerBase
         await _db.SaveChangesAsync();
         _logger.LogInformation("Message updated successfully. UserId: {UserId}. MessageId: {MessageId}", user.Id, sanitizedMessageId);
         Log.Information("UpdateMessage: Message {MessageId} updated by user {UserId}", message.Id, user.Id);
-        await _chatHubNotificationService.NotifyMessageUpdatedAsync(user, message.Adapt<MessageResponseDto>());
+        await _chatHubNotificationService.NotifyMessageUpdatedAsync(user, message);
         return NoContent();
     }
     [HttpDelete("{messageId}")]
@@ -282,7 +282,7 @@ public class ChatController : ControllerBase
         _db.Messages.Remove(message);
         await _db.SaveChangesAsync();
         _logger.LogInformation("Message removed successfully. UserId: {UserId}. MessageId: {MessageId}", user.Id, message.Id);
-        await _chatHubNotificationService.NotifyMessageDeletedAsync(user, message.Adapt<MessageResponseDto>());
+        await _chatHubNotificationService.NotifyMessageDeletedAsync(user, message);
         return NoContent();
     }
 }

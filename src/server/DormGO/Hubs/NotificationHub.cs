@@ -1,18 +1,20 @@
 using DormGO.Data;
 using DormGO.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace DormGO.Hubs;
 
-public class UserHub : Hub
+[Authorize]
+public class NotificationHub : Hub
 {
     private readonly ApplicationContext _db;
     private readonly UserManager<ApplicationUser> _userManager;
-    private readonly ILogger<UserHub> _logger;
+    private readonly ILogger<NotificationHub> _logger;
 
-    public UserHub(ApplicationContext db, UserManager<ApplicationUser> userManager, ILogger<UserHub> logger)
+    public NotificationHub(ApplicationContext db, UserManager<ApplicationUser> userManager, ILogger<NotificationHub> logger)
     {
         _db = db;
         _userManager = userManager;
@@ -21,14 +23,14 @@ public class UserHub : Hub
 
     public override async Task OnConnectedAsync()
     {
-        var hubName = nameof(UserHub);
+        var hubName = nameof(NotificationHub);
         var connectionId = Context.ConnectionId;
         try
         {
-            var userName = Context.GetHttpContext()?.Request.Query["userName"].ToString();
-            if (string.IsNullOrEmpty(userName))
+            var userId = Context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
             {
-                _logger.LogWarning("[{Hub}] Connection aborted: Missing user name. ConnectionId: {ConnectionId}", hubName, connectionId);
+                _logger.LogWarning("[{Hub}] Connection aborted: Missing or empty user ID. ConnectionId: {ConnectionId}", hubName, connectionId);
                 Context.Abort();
                 return;
             }
@@ -36,15 +38,15 @@ public class UserHub : Hub
             var ip = Context.GetHttpContext()?.Connection.RemoteIpAddress?.ToString();
             if (string.IsNullOrEmpty(ip))
             {
-                _logger.LogWarning("[{Hub}] Connection aborted: Missing IP address. UserName: {UserName}, ConnectionId: {ConnectionId}", hubName, userName, connectionId);
+                _logger.LogWarning("[{Hub}] Connection aborted: Missing IP address. UserId: {UserId}, ConnectionId: {ConnectionId}", hubName, userId, connectionId);
                 Context.Abort();
                 return;
             }
 
-            var user = await _userManager.FindByEmailAsync(userName);
+            var user = await _userManager.FindByIdAsync(userId);
             if (user == null)
             {
-                _logger.LogWarning("[{Hub}] Connection aborted: User not found in database. UserName: {UserName}, ConnectionId: {ConnectionId}", hubName, userName, connectionId);
+                _logger.LogWarning("[{Hub}] Connection aborted: User not found in database. UserId: {UserId}, ConnectionId: {ConnectionId}", hubName, userId, connectionId);
                 Context.Abort();
                 return;
             }
@@ -52,16 +54,15 @@ public class UserHub : Hub
             var connection = new UserConnection
             {
                 ConnectionId = connectionId,
-                UserId = user.Id,
+                UserId = userId,
                 Ip = ip,
-                Hub = "/api/userhub",
+                Hub = "/api/notificationhub",
                 ConnectedAt = DateTime.UtcNow
             };
-
             _db.UserConnections.Add(connection);
             await _db.SaveChangesAsync();
 
-            _logger.LogInformation("[{Hub}] User connected. UserId: {UserId}, IP: {IPAddress}, ConnectionId: {ConnectionId}", hubName, user.Id, ip, connectionId);
+            _logger.LogInformation("[{Hub}] User connected. UserId: {UserId}, IP: {IPAddress}, ConnectionId: {ConnectionId}", hubName, userId, ip, connectionId);
             await base.OnConnectedAsync();
         }
         catch (Exception ex)
@@ -73,10 +74,16 @@ public class UserHub : Hub
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
-        var hubName = nameof(UserHub);
+        var hubName = nameof(NotificationHub);
         var connectionId = Context.ConnectionId;
         try
         {
+            var userId = Context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (!string.IsNullOrEmpty(userId))
+            {
+                await Groups.RemoveFromGroupAsync(connectionId, userId);
+            }
+
             var userConnection = await _db.UserConnections.FirstOrDefaultAsync(uc => uc.ConnectionId == connectionId);
             if (userConnection != null)
             {

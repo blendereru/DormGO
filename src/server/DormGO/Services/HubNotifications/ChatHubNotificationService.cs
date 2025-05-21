@@ -1,5 +1,4 @@
 using DormGO.Data;
-using DormGO.DTOs.ResponseDTO;
 using DormGO.Hubs;
 using DormGO.Models;
 using Microsoft.AspNetCore.SignalR;
@@ -21,15 +20,15 @@ public class ChatHubNotificationService : IChatHubNotificationService
         _logger = logger;
     }
 
-    public async Task NotifyMessageSentAsync(ApplicationUser user, MessageResponseDto messageResponseDto)
+    public async Task NotifyMessageSentAsync(ApplicationUser user, Message message)
     {
         var notificationDto = new
         {
-            messageResponseDto.MessageId,
-            messageResponseDto.Content,
-            SenderName = messageResponseDto.Sender.Name,
-            messageResponseDto.SentAt,
-            messageResponseDto.UpdatedAt
+            message.Id,
+            message.Content,
+            SenderName = message.Sender.UserName,
+            message.SentAt,
+            message.UpdatedAt
         };
 
         var excludedConnectionIds = await _db.UserConnections
@@ -37,50 +36,50 @@ public class ChatHubNotificationService : IChatHubNotificationService
             .Select(uc => uc.ConnectionId)
             .ToListAsync();
 
-        await _hub.Clients.GroupExcept(messageResponseDto.Post.PostId, excludedConnectionIds)
+        await _hub.Clients.GroupExcept(message.PostId, excludedConnectionIds)
             .SendAsync("MessageSent", notificationDto);
 
         _logger.LogInformation(
             "Message sent notification sent. PostId: {PostId}, MessageId: {MessageId}, ExcludedConnectionsCount: {ExcludedConnectionsCount}",
-            messageResponseDto.Post.PostId, messageResponseDto.MessageId, excludedConnectionIds.Count);
+            message.PostId, message.Id, excludedConnectionIds.Count);
     }
 
-    public async Task NotifyMessageUpdatedAsync(ApplicationUser user, MessageResponseDto messageResponseDto)
+    public async Task NotifyMessageUpdatedAsync(ApplicationUser user, Message message)
     {
         var notificationDto = new
         {
-            messageResponseDto.MessageId,
-            messageResponseDto.Content,
-            SenderName = messageResponseDto.Sender.Name,
-            messageResponseDto.SentAt,
-            messageResponseDto.UpdatedAt
+            message.Id,
+            message.Content,
+            SenderName = message.Sender.UserName,
+            message.SentAt,
+            message.UpdatedAt
         };
         var excludedConnectionIds = await _db.UserConnections
             .Where(c => c.UserId == user.Id && c.Hub == "/api/chathub")
             .Select(uc => uc.ConnectionId)
             .ToListAsync();
-        await _hub.Clients.GroupExcept(messageResponseDto.Post.PostId, excludedConnectionIds)
+        await _hub.Clients.GroupExcept(message.PostId, excludedConnectionIds)
             .SendAsync("MessageUpdated", notificationDto);
 
         _logger.LogInformation("Message updated notification sent. PostId: {PostId}, MessageId: {MessageId}, ExcludedConnectionsCount: {ExcludedConnectionsCount}",
-            messageResponseDto.Post.PostId, messageResponseDto.MessageId, excludedConnectionIds.Count);
+            message.PostId, message.Id, excludedConnectionIds.Count);
     }
 
-    public async Task NotifyMessageDeletedAsync(ApplicationUser user, MessageResponseDto messageResponseDto)
+    public async Task NotifyMessageDeletedAsync(ApplicationUser user, Message message)
     {
         var notificationDto = new
         {
-            messageResponseDto.MessageId,
-            SenderName = messageResponseDto.Sender.Name
+            message.Id,
+            SenderName = message.Sender.UserName
         };
         var excludedConnectionIds = await _db.UserConnections
             .Where(c => c.UserId == user.Id && c.Hub == "/api/chathub")
             .Select(uc => uc.ConnectionId)
             .ToListAsync();
-        await _hub.Clients.GroupExcept(messageResponseDto.Post.PostId, excludedConnectionIds)
+        await _hub.Clients.GroupExcept(message.PostId, excludedConnectionIds)
             .SendAsync("MessageDeleted", notificationDto);
         _logger.LogInformation(
             "Message deleted notification sent. PostId: {PostId}, MessageId: {MessageId}, ExcludedConnectionsCount: {ExcludedConnectionsCount}",
-            messageResponseDto.Post.PostId, messageResponseDto.MessageId, excludedConnectionIds.Count);
+            message.PostId, message.Id, excludedConnectionIds.Count);
     }
 }

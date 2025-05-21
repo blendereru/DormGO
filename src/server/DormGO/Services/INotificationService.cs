@@ -1,8 +1,11 @@
+using DormGO.DTOs.ResponseDTO;
 using DormGO.Models;
 
 namespace DormGO.Services;
 
-public interface INotificationService
+public interface INotificationService<TNotification, TResponseDto>
+    where TNotification : Notification 
+    where TResponseDto : NotificationResponseDto
 {
-    Task SendPostNotificationAsync(ApplicationUser user, PostNotification postNotification, string eventName);
+    Task SendNotificationAsync(ApplicationUser user, TNotification notification, string eventName);
 }

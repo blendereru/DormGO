@@ -1,53 +1,62 @@
+using DormGO.Data;
 using DormGO.DTOs.ResponseDTO;
 using DormGO.Hubs;
 using DormGO.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 
 namespace DormGO.Services.HubNotifications;
 
 public class UserHubNotificationService : IUserHubNotificationService
 {
-    private readonly UserManager<ApplicationUser> _userManager;
+    private readonly ApplicationContext _db;
     private readonly IHubContext<UserHub> _hub;
     private readonly ILogger<UserHubNotificationService> _logger;
 
-    public UserHubNotificationService(UserManager<ApplicationUser> userManager, IHubContext<UserHub> hub,
+    public UserHubNotificationService(ApplicationContext db,
+        IHubContext<UserHub> hub,
         ILogger<UserHubNotificationService> logger)
     {
-        _userManager = userManager;
+        _db = db;
         _hub = hub;
         _logger = logger;
     }
 
-    public async Task NotifyEmailChangedAsync(ApplicationUser user, UserResponseDto userResponseDto)
+    public async Task NotifyEmailChangedAsync(ApplicationUser user)
     {
         var notificationDto = new
         {
-            userResponseDto.Email
+            user.Email
         };
         await _hub.Clients.User(user.Id).SendAsync("EmailChanged", notificationDto);
         _logger.LogInformation("Email changed notification sent. UserId: {UserId}", user.Id);
     }
 
-    public async Task NotifyPasswordResetLinkValidated(ApplicationUser user, UserResponseDto userResponseDto)
+    public async Task NotifyPasswordResetLinkValidated(ApplicationUser user)
     {
         var notificationDto = new
         {
-            userResponseDto.Email
+           user.Email
         };
         await _hub.Clients.User(user.Id).SendAsync("PasswordResetLinkValidated", notificationDto);
 
         _logger.LogInformation("Password reset link validated notification sent. UserId: {UserId}", user.Id);
     }
 
-    public async Task NotifyEmailConfirmedAsync(ApplicationUser user, UserResponseDto userResponseDto)
+    public async Task NotifyEmailConfirmedAsync(ApplicationUser user, RefreshTokenResponseDto tokenResponseDto)
     {
         var notificationDto = new
         {
-            userResponseDto.Email
+            user.Email,
+            tokenResponseDto.AccessToken,
+            tokenResponseDto.RefreshToken
         };
-        await _hub.Clients.User(user.Id).SendAsync("EmailConfirmed", notificationDto);
+        var connectionIds = await _db.UserConnections
+            .Where(c => c.UserId == user.Id && c.Hub == "/api/userhub")
+            .Select(uc => uc.ConnectionId)
+            .ToListAsync();
+        await _hub.Clients.Clients(connectionIds).SendAsync("EmailConfirmed", notificationDto);
         _logger.LogInformation("Email confirmed notification sent. UserId: {UserId}", user.Id);
     }
 }

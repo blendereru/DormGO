@@ -5,7 +5,7 @@ namespace DormGO.Services.HubNotifications;
 
 public interface IChatHubNotificationService
 {
-    Task NotifyMessageSentAsync(ApplicationUser user, MessageResponseDto messageResponseDto);
-    Task NotifyMessageUpdatedAsync(ApplicationUser user, MessageResponseDto messageResponseDto);
-    Task NotifyMessageDeletedAsync(ApplicationUser user, MessageResponseDto messageResponseDto);
+    Task NotifyMessageSentAsync(ApplicationUser user, Message message);
+    Task NotifyMessageUpdatedAsync(ApplicationUser user, Message message);
+    Task NotifyMessageDeletedAsync(ApplicationUser user, Message message);
 }
