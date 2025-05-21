@@ -7,7 +7,7 @@ using DormGO.DTOs.RequestDTO;
 using DormGO.DTOs.ResponseDTO;
 using DormGO.Models;
 using DormGO.Services;
-using DormGO.Services.Notifications;
+using DormGO.Services.HubNotifications;
 using MapsterMapper;    
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -23,20 +23,20 @@ public class AccountController : ControllerBase
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ApplicationContext _db;
     private readonly IEmailSender<ApplicationUser> _emailSender;
-    private readonly IUserNotificationService _userNotificationService;
+    private readonly IUserHubNotificationService _userHubNotificationService;
     private readonly ILogger<AccountController> _logger;
     private readonly IInputSanitizer _inputSanitizer;
     private readonly IMapper _mapper;
 
     public AccountController(UserManager<ApplicationUser> userManager, ApplicationContext db,
-        IEmailSender<ApplicationUser> emailSender, IUserNotificationService userNotificationService,
+        IEmailSender<ApplicationUser> emailSender, IUserHubNotificationService userHubNotificationService,
         ILogger<AccountController> logger, IInputSanitizer inputSanitizer,
         IMapper mapper)
     {
         _userManager = userManager;
         _db = db;
         _emailSender = emailSender;
-        _userNotificationService = userNotificationService;
+        _userHubNotificationService = userHubNotificationService;
         _logger = logger;
         _inputSanitizer = inputSanitizer;
         _mapper = mapper;
@@ -208,7 +208,7 @@ public class AccountController : ControllerBase
             Email = newEmail,
             Name = user.UserName!
         };
-        await _userNotificationService.NotifyEmailChangedAsync(user, responseDto);
+        await _userHubNotificationService.NotifyEmailChangedAsync(user, responseDto);
         return NoContent();
     }
     
@@ -247,7 +247,7 @@ public class AccountController : ControllerBase
             Email = user.Email!,
             Name = user.UserName!
         };
-        await _userNotificationService.NotifyPasswordResetLinkValidated(user, responseDto);
+        await _userHubNotificationService.NotifyPasswordResetLinkValidated(user, responseDto);
         return NoContent();
     }
 
@@ -357,7 +357,7 @@ public class AccountController : ControllerBase
             Email = user.Email!,
             Name = user.UserName!
         };
-        await _userNotificationService.NotifyEmailConfirmedAsync(user, userResponseDto);
+        await _userHubNotificationService.NotifyEmailConfirmedAsync(user, userResponseDto);
         return Ok(dto);
     }
 

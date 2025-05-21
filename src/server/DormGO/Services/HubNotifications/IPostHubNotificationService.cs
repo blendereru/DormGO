@@ -1,9 +1,9 @@
 using DormGO.DTOs.ResponseDTO;
 using DormGO.Models;
 
-namespace DormGO.Services.Notifications;
+namespace DormGO.Services.HubNotifications;
 
-public interface IPostNotificationService
+public interface IPostHubNotificationService
 {
     Task NotifyPostCreatedAsync(ApplicationUser user, PostResponseDto postResponseDto);
     Task NotifyPostUpdatedAsync(ApplicationUser user, PostResponseDto postResponseDto);

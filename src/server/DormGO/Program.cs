@@ -6,7 +6,7 @@ using DormGO.Hubs;
 using DormGO.Mappings;
 using DormGO.Models;
 using DormGO.Services;
-using DormGO.Services.Notifications;
+using DormGO.Services.HubNotifications;
 using Mapster;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http.Features;
@@ -79,10 +79,11 @@ builder.Services.AddMapster();
 MapsterConfig.Configure();
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, EmailSender>();
 builder.Services.AddSingleton<IInputSanitizer, InputSanitizer>();
-builder.Services.AddScoped<IUserNotificationService, UserNotificationService>();
-builder.Services.AddScoped<IPostNotificationService, PostNotificationService>();
-builder.Services.AddScoped<IChatNotificationService, ChatNotificationService>();
+builder.Services.AddScoped<IUserHubNotificationService, UserHubNotificationService>();
+builder.Services.AddScoped<IPostHubNotificationService, PostHubNotificationService>();
+builder.Services.AddScoped<IChatHubNotificationService, ChatHubNotificationService>();
 builder.Services.AddScoped<ValidateUserEmailFilter>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
 var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {

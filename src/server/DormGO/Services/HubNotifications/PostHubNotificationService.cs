@@ -5,16 +5,16 @@ using DormGO.Models;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
-namespace DormGO.Services.Notifications;
+namespace DormGO.Services.HubNotifications;
 
-public class PostNotificationService : IPostNotificationService
+public class PostHubNotificationService : IPostHubNotificationService
 {
     private readonly ApplicationContext _db;
     private readonly IHubContext<PostHub> _hub;
-    private readonly ILogger<PostNotificationService> _logger;
+    private readonly ILogger<PostHubNotificationService> _logger;
 
-    public PostNotificationService(ApplicationContext db, IHubContext<PostHub> hub,
-        ILogger<PostNotificationService> logger)
+    public PostHubNotificationService(ApplicationContext db, IHubContext<PostHub> hub,
+        ILogger<PostHubNotificationService> logger)
     {
         _db = db;
         _hub = hub;

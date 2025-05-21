@@ -4,16 +4,16 @@ using DormGO.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
 
-namespace DormGO.Services.Notifications;
+namespace DormGO.Services.HubNotifications;
 
-public class UserNotificationService : IUserNotificationService
+public class UserHubNotificationService : IUserHubNotificationService
 {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IHubContext<UserHub> _hub;
-    private readonly ILogger<UserNotificationService> _logger;
+    private readonly ILogger<UserHubNotificationService> _logger;
 
-    public UserNotificationService(UserManager<ApplicationUser> userManager, IHubContext<UserHub> hub,
-        ILogger<UserNotificationService> logger)
+    public UserHubNotificationService(UserManager<ApplicationUser> userManager, IHubContext<UserHub> hub,
+        ILogger<UserHubNotificationService> logger)
     {
         _userManager = userManager;
         _hub = hub;

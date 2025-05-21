@@ -5,7 +5,7 @@ using DormGO.DTOs.ResponseDTO;
 using DormGO.Filters;
 using DormGO.Models;
 using DormGO.Services;
-using DormGO.Services.Notifications;
+using DormGO.Services.HubNotifications;
 using Mapster;
 using MapsterMapper;
 using Microsoft.AspNetCore.Authorization;
@@ -21,16 +21,16 @@ namespace DormGO.Controllers;
 public class ChatController : ControllerBase
 {
     private readonly ApplicationContext _db;
-    private readonly IChatNotificationService _chatNotificationService;
+    private readonly IChatHubNotificationService _chatHubNotificationService;
     private readonly ILogger<ChatController> _logger;
     private readonly IInputSanitizer _inputSanitizer;
     private readonly IMapper _mapper;
 
-    public ChatController(ApplicationContext db, IChatNotificationService chatNotificationService, ILogger<ChatController> logger,
+    public ChatController(ApplicationContext db, IChatHubNotificationService chatHubNotificationService, ILogger<ChatController> logger,
         IInputSanitizer inputSanitizer, IMapper mapper)
     {
         _db = db;
-        _chatNotificationService = chatNotificationService;
+        _chatHubNotificationService = chatHubNotificationService;
         _logger = logger;
         _inputSanitizer = inputSanitizer;
         _mapper = mapper;
@@ -128,7 +128,7 @@ public class ChatController : ControllerBase
         _db.Messages.Add(message);
         await _db.SaveChangesAsync();
         _logger.LogInformation("Message sent successfully. UserId: {UserId}, PostId: {PostId}, MessageId: {MessageId}", user.Id, post.Id, message.Id);
-        await _chatNotificationService.NotifyMessageSentAsync(user, message.Adapt<MessageResponseDto>());
+        await _chatHubNotificationService.NotifyMessageSentAsync(user, message.Adapt<MessageResponseDto>());
         return CreatedAtAction("GetMessageById", new { postId = message.PostId, messageId = message.Id }, message.Adapt<MessageResponseDto>());
     }
 
@@ -233,7 +233,7 @@ public class ChatController : ControllerBase
         await _db.SaveChangesAsync();
         _logger.LogInformation("Message updated successfully. UserId: {UserId}. MessageId: {MessageId}", user.Id, sanitizedMessageId);
         Log.Information("UpdateMessage: Message {MessageId} updated by user {UserId}", message.Id, user.Id);
-        await _chatNotificationService.NotifyMessageUpdatedAsync(user, message.Adapt<MessageResponseDto>());
+        await _chatHubNotificationService.NotifyMessageUpdatedAsync(user, message.Adapt<MessageResponseDto>());
         return NoContent();
     }
     [HttpDelete("{messageId}")]
@@ -282,7 +282,7 @@ public class ChatController : ControllerBase
         _db.Messages.Remove(message);
         await _db.SaveChangesAsync();
         _logger.LogInformation("Message removed successfully. UserId: {UserId}. MessageId: {MessageId}", user.Id, message.Id);
-        await _chatNotificationService.NotifyMessageDeletedAsync(user, message.Adapt<MessageResponseDto>());
+        await _chatHubNotificationService.NotifyMessageDeletedAsync(user, message.Adapt<MessageResponseDto>());
         return NoContent();
     }
 }

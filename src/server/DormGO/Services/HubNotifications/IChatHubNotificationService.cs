@@ -1,9 +1,9 @@
 using DormGO.DTOs.ResponseDTO;
 using DormGO.Models;
 
-namespace DormGO.Services.Notifications;
+namespace DormGO.Services.HubNotifications;
 
-public interface IChatNotificationService
+public interface IChatHubNotificationService
 {
     Task NotifyMessageSentAsync(ApplicationUser user, MessageResponseDto messageResponseDto);
     Task NotifyMessageUpdatedAsync(ApplicationUser user, MessageResponseDto messageResponseDto);

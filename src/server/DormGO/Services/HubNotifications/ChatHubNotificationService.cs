@@ -5,16 +5,16 @@ using DormGO.Models;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
-namespace DormGO.Services.Notifications;
+namespace DormGO.Services.HubNotifications;
 
-public class ChatNotificationService : IChatNotificationService
+public class ChatHubNotificationService : IChatHubNotificationService
 {
     private readonly ApplicationContext _db;
     private readonly IHubContext<ChatHub> _hub;
-    private readonly ILogger<UserNotificationService> _logger;
+    private readonly ILogger<UserHubNotificationService> _logger;
 
-    public ChatNotificationService(ApplicationContext db, IHubContext<ChatHub> hub,
-        ILogger<UserNotificationService> logger)
+    public ChatHubNotificationService(ApplicationContext db, IHubContext<ChatHub> hub,
+        ILogger<UserHubNotificationService> logger)
     {
         _db = db;
         _hub = hub;

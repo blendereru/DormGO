@@ -30,7 +30,7 @@ public class NotificationController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<NotificationRequestDto>>> GetAllNotifications()
+    public async Task<ActionResult> GetAllNotifications()
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
@@ -43,18 +43,19 @@ public class NotificationController : ControllerBase
                 Instance = $"{Request.Method} {Request.Path}"
             });
         }
-        var notifications = await _db.Notifications
-            .Where(n => n.UserId == user.Id)
-            .OrderByDescending(n => n.CreatedAt)
-            .ToListAsync();
 
-        var responseDto = notifications.Adapt<List<NotificationResponseDto>>();
-        _logger.LogInformation("Notifications retrieved successfully. UserId: {UserId}, NotificationsCount: {NotificationCount}", user.Id, responseDto.Count);
-        return Ok(responseDto);
+        var postNotifications = await _db.PostNotifications
+            .Where(pn => pn.UserId == user.Id)
+            .Include(pn => pn.Post)
+            .ThenInclude(p => p.Creator)
+            .ProjectToType<PostNotificationResponseDto>()
+            .ToListAsync();
+        _logger.LogInformation("Notifications retrieved successfully. UserId: {UserId}, NotificationsCount: {NotificationCount}", user.Id, postNotifications.Count);
+        return Ok(postNotifications);
     }
 
     [HttpPatch("{id}")]
-    public async Task<IActionResult> MarkAsRead(string id, NotificationUpdateRequestDto updateRequest)
+    public async Task<IActionResult> UpdateNotification(string id, NotificationUpdateRequestDto updateRequest)
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
