@@ -21,15 +21,15 @@ public class PostHubNotificationService : IPostHubNotificationService
         _logger = logger;
     }
 
-    public async Task NotifyPostCreatedAsync(ApplicationUser user, PostResponseDto postResponseDto)
+    public async Task NotifyPostCreatedAsync(ApplicationUser user, Post post)
     {
         var notificationDto = new
         {
-            postResponseDto.PostId,
-            postResponseDto.Title,
-            postResponseDto.CreatedAt,
-            CreatorName = postResponseDto.Creator.Name,
-            postResponseDto.MaxPeople
+            post.Id,
+            post.Title,
+            post.CreatedAt,
+            CreatorName = post.Creator.UserName,
+            post.MaxPeople
         };
         var excludedConnectionIds = await _db.UserConnections
             .Where(c => c.UserId == user.Id && c.Hub == "/api/posthub")
@@ -38,17 +38,17 @@ public class PostHubNotificationService : IPostHubNotificationService
         await _hub.Clients.AllExcept(excludedConnectionIds).SendAsync("PostCreated", notificationDto);
         _logger.LogInformation(
             "Post created notification sent. UserId: {UserId}, PostId: {PostId}, ExcludedConnectionsCount: {ExcludedConnectionsCount}",
-            user.Id, postResponseDto.PostId, excludedConnectionIds.Count);
+            user.Id, post.Id, excludedConnectionIds.Count);
     }
-    public async Task NotifyPostUpdatedAsync(ApplicationUser user, PostResponseDto postResponseDto)
+    public async Task NotifyPostUpdatedAsync(ApplicationUser user, Post post)
     {
         var notificationDto = new
         {
-            postResponseDto.PostId,
-            postResponseDto.Title,
-            postResponseDto.UpdatedAt,
-            CreatorName = postResponseDto.Creator.Name,
-            postResponseDto.MaxPeople
+            post.Id,
+            post.Title,
+            post.UpdatedAt,
+            CreatorName = post.Creator.UserName,
+            post.MaxPeople
         };
         var excludedConnectionIds = await _db.UserConnections
             .Where(c => c.UserId == user.Id && c.Hub == "/api/posthub")
@@ -57,7 +57,7 @@ public class PostHubNotificationService : IPostHubNotificationService
         await _hub.Clients.AllExcept(excludedConnectionIds).SendAsync("PostUpdated", notificationDto);
         _logger.LogInformation(
             "Post updated notification sent. UserId: {UserId}, PostId: {PostId}, ExcludedConnectionsCount: {ExcludedConnectionsCount}",
-            user.Id, postResponseDto.PostId, excludedConnectionIds.Count);
+            user.Id, post.Id, excludedConnectionIds.Count);
     }
 
     public async Task NotifyPostDeletedAsync(ApplicationUser user, string postId)
