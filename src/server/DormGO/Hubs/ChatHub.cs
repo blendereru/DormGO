@@ -61,9 +61,8 @@ public class ChatHub : Hub
             };
             _db.UserConnections.Add(connection);
             await _db.SaveChangesAsync();
-
             var userPosts = await _db.Posts
-                .Where(p => p.Members.Any(m => m.Id == userId))
+                .Where(p => p.Members.Any(m => m.Id == userId) || p.CreatorId == userId)
                 .Select(p => p.Id)
                 .ToListAsync();
             foreach (var postId in userPosts)

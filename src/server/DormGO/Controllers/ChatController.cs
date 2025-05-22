@@ -7,7 +7,6 @@ using DormGO.Models;
 using DormGO.Services;
 using DormGO.Services.HubNotifications;
 using Mapster;
-using MapsterMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -24,16 +23,15 @@ public class ChatController : ControllerBase
     private readonly IChatHubNotificationService _chatHubNotificationService;
     private readonly ILogger<ChatController> _logger;
     private readonly IInputSanitizer _inputSanitizer;
-    private readonly IMapper _mapper;
 
-    public ChatController(ApplicationContext db, IChatHubNotificationService chatHubNotificationService, ILogger<ChatController> logger,
-        IInputSanitizer inputSanitizer, IMapper mapper)
+    public ChatController(ApplicationContext db, IChatHubNotificationService chatHubNotificationService,
+        ILogger<ChatController> logger,
+        IInputSanitizer inputSanitizer)
     {
         _db = db;
         _chatHubNotificationService = chatHubNotificationService;
         _logger = logger;
         _inputSanitizer = inputSanitizer;
-        _mapper = mapper;
     }
 
     [HttpGet]
@@ -108,9 +106,7 @@ public class ChatController : ControllerBase
             return ValidationProblem(ModelState);
         }
         var sanitizedPostId = _inputSanitizer.Sanitize(postId);
-        var post = await _db.Posts
-            .Include(p => p.Members)
-            .FirstOrDefaultAsync(p => p.Id == sanitizedPostId);
+        var post = await _db.Posts.FirstOrDefaultAsync(p => p.Id == sanitizedPostId);
         if (post == null)
         {
             _logger.LogWarning("Message send requested for non-existent post. UserId: {UserId}, PostId: {PostId}", user.Id, sanitizedPostId);
@@ -122,7 +118,7 @@ public class ChatController : ControllerBase
                 Instance = $"{Request.Method} {Request.Path}"
             });
         }
-        var message = _mapper.Map<Message>(messageDto);
+        var message = messageDto.Adapt<Message>();
         message.SenderId = user.Id;
         message.PostId = sanitizedPostId;
         _db.Messages.Add(message);
