@@ -17,6 +17,14 @@ services:
     container_name: sql_server
     environment:
       - ACCEPT_EULA=Y
-      - MSSQL_SA_PASSWORD=
+      - MSSQL_SA_PASSWORD=<your_password>
     ports:
       - "8002:1433"
+  seq:
+    image: datalust/seq:latest
+    container_name: seq
+    environment:
+      - ACCEPT_EULA=Y
+    ports:
+      - "5341:5341"
+      - "8081:80"
