@@ -1,7 +1,3 @@
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Security.Cryptography;
-using DormGO.Constants;
 using DormGO.Data;
 using DormGO.DTOs.RequestDTO;
 using DormGO.DTOs.ResponseDTO;
@@ -12,7 +8,6 @@ using Mapster;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
 
 namespace DormGO.Controllers;
 
@@ -24,21 +19,23 @@ public class AccountController : ControllerBase
     private readonly ApplicationContext _db;
     private readonly IEmailSender<ApplicationUser> _emailSender;
     private readonly IUserHubNotificationService _userHubNotificationService;
+    private readonly ITokensProvider _tokensProvider;
     private readonly ILogger<AccountController> _logger;
     private readonly IInputSanitizer _inputSanitizer;
 
     public AccountController(UserManager<ApplicationUser> userManager, ApplicationContext db,
-        IEmailSender<ApplicationUser> emailSender, IUserHubNotificationService userHubNotificationService,
+        IEmailSender<ApplicationUser> emailSender, ITokensProvider tokensProvider,
+        IUserHubNotificationService userHubNotificationService,
         ILogger<AccountController> logger, IInputSanitizer inputSanitizer)
     {
         _userManager = userManager;
         _db = db;
         _emailSender = emailSender;
         _userHubNotificationService = userHubNotificationService;
+        _tokensProvider = tokensProvider;
         _logger = logger;
         _inputSanitizer = inputSanitizer;
     }
-
     [HttpPost("signup")]
     public async Task<IActionResult> Register(UserRequestDto dto)
     {
@@ -121,8 +118,8 @@ public class AccountController : ControllerBase
             _logger.LogInformation("User's refresh sessions exceeded the limit and were cleared. UserId: {UserId}, ClearedSessionsCount: {Count}", user.Id, count);
         }
 
-        var accessToken = GenerateAccessToken(user);
-        var refreshToken = GenerateRefreshToken();
+        var accessToken = _tokensProvider.GenerateAccessToken(user);
+        var refreshToken = _tokensProvider.GenerateRefreshToken();
         var session = new RefreshSession
         {
             UserId = user.Id,
@@ -132,7 +129,6 @@ public class AccountController : ControllerBase
             Ip = HttpContext.Connection.RemoteIpAddress?.ToString(),
             ExpiresIn = DateTimeOffset.UtcNow.AddDays(7).ToUnixTimeMilliseconds()
         };
-
         _db.RefreshSessions.Add(session);
         await _db.SaveChangesAsync();
         _logger.LogInformation("User successfully logged in. UserId: {UserId}", user.Id);
@@ -320,8 +316,8 @@ public class AccountController : ControllerBase
             return ValidationProblem(ModelState);
         }
         _logger.LogInformation("Email successfully confirmed. UserId: {UserId}", user.Id);
-        var accessToken = GenerateAccessToken(user);
-        var refreshToken = GenerateRefreshToken();
+        var accessToken = _tokensProvider.GenerateAccessToken(user);
+        var refreshToken = _tokensProvider.GenerateRefreshToken();
         var session = new RefreshSession
         {
             UserId = user.Id,
@@ -384,7 +380,7 @@ public class AccountController : ControllerBase
             return ValidationProblem(ModelState);
         }
 
-        var principal = GetPrincipalFromExpiredToken(dto.AccessToken);
+        var principal = await _tokensProvider.GetPrincipalFromExpiredTokenAsync(dto.AccessToken);
         if (principal == null)
         {
             _logger.LogWarning("Invalid access token. VisitorId: {VisitorId}", sanitizedVisitorId);
@@ -439,8 +435,8 @@ public class AccountController : ControllerBase
             return Unauthorized(problem);
         }
         var user = session.User;
-        var newAccessToken = GenerateAccessToken(user);
-        var newRefreshToken = GenerateRefreshToken();
+        var newAccessToken = _tokensProvider.GenerateAccessToken(user);
+        var newRefreshToken = _tokensProvider.GenerateRefreshToken();
         session.RefreshToken = newRefreshToken;
         session.ExpiresIn = DateTimeOffset.UtcNow.AddDays(7).ToUnixTimeMilliseconds();
         session.UA = Request.Headers.UserAgent.ToString();
@@ -454,66 +450,5 @@ public class AccountController : ControllerBase
             RefreshToken = newRefreshToken
         };
         return Ok(responseDto);
-    }
-    [NonAction]
-    private string GenerateAccessToken(ApplicationUser user)
-    {
-        var claims = new List<Claim>
-        {
-            new Claim(ClaimTypes.NameIdentifier, user.Id),
-            new Claim(ClaimTypes.Name, user.UserName!),
-            new Claim(ClaimTypes.Email, user.Email!),
-            new Claim(ClaimTypes.Role, "User")
-        };
-
-        var jwt = new JwtSecurityToken(
-            issuer: AuthOptions.ISSUER,
-            audience: AuthOptions.AUDIENCE,
-            claims: claims,
-            expires: DateTime.UtcNow.AddMinutes(AuthOptions.LIFETIME),
-            signingCredentials: new SigningCredentials(AuthOptions.GetSymmetricSecurityKey(), SecurityAlgorithms.HmacSha256)
-        );
-        _logger.LogDebug("Jwt(Access token) generated. UserId: {UserId}", user.Id);
-        return new JwtSecurityTokenHandler().WriteToken(jwt);
-    }
-
-    [NonAction]
-    private string GenerateRefreshToken()
-    {
-        var randomNumber = new byte[32];
-        using var rng = RandomNumberGenerator.Create();
-        rng.GetBytes(randomNumber);
-        _logger.LogDebug("Refresh token generated.");
-        return Convert.ToBase64String(randomNumber);
-    }
-
-    [NonAction]
-    private ClaimsPrincipal? GetPrincipalFromExpiredToken(string token)
-    {
-        var key = AuthOptions.GetSymmetricSecurityKey();
-        var tokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = false,
-            ValidateAudience = false,
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = key,
-            ValidateLifetime = false
-        };
-        try
-        {
-            _logger.LogDebug("Validating jwt token...");
-            var tokenHandler = new JwtSecurityTokenHandler();
-            var principal = tokenHandler.ValidateToken(token, tokenValidationParameters, out var securityToken);
-            if (securityToken is JwtSecurityToken jwtToken &&
-                jwtToken.Header.Alg == SecurityAlgorithms.HmacSha256)
-            {
-                return principal;
-            }
-        }
-        catch(Exception ex)
-        {
-            _logger.LogError("Error while validating jwt token. Error message: {ErrorMessage}", ex.Message);
-        }
-        return null;
     }
 }

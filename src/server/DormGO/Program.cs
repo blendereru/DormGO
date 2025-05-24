@@ -90,13 +90,13 @@ builder.Services.AddScoped<IPostHubNotificationService, PostHubNotificationServi
 builder.Services.AddScoped<IChatHubNotificationService, ChatHubNotificationService>();
 builder.Services.AddScoped<ValidateUserEmailFilter>();
 builder.Services.AddScoped(typeof(INotificationService<,>), typeof(NotificationService<,>));
+builder.Services.AddScoped<ITokensProvider, TokensProvider>();
 var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
     await dbContext.Database.MigrateAsync();
 }
-
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
