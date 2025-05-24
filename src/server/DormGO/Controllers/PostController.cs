@@ -7,7 +7,6 @@ using DormGO.Models;
 using DormGO.Services;
 using DormGO.Services.HubNotifications;
 using Mapster;
-using MapsterMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -24,20 +23,18 @@ public class PostController : ControllerBase
     private readonly INotificationService<PostNotification, PostNotificationResponseDto> _notificationService;
     private readonly ILogger<PostController> _logger;
     private readonly IInputSanitizer _inputSanitizer;
-    private readonly IMapper _mapper;
 
     public PostController(ApplicationContext db,
         IPostHubNotificationService postHubNotificationService,
         INotificationService<PostNotification, PostNotificationResponseDto> notificationService,
         ILogger<PostController> logger,
-        IInputSanitizer inputSanitizer, IMapper mapper)
+        IInputSanitizer inputSanitizer)
     {
         _db = db;
         _postHubNotificationService = postHubNotificationService;
         _notificationService = notificationService;
         _logger = logger;
         _inputSanitizer = inputSanitizer;
-        _mapper = mapper;
     }
     [HttpPost]
     public async Task<IActionResult> CreatePost(PostRequestDto postDto)
@@ -53,7 +50,8 @@ public class PostController : ControllerBase
                 Instance = $"{Request.Method} {Request.Path}"
             });
         }
-        var post = _mapper.Map<Post>(postDto);
+
+        var post = postDto.Adapt<Post>();
         post.Creator = user;
         _db.Posts.Add(post);
         await _db.SaveChangesAsync();
@@ -248,7 +246,8 @@ public class PostController : ControllerBase
             };
             return NotFound(problem);
         }
-        var postDto = _mapper.Map<PostResponseDto>(post);
+
+        var postDto = post.Adapt<PostResponseDto>();
         _logger.LogInformation("Post retrieved successfully. UserId: {UserId}, PostId: {PostId}", user.Id, post.Id);
         return Ok(postDto);
     }

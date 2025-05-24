@@ -9,7 +9,6 @@ using DormGO.Models;
 using DormGO.Services;
 using DormGO.Services.HubNotifications;
 using Mapster;
-using MapsterMapper;    
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -27,12 +26,10 @@ public class AccountController : ControllerBase
     private readonly IUserHubNotificationService _userHubNotificationService;
     private readonly ILogger<AccountController> _logger;
     private readonly IInputSanitizer _inputSanitizer;
-    private readonly IMapper _mapper;
 
     public AccountController(UserManager<ApplicationUser> userManager, ApplicationContext db,
         IEmailSender<ApplicationUser> emailSender, IUserHubNotificationService userHubNotificationService,
-        ILogger<AccountController> logger, IInputSanitizer inputSanitizer,
-        IMapper mapper)
+        ILogger<AccountController> logger, IInputSanitizer inputSanitizer)
     {
         _userManager = userManager;
         _db = db;
@@ -40,7 +37,6 @@ public class AccountController : ControllerBase
         _userHubNotificationService = userHubNotificationService;
         _logger = logger;
         _inputSanitizer = inputSanitizer;
-        _mapper = mapper;
     }
 
     [HttpPost("signup")]
@@ -53,7 +49,7 @@ public class AccountController : ControllerBase
             ModelState.AddModelError(nameof(dto.Password), "The Password field is required");
             return ValidationProblem(ModelState);
         }
-        var user = _mapper.Map<ApplicationUser>(dto);
+        var user = dto.Adapt<ApplicationUser>();
         user.RegistrationDate = DateTime.UtcNow;
 
         var result = await _userManager.CreateAsync(user, dto.Password);
