@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using DormGO.Data;
 using DormGO.DTOs.RequestDTO;
 using DormGO.DTOs.ResponseDTO;
@@ -13,6 +14,7 @@ namespace DormGO.Controllers;
 
 [ApiController]
 [Route("api")]
+[ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
 public class AccountController : ControllerBase
 {
     private readonly UserManager<ApplicationUser> _userManager;
@@ -36,6 +38,9 @@ public class AccountController : ControllerBase
         _logger = logger;
         _inputSanitizer = inputSanitizer;
     }
+    [EndpointSummary("Registers a user.")]
+    [EndpointDescription("Intended to register a user to the system.")]
+    [ProducesResponseType<UserResponse>(StatusCodes.Status201Created, "application/json")]
     [HttpPost("signup")]
     public async Task<IActionResult> Register(UserRegisterRequest registerRequest)
     {
@@ -60,11 +65,14 @@ public class AccountController : ControllerBase
             visitorId = user.Fingerprint
         }, protocol: Request.Scheme);
         await _emailSender.SendConfirmationLinkAsync(user, user.Email!, confirmationLink!);
-        var profileUrl = Url.Action("GetUserProfile", "Profile", new { email = user.Email });
+        var profileUrl = Url.Action("GetUserProfile", "Profile", new { id = user.Id });
         var response = user.Adapt<UserResponse>();
         return Created(profileUrl, response);
     }
-
+    [EndpointSummary("Logs in a user")]
+    [EndpointDescription("Intended to log user in to the system")]
+    [ProducesResponseType<RefreshTokensResponse>(StatusCodes.Status200OK, "application/json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json")]
     [HttpPost("signin")]
     public async Task<IActionResult> Login(UserLoginRequest loginRequest)
     {
@@ -142,9 +150,11 @@ public class AccountController : ControllerBase
         };
         return Ok(response);
     }
-    
-    [HttpPost("password/reset/request")]
-    public async Task<IActionResult> RequestPasswordReset(PasswordForgotRequest passwordForgotRequest)
+    [EndpointSummary("Endpoint for password forgot")]
+    [EndpointDescription("Intended to change the user password when it was forgotten")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [HttpPost("password/forgot")]
+    public async Task<IActionResult> ForgotPassword(PasswordForgotRequest passwordForgotRequest)
     {
         var user = await _userManager.FindByEmailAsync(passwordForgotRequest.Email);
         if (user != null)
@@ -159,13 +169,17 @@ public class AccountController : ControllerBase
         }
         return NoContent();
     }
-    
+    [EndpointSummary("The link that confirms email change")]
+    [EndpointDescription("User goes by this link when it was sent to new email to confirm it")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     [HttpGet("email/change/confirm")]
-    public async Task<IActionResult> UpdateEmail(string userId, string newEmail, string token)
+    public async Task<IActionResult> UpdateEmail([Description("User's id to validate")] string userId, [Description("New email to change the email for")] string newEmail, [Description("Token using which the link signature is validated")] string token)
     {
         var sanitizedUserId = _inputSanitizer.Sanitize(userId);
         if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(token) || string.IsNullOrEmpty(newEmail))
-        {
+        { 
             _logger.LogWarning("Invalid or expired email change link. UserId: {UserId}", sanitizedUserId);
             var problem = new ProblemDetails
             {
@@ -203,9 +217,13 @@ public class AccountController : ControllerBase
         await _userHubNotificationService.NotifyEmailChangedAsync(user);
         return NoContent();
     }
-    
+    [EndpointSummary("The link that confirms password reset")]
+    [EndpointDescription("User goes by this link when it was sent to his email to confirm the password reset")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     [HttpGet("password/reset/validate")]
-    public async Task<IActionResult> ValidatePasswordReset(string userId, string token)
+    public async Task<IActionResult> ValidatePasswordReset([Description("User's id to validate")] string userId, [Description("Token using which the link signature is validated")] string token)
     {
         var sanitizedUserId = _inputSanitizer.Sanitize(userId);
         if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(token))
@@ -236,7 +254,9 @@ public class AccountController : ControllerBase
         await _userHubNotificationService.NotifyPasswordResetLinkValidated(user);
         return NoContent();
     }
-
+    [EndpointSummary("Request to reset password")]
+    [EndpointDescription("Intended to set new password to user")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     [HttpPost("password/reset")]
     public async Task<IActionResult> ResetPassword(PasswordResetRequest passwordResetRequest)
     {
@@ -261,6 +281,9 @@ public class AccountController : ControllerBase
         }
         return NoContent();
     }
+    [EndpointSummary("Log user out")]
+    [EndpointDescription("Intended to log user out of the system, removing his current session")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     [HttpDelete("signout")]
     public async Task<IActionResult> Logout(UserLogoutRequest userLogoutRequest)
     {
@@ -278,8 +301,13 @@ public class AccountController : ControllerBase
         }
         return NoContent();
     }
+    [EndpointSummary("The link that confirms user email")]
+    [EndpointDescription("User goes by this link when it was sent to his email to confirm it")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
     [HttpGet("email/confirm")]
-    public async Task<IActionResult> ConfirmEmail(string userId, string token, string visitorId)
+    public async Task<IActionResult> ConfirmEmail([Description("User's id to validate")] string userId, [Description("Token using which the link signature is validated")] string token, [Description("User's fingerprint(device id)")] string visitorId)
     {
         var sanitizedUserId = _inputSanitizer.Sanitize(userId);
         if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(token))
@@ -340,6 +368,9 @@ public class AccountController : ControllerBase
         await _userHubNotificationService.NotifyEmailConfirmedAsync(user, response);
         return Ok("good on you");
     }
+    [EndpointSummary("Resend email confirmation link")]
+    [EndpointDescription("Intended to resend email confirmation link to user")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     [HttpPost("email/confirmation/resend")]
     public async Task<IActionResult> ResendConfirmationEmail(EmailConfirmationResendRequest emailConfirmationResendRequest)
     {
@@ -371,6 +402,10 @@ public class AccountController : ControllerBase
         }
         return NoContent();
     }
+    [EndpointSummary("Refresh tokens")]
+    [EndpointDescription("Intended to update both access and refresh tokens of user once the token expired.")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]
+    [ProducesResponseType<RefreshTokensResponse>(StatusCodes.Status200OK, "application/json")]
     [HttpPut("tokens/refresh")]
     public async Task<IActionResult> RefreshTokens(RefreshTokensRequest refreshTokensRequest)
     {

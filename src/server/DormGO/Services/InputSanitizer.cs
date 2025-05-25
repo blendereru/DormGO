@@ -23,11 +23,11 @@ public class InputSanitizer : IInputSanitizer
             .Replace("\"", "\\\"");
         if (sanitized != input)
         {
-            _logger.LogInformation("Input sanitized. Sanitized: '{SanitizedInput}'", sanitized);
+            _logger.LogInformation("Input sanitized. Sanitized: {SanitizedInput}", sanitized);
         }
         else
         {
-            _logger.LogDebug("Input did not require sanitization: '{SanitizedInput}'", sanitized);
+            _logger.LogDebug("Input did not require sanitization: {SanitizedInput}", sanitized);
         }
         return sanitized;
     }

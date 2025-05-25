@@ -9,9 +9,11 @@ namespace DormGO.Services;
 
 public class TokensProvider : ITokensProvider
 {
+    private readonly IConfiguration _configuration;
     private readonly ILogger<TokensProvider> _logger;
-    public TokensProvider(ILogger<TokensProvider> logger)
+    public TokensProvider(IConfiguration configuration, ILogger<TokensProvider> logger)
     {
+        _configuration = configuration;
         _logger = logger;
     }
     public string GenerateAccessToken(ApplicationUser user)
