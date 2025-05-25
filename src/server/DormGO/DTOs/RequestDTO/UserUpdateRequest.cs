@@ -1,6 +1,6 @@
 namespace DormGO.DTOs.RequestDTO;
 
-public class UserUpdateRequestDto
+public class UserUpdateRequest
 {
     public string? UserName { get; set; }
     public string? NewEmail { get; set; }

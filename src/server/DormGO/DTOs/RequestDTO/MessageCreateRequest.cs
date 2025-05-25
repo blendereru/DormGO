@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace DormGO.DTOs.RequestDTO;
 
-public class MessageRequestDto
+public class MessageCreateRequest
 {
     [Required]
     public string Content { get; set; }

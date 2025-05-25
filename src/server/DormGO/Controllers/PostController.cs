@@ -20,13 +20,13 @@ public class PostController : ControllerBase
 {
     private readonly ApplicationContext _db;
     private readonly IPostHubNotificationService _postHubNotificationService;
-    private readonly INotificationService<PostNotification, PostNotificationResponseDto> _notificationService;
+    private readonly INotificationService<PostNotification, PostNotificationResponse> _notificationService;
     private readonly ILogger<PostController> _logger;
     private readonly IInputSanitizer _inputSanitizer;
 
     public PostController(ApplicationContext db,
         IPostHubNotificationService postHubNotificationService,
-        INotificationService<PostNotification, PostNotificationResponseDto> notificationService,
+        INotificationService<PostNotification, PostNotificationResponse> notificationService,
         ILogger<PostController> logger,
         IInputSanitizer inputSanitizer)
     {
@@ -37,7 +37,7 @@ public class PostController : ControllerBase
         _inputSanitizer = inputSanitizer;
     }
     [HttpPost]
-    public async Task<IActionResult> CreatePost(PostRequestDto postDto)
+    public async Task<IActionResult> CreatePost(PostCreateRequest postCreateRequest)
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
@@ -51,18 +51,18 @@ public class PostController : ControllerBase
             });
         }
 
-        var post = postDto.Adapt<Post>();
+        var post = postCreateRequest.Adapt<Post>();
         post.Creator = user;
         _db.Posts.Add(post);
         await _db.SaveChangesAsync();
         _logger.LogInformation("Post successfully created by {UserId}. PostId: {PostId}", user.Id, post.Id);
-        var postDtoMapped = post.Adapt<PostResponseDto>();
+        var postResponse = post.Adapt<PostResponse>();
         await _postHubNotificationService.NotifyPostCreatedAsync(user, post);
-        return CreatedAtAction("ReadPost", new { id = post.Id }, postDtoMapped);
+        return CreatedAtAction("ReadPost", new { id = post.Id }, postResponse);
     }
 
     [HttpGet("search")]
-    public async Task<IActionResult> SearchPosts(PostSearchRequestDto postSearchRequest)
+    public async Task<IActionResult> SearchPosts(PostSearchRequest postSearchRequest)
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
@@ -103,7 +103,7 @@ public class PostController : ControllerBase
             if (users.Count <= 0)
             {
                 _logger.LogInformation("No users found for provided member emails");
-                return Ok(new List<PostResponseDto>());
+                return Ok(new List<PostResponse>());
             }
             _logger.LogDebug("Found {UserCount} matching users in database", users.Count);
             var userIds = users.Select(u => u.Id).ToList();
@@ -125,7 +125,7 @@ public class PostController : ControllerBase
         var posts = await query
             .Include(p => p.Creator)
             .Include(p => p.Members)
-            .ProjectToType<PostResponseDto>()
+            .ProjectToType<PostResponse>()
             .ToListAsync();
         _logger.LogDebug("Search completed for {UserId}. Found {PostCount} results", 
             user.Id, posts.Count);
@@ -153,7 +153,7 @@ public class PostController : ControllerBase
                 Posts = await _db.Posts
                     .Where(p => p.Members.Any(m => m.Id == user.Id))
                     .Include(p => p.Members)
-                    .ProjectToType<PostResponseDto>()
+                    .ProjectToType<PostResponse>()
                     .ToListAsync(),
                 LogMsg = "Joined posts retrieved for {UserId}. PostsCount: {PostsCount}"
             },
@@ -162,7 +162,7 @@ public class PostController : ControllerBase
                 Posts = await _db.Posts
                     .Where(p => p.CreatorId == user.Id)
                     .Include(p => p.Members)
-                    .ProjectToType<PostResponseDto>()
+                    .ProjectToType<PostResponse>()
                     .ToListAsync(),
                 LogMsg = "User's own posts retrieved. UserId: {UserId}, PostsCount: {PostsCount}"
             },
@@ -171,7 +171,7 @@ public class PostController : ControllerBase
                 Posts = await _db.Posts
                     .Where(p => p.CreatorId != user.Id && !p.Members.Any(m => m.Id == user.Id))
                     .Include(p => p.Members)
-                    .ProjectToType<PostResponseDto>()
+                    .ProjectToType<PostResponse>()
                     .ToListAsync(),
                 LogMsg = "Not joined posts retrieved for {UserId}. PostsCount: {PostsCount}"
             },
@@ -186,19 +186,19 @@ public class PostController : ControllerBase
         var yourPostsTask = _db.Posts
             .Where(p => p.CreatorId == user.Id)
             .Include(p => p.Members)
-            .ProjectToType<PostResponseDto>()
+            .ProjectToType<PostResponse>()
             .ToListAsync();
 
         var joinedPostsTask = _db.Posts
             .Where(p => p.Members.Any(m => m.Id == user.Id))
             .Include(p => p.Members)
-            .ProjectToType<PostResponseDto>()
+            .ProjectToType<PostResponse>()
             .ToListAsync();
 
         var notJoinedPostsTask = _db.Posts
             .Where(p => p.CreatorId != user.Id && !p.Members.Any(m => m.Id == user.Id))
             .Include(p => p.Members)
-            .ProjectToType<PostResponseDto>()
+            .ProjectToType<PostResponse>()
             .ToListAsync();
 
         await Task.WhenAll(yourPostsTask, joinedPostsTask, notJoinedPostsTask);
@@ -247,9 +247,9 @@ public class PostController : ControllerBase
             return NotFound(problem);
         }
 
-        var postDto = post.Adapt<PostResponseDto>();
+        var response = post.Adapt<PostResponse>();
         _logger.LogInformation("Post retrieved successfully. UserId: {UserId}, PostId: {PostId}", user.Id, post.Id);
-        return Ok(postDto);
+        return Ok(response);
     }
 
     [HttpPost("{id}/membership")]
@@ -302,7 +302,7 @@ public class PostController : ControllerBase
     }
 
     [HttpPut("{id}/ownership")]
-    public async Task<IActionResult> TransferPostOwnership(string id, UserRequestDto userDto)
+    public async Task<IActionResult> TransferPostOwnership(string id, OwnershipTransferRequest ownershipTransferRequest)
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
@@ -318,7 +318,7 @@ public class PostController : ControllerBase
         }
         var post = await _db.Posts.Include(p => p.Members)
             .FirstOrDefaultAsync(p => p.Id == id && p.CreatorId == user.Id);
-        var newOwner = post?.Members.FirstOrDefault(m => m.Email == userDto.Email);
+        var newOwner = post?.Members.FirstOrDefault(m => m.Id == ownershipTransferRequest.UserId);
         if (post == null || newOwner == null)
         {
             var sanitizedPostId = _inputSanitizer.Sanitize(id);
@@ -345,8 +345,8 @@ public class PostController : ControllerBase
         await _notificationService.SendNotificationAsync(newOwner, notification, "OwnershipTransferred"); 
         return NoContent();
     }
-    [HttpPut("{id}")]
-    public async Task<IActionResult> UpdatePost(string id, PostRequestDto postDto)
+    [HttpPatch("{id}")]
+    public async Task<IActionResult> UpdatePost(string id, PostUpdateRequest postUpdateRequest)
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
@@ -378,13 +378,13 @@ public class PostController : ControllerBase
             return NotFound(problem);
         }
         var creator = post.Creator;
-        postDto.Adapt(post);
+        postUpdateRequest.Adapt(post);
         post.Creator = creator;
-        if (postDto.MembersToRemove.Any())
+        if (postUpdateRequest.MembersToRemove.Any())
         {
-            var memberEmails = postDto.MembersToRemove.Select(m => m.Email).ToList();
+            var memberIds = postUpdateRequest.MembersToRemove.Select(m => m.Id).ToList();
             var users = await _db.Users
-                .Where(u => memberEmails.Contains(u.Email!))
+                .Where(u => memberIds.Contains(u.Id))
                 .ToListAsync();
 
             if (users.Count > 0)

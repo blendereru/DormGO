@@ -71,14 +71,14 @@ public class ChatController : ControllerBase
             .Where(m => m.PostId == postId)
             .OrderBy(m => m.SentAt)
             .Include(m => m.Sender)
-            .ProjectToType<MessageResponseDto>()
+            .ProjectToType<MessageResponse>()
             .ToListAsync();
         _logger.LogInformation("Messages retrieved for post successfully. UserId: {UserId}, MessagesCount: {MessageCount}", user.Id, messages.Count);
         return Ok(messages);
     }
 
     [HttpPost]
-    public async Task<IActionResult> AddMessageToPost(string postId, MessageRequestDto messageDto)
+    public async Task<IActionResult> AddMessageToPost(string postId, MessageCreateRequest messageCreateRequest)
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
@@ -98,13 +98,6 @@ public class ChatController : ControllerBase
             ModelState.AddModelError(nameof(postId), "The postId parameter is required.");
             return ValidationProblem(ModelState);
         }
-
-        if (string.IsNullOrWhiteSpace(messageDto.Content))
-        {
-            _logger.LogWarning("Message content not provided during message send for post. UserId: {UserId}", user.Id);
-            ModelState.AddModelError(nameof(messageDto.Content), "Message content cannot be null or empty.");
-            return ValidationProblem(ModelState);
-        }
         var sanitizedPostId = _inputSanitizer.Sanitize(postId);
         var post = await _db.Posts.FirstOrDefaultAsync(p => p.Id == sanitizedPostId);
         if (post == null)
@@ -118,14 +111,14 @@ public class ChatController : ControllerBase
                 Instance = $"{Request.Method} {Request.Path}"
             });
         }
-        var message = messageDto.Adapt<Message>();
+        var message = messageCreateRequest.Adapt<Message>();
         message.SenderId = user.Id;
         message.PostId = sanitizedPostId;
         _db.Messages.Add(message);
         await _db.SaveChangesAsync();
         _logger.LogInformation("Message sent successfully. UserId: {UserId}, PostId: {PostId}, MessageId: {MessageId}", user.Id, post.Id, message.Id);
         await _chatHubNotificationService.NotifyMessageSentAsync(user, message);
-        return CreatedAtAction("GetMessageById", new { postId = message.PostId, messageId = message.Id }, message.Adapt<MessageResponseDto>());
+        return CreatedAtAction("GetMessageById", new { postId = message.PostId, messageId = message.Id }, message.Adapt<MessageResponse>());
     }
 
     [HttpGet("{messageId}")]
@@ -171,12 +164,12 @@ public class ChatController : ControllerBase
                 Instance = $"{Request.Method} {Request.Path}"
             });
         }
-        var responseDto = message.Adapt<MessageResponseDto>();
+        var response = message.Adapt<MessageResponse>();
         _logger.LogInformation("Message retrieved successfully. UserId: {UserId}, MessageId: {MessageId}", user.Id, message.Id);
-        return Ok(responseDto);
+        return Ok(response);
     }
     [HttpPut("{messageId}")]
-    public async Task<IActionResult> UpdateMessage(string postId, string messageId, MessageRequestDto messageRequestDto)
+    public async Task<IActionResult> UpdateMessage(string postId, string messageId, MessageUpdateRequest messageUpdateRequest)
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
@@ -201,12 +194,6 @@ public class ChatController : ControllerBase
             ModelState.AddModelError(nameof(messageId), "The messageId parameter is required.");
             return ValidationProblem(ModelState);
         }
-        if (string.IsNullOrWhiteSpace(messageRequestDto.Content))
-        {
-            _logger.LogWarning("Message content not provided during message update. UserId: {UserId}", user.Id);
-            ModelState.AddModelError(nameof(messageRequestDto.Content), "Message content cannot be null or empty.");
-            return ValidationProblem(ModelState);
-        }
         var sanitizedPostId = _inputSanitizer.Sanitize(postId);
         var sanitizedMessageId = _inputSanitizer.Sanitize(messageId);
         var message = await _db.Messages.FirstOrDefaultAsync(m =>
@@ -224,12 +211,20 @@ public class ChatController : ControllerBase
                 Instance = $"{Request.Method} {Request.Path}"
             });
         }
-        message.UpdatedAt = DateTime.UtcNow;
-        message.Content = messageRequestDto.Content;
-        await _db.SaveChangesAsync();
-        _logger.LogInformation("Message updated successfully. UserId: {UserId}. MessageId: {MessageId}", user.Id, sanitizedMessageId);
-        Log.Information("UpdateMessage: Message {MessageId} updated by user {UserId}", message.Id, user.Id);
-        await _chatHubNotificationService.NotifyMessageUpdatedAsync(user, message);
+
+        if (message.Content == messageUpdateRequest.Content.Trim())
+        {
+            _logger.LogInformation("Message content didn't change during message update. UserId: {UserId}, MessageId: {MessageId}", user.Id, message.Id);
+        }
+        else
+        {
+            message.UpdatedAt = DateTime.UtcNow;
+            message.Content = messageUpdateRequest.Content;
+            await _db.SaveChangesAsync();
+            _logger.LogInformation("Message updated successfully. UserId: {UserId}. MessageId: {MessageId}", user.Id, sanitizedMessageId);
+            Log.Information("Message {MessageId} updated by user {UserId}", message.Id, user.Id);
+            await _chatHubNotificationService.NotifyMessageUpdatedAsync(user, message);
+        }
         return NoContent();
     }
     [HttpDelete("{messageId}")]

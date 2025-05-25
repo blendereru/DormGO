@@ -44,13 +44,13 @@ public class UserHubNotificationService : IUserHubNotificationService
         _logger.LogInformation("Password reset link validated notification sent. UserId: {UserId}", user.Id);
     }
 
-    public async Task NotifyEmailConfirmedAsync(ApplicationUser user, RefreshTokenResponseDto tokenResponseDto)
+    public async Task NotifyEmailConfirmedAsync(ApplicationUser user, RefreshTokensResponse refreshTokensResponse)
     {
         var notificationDto = new
         {
             user.Email,
-            tokenResponseDto.AccessToken,
-            tokenResponseDto.RefreshToken
+            refreshTokensResponse.AccessToken,
+            refreshTokensResponse.RefreshToken
         };
         var connectionIds = await _db.UserConnections
             .Where(c => c.UserId == user.Id && c.Hub == "/api/userhub")

@@ -48,14 +48,14 @@ public class NotificationController : ControllerBase
             .Where(pn => pn.UserId == user.Id)
             .Include(pn => pn.Post)
             .ThenInclude(p => p.Creator)
-            .ProjectToType<PostNotificationResponseDto>()
+            .ProjectToType<PostNotificationResponse>()
             .ToListAsync();
         _logger.LogInformation("Notifications retrieved successfully. UserId: {UserId}, NotificationsCount: {NotificationCount}", user.Id, postNotifications.Count);
         return Ok(postNotifications);
     }
 
     [HttpPatch("{id}")]
-    public async Task<IActionResult> UpdateNotification(string id, NotificationUpdateRequestDto updateRequest)
+    public async Task<IActionResult> UpdateNotification(string id, NotificationUpdateRequest updateRequest)
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {

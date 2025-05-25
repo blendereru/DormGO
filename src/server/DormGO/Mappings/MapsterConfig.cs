@@ -8,52 +8,65 @@ public static class MapsterConfig
 {
     public static void Configure()
     {
-        TypeAdapterConfig<UserRequestDto, ApplicationUser>.NewConfig()
+        TypeAdapterConfig<UserRegisterRequest, ApplicationUser>.NewConfig()
             .Map(dest => dest.Email, src => src.Email)
             .Map(dest => dest.UserName, src => src.Name ?? src.Email)
             .Map(dest => dest.Fingerprint, src => src.VisitorId);
-        TypeAdapterConfig<ApplicationUser, UserResponseDto>.NewConfig()
+        TypeAdapterConfig<UserLoginRequest, ApplicationUser>.NewConfig()
+            .Map(dest => dest.Email, src => src.Email)
+            .Map(dest => dest.UserName, dest => dest.Name)
+            .Map(dest => dest.Fingerprint, dest => dest.VisitorId);
+        TypeAdapterConfig<ApplicationUser, UserResponse>.NewConfig()
+            .Map(dest => dest.Id, src => src.Id)
             .Map(dest => dest.Email, src => src.Email)
             .Map(dest => dest.Name, src => src.UserName);
-        TypeAdapterConfig<PostRequestDto, Post>.NewConfig()
+        TypeAdapterConfig<PostCreateRequest, Post>.NewConfig()
             .Map(dest => dest.Title, src => src.Title)
             .Map(dest => dest.Description, src => src.Description)
             .Map(dest => dest.CurrentPrice, src => src.CurrentPrice)
             .Map(dest => dest.Latitude, src => src.Latitude)
             .Map(dest => dest.Longitude, src => src.Longitude)
             .Map(dest => dest.MaxPeople, src => src.MaxPeople);
-        TypeAdapterConfig<Post, PostResponseDto>.NewConfig()
-            .Map(dest => dest.PostId, src => src.Id)
+        TypeAdapterConfig<PostUpdateRequest, Post>.NewConfig()
+            .Map(dest => dest.Title, src => src.Title)
+            .Map(dest => dest.Description, src => src.Description)
+            .Map(dest => dest.CurrentPrice, src => src.CurrentPrice)
+            .Map(dest => dest.Latitude, src => src.Latitude)
+            .Map(dest => dest.Longitude, src => src.Longitude)
+            .Map(dest => dest.MaxPeople, src => src.MaxPeople);
+        TypeAdapterConfig<Post, PostResponse>.NewConfig()
+            .Map(dest => dest.Id, src => src.Id)
             .Map(dest => dest.Title, src => src.Title)
             .Map(dest => dest.Description, src => src.Description)
             .Map(dest => dest.CurrentPrice, src => src.CurrentPrice)
             .Map(dest => dest.Latitude, src => src.Latitude)
             .Map(dest => dest.Longitude, src => src.Longitude)
             .Map(dest => dest.MaxPeople, src => src.MaxPeople)
-            .Map(dest => dest.Creator, src => src.Creator.Adapt<UserResponseDto>())
-            .Map(dest => dest.Members, src => src.Members.Adapt<List<UserResponseDto>>())
+            .Map(dest => dest.Creator, src => src.Creator.Adapt<UserResponse>())
+            .Map(dest => dest.Members, src => src.Members.Adapt<List<UserResponse>>())
             .Map(dest => dest.UpdatedAt, src => src.UpdatedAt);
-        TypeAdapterConfig<MessageRequestDto, Message>.NewConfig()
-            .Map(dest => dest.Content, src => src.Content);
-        TypeAdapterConfig<Message, MessageResponseDto>.NewConfig()
-            .Map(dest => dest.MessageId, src => src.Id)
+        TypeAdapterConfig<MessageCreateRequest, Message>.NewConfig()
+            .Map(dest => dest.Content, src => src.Content)
+            .Map(dest => dest.SentAt, src => src.SentAt);
+        TypeAdapterConfig<Message, MessageResponse>.NewConfig()
+            .Map(dest => dest.Id, src => src.Id)
             .Map(dest => dest.Content, src => src.Content)
             .Map(dest => dest.SentAt, src => src.SentAt)
-            .Map(dest => dest.Sender, src => src.Sender.Adapt<UserResponseDto>())
+            .Map(dest => dest.Sender, src => src.Sender.Adapt<UserResponse>())
             .Map(dest => dest.UpdatedAt, src => src.UpdatedAt)
-            .Map(dest => dest.Post, src => src.Post.Adapt<PostResponseDto>());
-        TypeAdapterConfig<Notification, NotificationResponseDto>.NewConfig()
-            .Map(dest => dest.NotificationId, src => src.Id)
+            .Map(dest => dest.Post, src => src.Post.Adapt<PostResponse>());
+        TypeAdapterConfig<Notification, NotificationResponse>.NewConfig()
+            .Map(dest => dest.Id, src => src.Id)
             .Map(dest => dest.Title, src => src.Title)
             .Map(dest => dest.Description, src => src.Description)
             .Map(dest => dest.CreatedAt, src => src.CreatedAt)
             .Map(dest => dest.IsRead, src => src.IsRead)
-            .Map(dest => dest.User, src => src.User.Adapt<UserResponseDto>());
-        TypeAdapterConfig<PostNotification, PostNotificationResponseDto>.NewConfig()
-            .Inherits<Notification, NotificationResponseDto>()
-            .Map(dest => dest.Post, src => src.Post.Adapt<PostResponseDto>());
-        TypeAdapterConfig<ApplicationUser, ProfileResponseDto>.NewConfig()
-            .Map(dest => dest.UserId, src => src.Id)
+            .Map(dest => dest.User, src => src.User.Adapt<UserResponse>());
+        TypeAdapterConfig<PostNotification, PostNotificationResponse>.NewConfig()
+            .Inherits<Notification, NotificationResponse>()
+            .Map(dest => dest.Post, src => src.Post.Adapt<PostResponse>());
+        TypeAdapterConfig<ApplicationUser, ProfileResponse>.NewConfig()
+            .Map(dest => dest.Id, src => src.Id)
             .Map(dest => dest.Email, src => src.Email)
             .Map(dest => dest.Username, src => src.UserName)
             .Map(dest => dest.RegisteredAt, src => src.RegistrationDate);

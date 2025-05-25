@@ -2,8 +2,8 @@ using DormGO.DTOs.Enums;
 
 namespace DormGO.DTOs.ResponseDTO;
 
-public class PostNotificationResponseDto : NotificationResponseDto
+public class PostNotificationResponse : NotificationResponse
 {
     public override NotificationType Type => NotificationType.Post;
-    public PostResponseDto Post { get; set; }
+    public PostResponse Post { get; set; }
 }

@@ -7,5 +7,5 @@ public interface IUserHubNotificationService
 {
     Task NotifyEmailChangedAsync(ApplicationUser user);
     Task NotifyPasswordResetLinkValidated(ApplicationUser user);
-    Task NotifyEmailConfirmedAsync(ApplicationUser user, RefreshTokenResponseDto tokenResponseDto);
+    Task NotifyEmailConfirmedAsync(ApplicationUser user, RefreshTokensResponse refreshTokensResponse);
 }

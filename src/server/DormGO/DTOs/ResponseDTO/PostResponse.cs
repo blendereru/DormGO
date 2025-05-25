@@ -1,8 +1,8 @@
 namespace DormGO.DTOs.ResponseDTO;
 
-public class PostResponseDto
+public class PostResponse
 {
-    public string PostId { get; set; }
+    public string Id { get; set; }
 
     public string Title { get; set; }
 
@@ -19,7 +19,7 @@ public class PostResponseDto
 
     public int MaxPeople { get; set; }
 
-    public UserResponseDto Creator { get; set; }
+    public UserResponse Creator { get; set; }
 
-    public List<UserResponseDto> Members { get; set; } = new List<UserResponseDto>();
+    public List<UserResponse> Members { get; set; } = new List<UserResponse>();
 }

@@ -1,11 +1,11 @@
 namespace DormGO.DTOs.ResponseDTO;
 
-public class MessageResponseDto
+public class MessageResponse
 {
-    public string MessageId { get; set; }
+    public string Id { get; set; }
     public string Content { get; set; }
-    public UserResponseDto Sender { get; set; }
+    public UserResponse Sender { get; set; }
     public DateTime SentAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
-    public PostResponseDto Post { get; set; }
+    public PostResponse Post { get; set; }
 }

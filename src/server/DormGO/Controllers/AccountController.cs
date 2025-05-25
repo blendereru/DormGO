@@ -37,20 +37,11 @@ public class AccountController : ControllerBase
         _inputSanitizer = inputSanitizer;
     }
     [HttpPost("signup")]
-    public async Task<IActionResult> Register(UserRequestDto dto)
+    public async Task<IActionResult> Register(UserRegisterRequest registerRequest)
     {
-        if (string.IsNullOrEmpty(dto.Password))
-        {
-            var sanitizedVisitorId = _inputSanitizer.Sanitize(dto.VisitorId);
-            _logger.LogInformation("Password not provided during user registration. VisitorId: {VisitorId}", sanitizedVisitorId);
-            ModelState.AddModelError(nameof(dto.Password), "The Password field is required");
-            return ValidationProblem(ModelState);
-        }
-        var user = dto.Adapt<ApplicationUser>();
+        var user = registerRequest.Adapt<ApplicationUser>();
         user.RegistrationDate = DateTime.UtcNow;
-
-        var result = await _userManager.CreateAsync(user, dto.Password);
-
+        var result = await _userManager.CreateAsync(user, registerRequest.Password);
         if (!result.Succeeded)
         {
             foreach (var error in result.Errors)
@@ -70,22 +61,34 @@ public class AccountController : ControllerBase
         }, protocol: Request.Scheme);
         await _emailSender.SendConfirmationLinkAsync(user, user.Email!, confirmationLink!);
         var profileUrl = Url.Action("GetUserProfile", "Profile", new { email = user.Email });
-        var responseDto = user.Adapt<UserResponseDto>();
-        return Created(profileUrl, responseDto);
+        var response = user.Adapt<UserResponse>();
+        return Created(profileUrl, response);
     }
 
     [HttpPost("signin")]
-    public async Task<IActionResult> Login(UserRequestDto dto)
+    public async Task<IActionResult> Login(UserLoginRequest loginRequest)
     {
-        var sanitizedVisitorId = _inputSanitizer.Sanitize(dto.VisitorId);
-        if (string.IsNullOrEmpty(dto.Password))
+        var sanitizedVisitorId = _inputSanitizer.Sanitize(loginRequest.VisitorId);
+        string? detail;
+        ApplicationUser? user;
+        if (loginRequest.Email != null)
         {
-            _logger.LogInformation("Password not provided during login. VisitorId: {VisitorId}", sanitizedVisitorId);
-            ModelState.AddModelError(nameof(dto.Password), "The password field is required.");
-            return ValidationProblem(ModelState);
+            user = await _db.Users.Include(u => u.RefreshSessions).FirstOrDefaultAsync(u => u.Email == loginRequest.Email);
+            detail = "Invalid email or password.";
         }
-        var user = await _db.Users.Include(u => u.RefreshSessions).FirstOrDefaultAsync(u => u.Email == dto.Email);
-        if (user == null || !await _userManager.CheckPasswordAsync(user, dto.Password))
+        else
+        {
+            if (loginRequest.Name == null)
+            {
+                _logger.LogWarning("User email and name not provided during login. VisitorId: {VisitorId}", sanitizedVisitorId);
+                ModelState.AddModelError(nameof(loginRequest.Name), "The name field is required");
+                ModelState.AddModelError(nameof(loginRequest.Email), "The email field is required");
+                return ValidationProblem(ModelState);
+            }
+            user = await _db.Users.Include(u => u.RefreshSessions).FirstOrDefaultAsync(u => u.UserName == loginRequest.Name);
+            detail = "Invalid username or password.";
+        }
+        if (user == null || !await _userManager.CheckPasswordAsync(user, loginRequest.Password))
         {
             _logger.LogWarning("Invalid login attempt. VisitorId: {VisitorId}", sanitizedVisitorId);
             var problem = new ProblemDetails
@@ -93,7 +96,7 @@ public class AccountController : ControllerBase
                 Title = "Invalid credentials",
                 Type = "https://datatracker.ietf.org/doc/html/rfc9457#section-3",
                 Status = StatusCodes.Status401Unauthorized,
-                Detail = "Invalid email or password."
+                Detail = detail
             };
             return Unauthorized(problem);
         }
@@ -124,7 +127,7 @@ public class AccountController : ControllerBase
         {
             UserId = user.Id,
             RefreshToken = refreshToken,
-            Fingerprint = dto.VisitorId,
+            Fingerprint = loginRequest.VisitorId,
             UA = Request.Headers.UserAgent.ToString(),
             Ip = HttpContext.Connection.RemoteIpAddress?.ToString(),
             ExpiresIn = DateTimeOffset.UtcNow.AddDays(7).ToUnixTimeMilliseconds()
@@ -132,18 +135,18 @@ public class AccountController : ControllerBase
         _db.RefreshSessions.Add(session);
         await _db.SaveChangesAsync();
         _logger.LogInformation("User successfully logged in. UserId: {UserId}", user.Id);
-        var responseDto = new RefreshTokenResponseDto
+        var response = new RefreshTokensResponse
         {
             AccessToken = accessToken,
             RefreshToken = refreshToken
         };
-        return Ok(responseDto);
+        return Ok(response);
     }
     
     [HttpPost("password/reset/request")]
-    public async Task<IActionResult> RequestPasswordReset(UserRequestDto requestDto)
+    public async Task<IActionResult> RequestPasswordReset(PasswordForgotRequest passwordForgotRequest)
     {
-        var user = await _userManager.FindByEmailAsync(requestDto.Email);
+        var user = await _userManager.FindByEmailAsync(passwordForgotRequest.Email);
         if (user != null)
         {
             var token = await _userManager.GeneratePasswordResetTokenAsync(user);
@@ -259,10 +262,10 @@ public class AccountController : ControllerBase
         return NoContent();
     }
     [HttpDelete("signout")]
-    public async Task<IActionResult> Logout(RefreshTokenRequestDto dto)
+    public async Task<IActionResult> Logout(UserLogoutRequest userLogoutRequest)
     {
-        var session = await _db.RefreshSessions.FirstOrDefaultAsync(x => x.RefreshToken == dto.RefreshToken);
-        var sanitizedVisitorId = _inputSanitizer.Sanitize(dto.VisitorId);
+        var session = await _db.RefreshSessions.FirstOrDefaultAsync(x => x.RefreshToken == userLogoutRequest.RefreshToken);
+        var sanitizedVisitorId = _inputSanitizer.Sanitize(userLogoutRequest.VisitorId);
         if (session != null)
         {
             _db.RefreshSessions.Remove(session);
@@ -329,25 +332,24 @@ public class AccountController : ControllerBase
         };
         _db.RefreshSessions.Add(session);
         await _db.SaveChangesAsync();
-        var tokensDto = new RefreshTokenResponseDto
+        var response = new RefreshTokensResponse
         {
             AccessToken = accessToken,
             RefreshToken = refreshToken
         };
-        await _userHubNotificationService.NotifyEmailConfirmedAsync(user, tokensDto);
+        await _userHubNotificationService.NotifyEmailConfirmedAsync(user, response);
         return Ok("good on you");
     }
-
     [HttpPost("email/confirmation/resend")]
-    public async Task<IActionResult> ResendConfirmationEmail(UserRequestDto requestDto)
+    public async Task<IActionResult> ResendConfirmationEmail(EmailConfirmationResendRequest emailConfirmationResendRequest)
     {
-        var sanitizedVisitorId = _inputSanitizer.Sanitize(requestDto.VisitorId);
-        var user = await _userManager.FindByEmailAsync(requestDto.Email);
+        var sanitizedVisitorId = _inputSanitizer.Sanitize(emailConfirmationResendRequest.VisitorId);
+        var user = await _userManager.FindByEmailAsync(emailConfirmationResendRequest.Email);
         if (user != null)
         {
             if (!await _userManager.IsEmailConfirmedAsync(user))
             {
-                user.Fingerprint = requestDto.VisitorId;
+                user.Fingerprint = emailConfirmationResendRequest.VisitorId;
                 var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
                 var confirmationLink = Url.Action("ConfirmEmail", "Account", new
                 {
@@ -370,17 +372,10 @@ public class AccountController : ControllerBase
         return NoContent();
     }
     [HttpPut("tokens/refresh")]
-    public async Task<IActionResult> RefreshTokens(RefreshTokenRequestDto dto)
+    public async Task<IActionResult> RefreshTokens(RefreshTokensRequest refreshTokensRequest)
     {
-        var sanitizedVisitorId = _inputSanitizer.Sanitize(dto.VisitorId);
-        if (string.IsNullOrEmpty(dto.AccessToken))
-        {
-            _logger.LogWarning("Access token missing during tokens refresh attempt. VisitorId: {VisitorId}", sanitizedVisitorId);
-            ModelState.AddModelError(nameof(dto.AccessToken), "The Access token field is required");
-            return ValidationProblem(ModelState);
-        }
-
-        var principal = await _tokensProvider.GetPrincipalFromExpiredTokenAsync(dto.AccessToken);
+        var sanitizedVisitorId = _inputSanitizer.Sanitize(refreshTokensRequest.VisitorId);
+        var principal = await _tokensProvider.GetPrincipalFromExpiredTokenAsync(refreshTokensRequest.AccessToken);
         if (principal == null)
         {
             _logger.LogWarning("Invalid access token. VisitorId: {VisitorId}", sanitizedVisitorId);
@@ -408,7 +403,7 @@ public class AccountController : ControllerBase
         }
         var session = await _db.RefreshSessions
             .Include(s => s.User)
-            .FirstOrDefaultAsync(s => s.RefreshToken == dto.RefreshToken && s.User.Email == userEmail);
+            .FirstOrDefaultAsync(s => s.RefreshToken == refreshTokensRequest.RefreshToken && s.User.Email == userEmail);
         if (session == null || session.ExpiresIn < DateTimeOffset.UtcNow.ToUnixTimeMilliseconds())
         {
             _logger.LogWarning("Invalid or expired refresh token. VisitorId: {VisitorId}", sanitizedVisitorId);
@@ -422,7 +417,7 @@ public class AccountController : ControllerBase
             return Unauthorized(problem);
         }
 
-        if (dto.VisitorId != session.Fingerprint)
+        if (refreshTokensRequest.VisitorId != session.Fingerprint)
         {
             _logger.LogWarning("Forged visitor ID. VisitorId: {VisitorId}", sanitizedVisitorId);
             var problem = new ProblemDetails
@@ -444,11 +439,11 @@ public class AccountController : ControllerBase
         _db.RefreshSessions.Update(session);
         await _db.SaveChangesAsync();
         _logger.LogInformation("Tokens refreshed successfully. UserId: {UserId}", user.Id);
-        var responseDto = new RefreshTokenResponseDto()
+        var response = new RefreshTokensResponse
         {
             AccessToken = newAccessToken,
             RefreshToken = newRefreshToken
         };
-        return Ok(responseDto);
+        return Ok(response);
     }
 }

@@ -5,7 +5,7 @@ namespace DormGO.Services;
 
 public interface INotificationService<TNotification, TResponseDto>
     where TNotification : Notification 
-    where TResponseDto : NotificationResponseDto
+    where TResponseDto : NotificationResponse
 {
     Task SendNotificationAsync(ApplicationUser user, TNotification notification, string eventName);
 }

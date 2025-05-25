@@ -9,7 +9,7 @@ namespace DormGO.Services;
 
 public class NotificationService<TNotification, TResponseDto> : INotificationService<TNotification, TResponseDto>
     where TNotification : Notification
-    where TResponseDto : NotificationResponseDto
+    where TResponseDto : NotificationResponse
 {
     private readonly ApplicationContext _db;
     private readonly IHubContext<NotificationHub> _hub;

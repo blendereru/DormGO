@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DormGO.Controllers;
+
 [Authorize]
 [ApiController]
 [ServiceFilter<ValidateUserEmailFilter>]
@@ -18,15 +19,18 @@ public class ProfileController : ControllerBase
 {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IEmailSender<ApplicationUser> _emailSender;
+    private readonly IInputSanitizer _inputSanitizer;
     private readonly ILogger<ProfileController> _logger;
 
     public ProfileController(UserManager<ApplicationUser> userManager, IEmailSender<ApplicationUser> emailSender,
-        ILogger<ProfileController> logger)
+        IInputSanitizer inputSanitizer, ILogger<ProfileController> logger)
     {
         _userManager = userManager;
         _emailSender = emailSender;
+        _inputSanitizer = inputSanitizer;
         _logger = logger;
     }
+
     [HttpGet("me")]
     public IActionResult GetMyProfile()
     {
@@ -41,12 +45,12 @@ public class ProfileController : ControllerBase
                 Instance = $"{Request.Method} {Request.Path}"
             });
         }
-        var responseDto = user.Adapt<ProfileResponseDto>();
+        var response = user.Adapt<ProfileResponse>();
         _logger.LogInformation("Profile read successfully. UserId: {UserId}", user.Id);
-        return Ok(responseDto);
+        return Ok(response);
     }
     [HttpPatch("me")]
-    public async Task<IActionResult> PatchMe(UserUpdateRequestDto updateRequest)
+    public async Task<IActionResult> UpdateMyProfile(UserUpdateRequest updateRequest)
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
@@ -169,8 +173,8 @@ public class ProfileController : ControllerBase
         }
         return NoContent();
     }
-    [HttpGet("{email}")]
-    public async Task<IActionResult> GetUserProfile(string email)
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetUserProfile(string id)
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
@@ -183,16 +187,18 @@ public class ProfileController : ControllerBase
                 Instance = $"{Request.Method} {Request.Path}"
             });
         }
-        if (string.IsNullOrWhiteSpace(email))
+        if (string.IsNullOrWhiteSpace(id))
         {
-            _logger.LogWarning("Email of user to search is not provided during profile search. UserId: {UserId}", user.Id);
-            ModelState.AddModelError(nameof(email), "Email is required.");
+            _logger.LogWarning("Id of user to search is not provided during profile search. InitiatorId: {InitiatorId}", user.Id);
+            ModelState.AddModelError(nameof(id), "Email is required.");
             return ValidationProblem(ModelState);
         }
-        var userToSearch = await _userManager.FindByEmailAsync(email);
+
+        var sanitizedUserId = _inputSanitizer.Sanitize(id);
+        var userToSearch = await _userManager.FindByIdAsync(sanitizedUserId);
         if (userToSearch == null)
         {
-            _logger.LogInformation("User with specified email not found during profile search. UserId: {UserId}", user.Id);
+            _logger.LogInformation("User with specified id not found during profile search. InitiatorId: {InitiatorId}, RequestedUserId: {RequestedUserid}", user.Id, sanitizedUserId);
             return NotFound(new ProblemDetails
             {
                 Title = "Not Found",
@@ -201,8 +207,8 @@ public class ProfileController : ControllerBase
                 Instance = $"{Request.Method} {Request.Path}"
             });
         }
-        var responseDto = userToSearch.Adapt<ProfileResponseDto>();
+        var response = userToSearch.Adapt<ProfileResponse>();
         _logger.LogInformation("User profile search completed successfully. UserToSearchId: {UserToSearchId}, UserId: {UserId}", userToSearch.Id, user.Id);
-        return Ok(responseDto);
+        return Ok(response);
     }
 }
