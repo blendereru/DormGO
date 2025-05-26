@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using DormGO.Constants;
 using DormGO.Data;
 using DormGO.DTOs.RequestDTO;
@@ -17,6 +18,8 @@ namespace DormGO.Controllers;
 [ApiController]
 [ServiceFilter<ValidateUserEmailFilter>]
 [Route("api/chat/{postId}/messages")]
+[ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
+[ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]
 public class ChatController : ControllerBase
 {
     private readonly ApplicationContext _db;
@@ -33,9 +36,12 @@ public class ChatController : ControllerBase
         _logger = logger;
         _inputSanitizer = inputSanitizer;
     }
-
+    [EndpointSummary("Retrieve messages for post")]
+    [EndpointDescription("Retrieve all messages belonding to the same post")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
+    [ProducesResponseType<List<MessageResponse>>(StatusCodes.Status200OK, "application/json")]
     [HttpGet]
-    public async Task<IActionResult> GetMessagesForPost(string postId)
+    public async Task<IActionResult> GetMessagesForPost([Description("Id of the post to retrieve the messages of")] string postId)
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
@@ -76,9 +82,12 @@ public class ChatController : ControllerBase
         _logger.LogInformation("Messages retrieved for post successfully. UserId: {UserId}, MessagesCount: {MessageCount}", user.Id, messages.Count);
         return Ok(messages);
     }
-
+    [EndpointSummary("Send message")]
+    [EndpointDescription("Send a message to the users of the post")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
+    [ProducesResponseType<MessageResponse>(StatusCodes.Status201Created, "application/json")]
     [HttpPost]
-    public async Task<IActionResult> AddMessageToPost(string postId, MessageCreateRequest messageCreateRequest)
+    public async Task<IActionResult> AddMessageToPost([Description("The id of the post to send the message of")] string postId, MessageCreateRequest messageCreateRequest)
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
@@ -120,9 +129,12 @@ public class ChatController : ControllerBase
         await _chatHubNotificationService.NotifyMessageSentAsync(user, message);
         return CreatedAtAction("GetMessageById", new { postId = message.PostId, messageId = message.Id }, message.Adapt<MessageResponse>());
     }
-
+    [EndpointSummary("Retrieve a message")]
+    [EndpointDescription("Intended to retrieve a message belonging to the current user")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
+    [ProducesResponseType<MessageResponse>(StatusCodes.Status200OK, "application/json")]
     [HttpGet("{messageId}")]
-    public async Task<IActionResult> GetMessageById(string postId, string messageId)
+    public async Task<IActionResult> GetMessageById([Description("Post id to retrieve the message of")] string postId, [Description("Id of the message to retrieve")] string messageId)
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
@@ -164,12 +176,17 @@ public class ChatController : ControllerBase
                 Instance = $"{Request.Method} {Request.Path}"
             });
         }
+
         var response = message.Adapt<MessageResponse>();
         _logger.LogInformation("Message retrieved successfully. UserId: {UserId}, MessageId: {MessageId}", user.Id, message.Id);
         return Ok(response);
     }
+    [EndpointSummary("Update a message")]
+    [EndpointDescription("Updates a message of the current user")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     [HttpPut("{messageId}")]
-    public async Task<IActionResult> UpdateMessage(string postId, string messageId, MessageUpdateRequest messageUpdateRequest)
+    public async Task<IActionResult> UpdateMessage([Description("Post id to update the message of")] string postId, [Description("Id of the message to update")] string messageId, MessageUpdateRequest messageUpdateRequest)
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
@@ -218,7 +235,7 @@ public class ChatController : ControllerBase
         }
         else
         {
-            message.UpdatedAt = DateTime.UtcNow;
+            message.UpdatedAt = messageUpdateRequest.UpdatedAt;
             message.Content = messageUpdateRequest.Content;
             await _db.SaveChangesAsync();
             _logger.LogInformation("Message updated successfully. UserId: {UserId}. MessageId: {MessageId}", user.Id, sanitizedMessageId);
@@ -227,8 +244,12 @@ public class ChatController : ControllerBase
         }
         return NoContent();
     }
+    [EndpointSummary("Delete the message")]
+    [EndpointDescription("Delete the message of the current user")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     [HttpDelete("{messageId}")]
-    public async Task<IActionResult> DeleteMessage(string postId, string messageId)
+    public async Task<IActionResult> DeleteMessage([Description("Post id to delete the message of")] string postId, [Description("Id of the message to delete")] string messageId)
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
