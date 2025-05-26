@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using DormGO.Constants;
 using DormGO.DTOs.RequestDTO;
 using DormGO.DTOs.ResponseDTO;
@@ -15,6 +16,8 @@ namespace DormGO.Controllers;
 [ApiController]
 [ServiceFilter<ValidateUserEmailFilter>]
 [Route("api/profile")]
+[ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
+[ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]
 public class ProfileController : ControllerBase
 {
     private readonly UserManager<ApplicationUser> _userManager;
@@ -30,7 +33,9 @@ public class ProfileController : ControllerBase
         _inputSanitizer = inputSanitizer;
         _logger = logger;
     }
-
+    [EndpointSummary("Retrieve user's profile info")]
+    [EndpointDescription("Retrieve current user's profile information")]
+    [ProducesResponseType<ProfileResponse>(StatusCodes.Status200OK, "application/json")]
     [HttpGet("me")]
     public IActionResult GetMyProfile()
     {
@@ -49,6 +54,9 @@ public class ProfileController : ControllerBase
         _logger.LogInformation("Profile read successfully. UserId: {UserId}", user.Id);
         return Ok(response);
     }
+    [EndpointSummary("Update user's profile")]
+    [EndpointDescription("Update current user's profile information")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     [HttpPatch("me")]
     public async Task<IActionResult> UpdateMyProfile(UserUpdateRequest updateRequest)
     {
@@ -173,8 +181,12 @@ public class ProfileController : ControllerBase
         }
         return NoContent();
     }
+    [EndpointSummary("Retrieve a profile")]
+    [EndpointDescription("Retrieve a specific user's profile")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
+    [ProducesResponseType<ProfileResponse>(StatusCodes.Status200OK, "application/json")]
     [HttpGet("{id}")]
-    public async Task<IActionResult> GetUserProfile(string id)
+    public async Task<IActionResult> GetUserProfile([Description("The id of the user to retrieve the profile of")] string id)
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {

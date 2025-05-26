@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using DormGO.Constants;
 using DormGO.Data;
 using DormGO.DTOs.RequestDTO;
@@ -15,6 +16,8 @@ namespace DormGO.Controllers;
 [ApiController]
 [ServiceFilter<ValidateUserEmailFilter>]
 [Route("/api/notifications")]
+[ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
+[ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]
 public class NotificationController : ControllerBase
 {
     private readonly ApplicationContext _db;
@@ -28,7 +31,9 @@ public class NotificationController : ControllerBase
         _logger = logger;
         _inputSanitizer = inputSanitizer;
     }
-
+    [EndpointSummary("Retrieve notifications")]
+    [EndpointDescription("Retrieve all notifications of current user")]
+    [ProducesResponseType<List<NotificationResponse>>(StatusCodes.Status200OK, "application/json")]
     [HttpGet]
     public async Task<ActionResult> GetAllNotifications()
     {
@@ -53,9 +58,12 @@ public class NotificationController : ControllerBase
         _logger.LogInformation("Notifications retrieved successfully. UserId: {UserId}, NotificationsCount: {NotificationCount}", user.Id, postNotifications.Count);
         return Ok(postNotifications);
     }
-
+    [EndpointSummary("Update notification")]
+    [EndpointDescription("Update the notification of current user")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     [HttpPatch("{id}")]
-    public async Task<IActionResult> UpdateNotification(string id, NotificationUpdateRequest updateRequest)
+    public async Task<IActionResult> UpdateNotification([Description("Id of the notification to update")] string id, NotificationUpdateRequest updateRequest)
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
@@ -91,9 +99,12 @@ public class NotificationController : ControllerBase
         _logger.LogInformation("Notification {NotificationId} updated for user {UserId}.", notification.Id, user.Id);
         return NoContent();
     }
-
+    [EndpointSummary("Delete the notification")]
+    [EndpointDescription("Delete the current user's notification")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     [HttpDelete("{id}")]
-    public async Task<IActionResult> DeleteNotification(string id)
+    public async Task<IActionResult> DeleteNotification([Description("Id of the notification to delete")] string id)
     {
         if (!HttpContext.Items.TryGetValue(HttpContextItemKeys.UserItemKey, out var userObj) || userObj is not ApplicationUser user)
         {
