@@ -26,7 +26,8 @@ public static class MapsterConfig
             .Map(dest => dest.CurrentPrice, src => src.CurrentPrice)
             .Map(dest => dest.Latitude, src => src.Latitude)
             .Map(dest => dest.Longitude, src => src.Longitude)
-            .Map(dest => dest.MaxPeople, src => src.MaxPeople);
+            .Map(dest => dest.MaxPeople, src => src.MaxPeople)
+            .Map(dest => dest.CreatedAt, src => src.CreatedAt);
         TypeAdapterConfig<PostUpdateRequest, Post>.NewConfig()
             .Map(dest => dest.Title, src => src.Title)
             .Map(dest => dest.Description, src => src.Description)
@@ -44,7 +45,8 @@ public static class MapsterConfig
             .Map(dest => dest.MaxPeople, src => src.MaxPeople)
             .Map(dest => dest.Creator, src => src.Creator.Adapt<UserResponse>())
             .Map(dest => dest.Members, src => src.Members.Adapt<List<UserResponse>>())
-            .Map(dest => dest.UpdatedAt, src => src.UpdatedAt);
+            .Map(dest => dest.UpdatedAt, src => src.UpdatedAt)
+            .Map(dest => dest.CreatedAt, src => src.CreatedAt);
         TypeAdapterConfig<MessageCreateRequest, Message>.NewConfig()
             .Map(dest => dest.Content, src => src.Content)
             .Map(dest => dest.SentAt, src => src.SentAt);
