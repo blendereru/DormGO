@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using System.ComponentModel.DataAnnotations;
 using DormGO.Constants;
 using DormGO.Data;
 using DormGO.DTOs.Enums;
@@ -196,35 +195,33 @@ public class PostController : ControllerBase
             return Ok(result.Posts);
         }
 
-        var yourPostsTask = _db.Posts
+        var yourPosts = await _db.Posts
             .Where(p => p.CreatorId == user.Id)
             .Include(p => p.Members)
             .ProjectToType<PostResponse>()
             .ToListAsync();
 
-        var joinedPostsTask = _db.Posts
+        var joinedPosts = await _db.Posts
             .Where(p => p.Members.Any(m => m.Id == user.Id))
             .Include(p => p.Members)
             .ProjectToType<PostResponse>()
             .ToListAsync();
 
-        var notJoinedPostsTask = _db.Posts
+        var notJoinedPosts = await _db.Posts
             .Where(p => p.CreatorId != user.Id && !p.Members.Any(m => m.Id == user.Id))
             .Include(p => p.Members)
             .ProjectToType<PostResponse>()
             .ToListAsync();
 
-        await Task.WhenAll(yourPostsTask, joinedPostsTask, notJoinedPostsTask);
-
         _logger.LogInformation(
             "All posts categories retrieved for {UserId}. Own: {Own}, Joined: {Joined}, NotJoined: {NotJoined}",
-            user.Id, yourPostsTask.Result.Count, joinedPostsTask.Result.Count, notJoinedPostsTask.Result.Count);
+            user.Id, yourPosts.Count, joinedPosts.Count, notJoinedPosts.Count);
 
         return Ok(new
         {
-            yourPosts = yourPostsTask.Result,
-            joinedPosts = joinedPostsTask.Result,
-            notJoinedPosts = notJoinedPostsTask.Result
+            yourPosts,
+            joinedPosts,
+            notJoinedPosts
         });
     }
     [EndpointSummary("Retrieve a post")]
