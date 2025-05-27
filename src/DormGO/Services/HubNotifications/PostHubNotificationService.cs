@@ -27,6 +27,7 @@ public class PostHubNotificationService : IPostHubNotificationService
         {
             post.Id,
             post.Title,
+            post.Description,
             post.CreatedAt,
             CreatorName = post.Creator.UserName,
             post.MaxPeople
@@ -46,6 +47,7 @@ public class PostHubNotificationService : IPostHubNotificationService
         {
             post.Id,
             post.Title,
+            post.Description,
             post.UpdatedAt,
             CreatorName = post.Creator.UserName,
             post.MaxPeople
