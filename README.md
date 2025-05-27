@@ -1,73 +1,186 @@
-# DormGO
-[![CI/CD](https://github.com/blendereru/DormGO/actions/workflows/release.yml/badge.svg)](https://github.com/blendereru/DormGO/actions/workflows/release.yml)
-<a href="https://dotnet.microsoft.com/en-us/"><img src="https://img.shields.io/badge/version-8.0-600aa6?style=flat&logo=dotnet&link=https://dotnet.microsoft.com/en-us/" alt="version" /></a>
-<a href="https://www.swift.org/"><img src="https://img.shields.io/badge/Swift-5.0-e35424?style=flat&logo=swift&logoColor=white&link=https://www.swift.org/" alt="Swift" /></a>
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+# DormGO Server
 
-The mobile application that allows people to spend less money to a transport. People who are aiming to the
-same destination can gather with each other in the app, and divide the money thus saving their money.
-## Demos
-### Home Screen & Post Creation Page
-<div style="display: flex; gap: 20px;">
-  <img src="resources/screen.jpg" width="300" />
-  <img src="resources/screen2.png" width="300" />
-</div>
+DormGO Server is the backend API for DormGO, DormGO is a mobile application that helps users save on
+transportation costs by connecting people traveling to the same destination. Users can coordinate and share
+rides by subscribing to the post, allowing them to split expenses and make travel more affordable and convenient.
+This repository contains only the server-side (.NET) code.
 
-## 🏗️ Architecture
-This project follows the MVVM (Model-View-ViewModel) architecture pattern with SwiftUI for the user interface and Combine for reactive data binding.
+---
 
-## Setup for the app
-    • Xcode (version 15 or later)
-    • macOS (version 12 or later)
-## 📦 Dependencies
-    • Combine: Reactive programming framework for data binding.
-    • CoreLocation: For location services and retrieving the user’s location.
-    • MapKit: For map view and geolocation-related functionality.
-    • SignalRClient: For websocket implementation
-## 🚨 Requirements
-To use this project, ensure the following requirements are met:
-1. A running instance of `SQL Server` (local or remote). Update the `ConnectionStrings:IdentityConnection` in the
-`appsettings.json` file with your `SQL Server` details:
+## Features
+
+- User authentication & registration (ASP.NET Identity, JWT)
+- Manage posts through CRUD operations
+- Booking/reservation management
+- Real-time notifications & chat (SignalR hubs)
+- Search/filter for posts
+- Admin endpoints
+- API documentation (Swagger)
+- Email notifications
+- Logging with Serilog
+
+---
+
+## Tech Stack
+
+- **.NET 8 / ASP.NET Core**
+- **Entity Framework Core** (SQL Server)
+- **SignalR** (real-time communication)
+- **Serilog** (logging)
+- **Swagger** (API docs)
+- **Mapster**(Dto mappings)
+- **JWT** authentication
+
+---
+
+## Project Structure
+
+```
+/DormGO
+  /Controllers        # API controllers
+  /Models             # Entity/data models
+  /Data               # DbContext and migrations
+  /DTOs               # Data transfer objects
+  /Services           # Business logic & notification services
+  /Hubs               # SignalR hubs (real-time)
+  /Filters            # Custom filters (e.g. user email validation)
+  /Mappings           # Mapster config for DTOs
+  /Constants          # Auth and config constants
+  Program.cs          # Main entry point (see below)
+  appsettings.json    # Configuration
+  README.md           # This file
+```
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- [.NET 8 SDK](https://dotnet.microsoft.com/en-us/download)
+- SQL Server (or Azure SQL)
+
+### Setup
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/blendereru/DormGO.git
+   cd DormGO
+   ```
+
+2. **Configure Environment:**
+    - Copy `appsettings.json` and set your connection strings and secrets.
+    - Optionally use environment variables for sensitive values.
+
+3**Run the Server:**
+   ```bash
+   dotnet run
+   ```
+   The API will start on `http://localhost:5093` by default.
+
+---
+
+## Running with Docker Compose
+
+1. **Edit Environment Variables:**
+  - Replace `<your_password>` in the `compose.yaml` under the `MSSQL_SA_PASSWORD` environment variable for the `db` service with a secure password.
+  - Make sure your app's connection string (in `appsettings.json` or as an environment variable) matches the database service:
+    ```
+    Server=db,1433;Database=YOUR_DB_NAME;User Id=sa;Password=YOUR_PASSWORD;
+    ```
+  - (Optional) Set any other required secrets or configuration via your environment or override files.
+
+2. **Build and start all services:**
+   ```bash
+   docker compose up --build
+   ```
+  - This command builds and launches all services defined in the `compose.yaml` file.
+  - The API will be accessible at `http://localhost` (port 80) and `http://localhost:8080`.
+  - Seq logging UI will be available at `http://localhost:8081`.
+  - SQL Server will be available at `localhost:8002` for development tools.
+
+3. **Stopping the services:**
+   ```bash
+   docker compose down
+   ```
+
+---
+
+### Service Overview
+
+- **app**: The DormGO backend API (.NET)  
+  Exposes ports 80 and 8080 (adjust as needed).
+
+- **db**: Microsoft SQL Server 2022  
+  Accessible on port 8002 (host) → 1433 (container).  
+  Default user: `sa`, password: set by `MSSQL_SA_PASSWORD`.
+
+- **seq**: [Seq](https://datalust.co/seq) (structured log UI for Serilog)  
+  Accessible at http://localhost:8081.
+
+---
+
+**Example connection string for the app (in `appsettings.json`):**
 ```json
 "ConnectionStrings": {
-  "IdentityConnection": "Data Source=your-server-name;Initial Catalog=your-database-name;Integrated Security=True;"
+  "IdentityConnection": "Server=db,1433;Database=DormGO;User Id=sa;Password=YOUR_PASSWORD;"
 }
 ```
-2. Register your application with `Google` to enable `OAuth2` login. Obtain your `ClientId` and `ClientSecret` from the `Google Cloud Console` and
-update the following section in `appsettings.json`:
-```json
-"GoogleServices": {
-  "ClientId": "your-client-id",
-  "ClientSecret": "your-client-secret"
-}
-```
-3. Configure `email` settings for sending confirmation emails. Use a valid `SMTP` provider such as `Gmail`. Then
-update the `EmailSettings` section in the `appsettings.json` file:
-```json
-"EmailSettings": {
-  "MailServer": "smtp.gmail.com",
-  "MailPort": 587,
-  "SenderName": "email-identity",
-  "FromEmail": "your-email@gmail.com",
-  "Password": "your-email-password"
-}
-```
-If you're using Gmail, use an [App Password](https://support.google.com/accounts/answer/185833?hl=en).
 
-4. If you want to test the API by running it on [Docker](https://www.docker.com/get-started/),
-you have to pass your secrets to the following files:
-* [compose file](https://github.com/blendereru/LoginForm/blob/1c92e0acf566d70069fcfa99a24913562baa6e65/compose.yaml): 
-```yaml
-environment:
-  - ACCEPT_EULA=Y
-  - MSSQL_SA_PASSWORD=<your_password>
-```
-* appsettings:
-```json
-"ConnectionStrings": {
-  "IdentityConnection": "Server=db, 1433;Database=dormgo-db;User Id=sa;Password=<your_password>;TrustServerCertificate=true"
-}
-```
-## 📗 License
-The project code and all the resources are distributed under the terms of [MIT license](https://github.com/blendereru/LoginForm/blob/f9ec9cd269e0b785c8a7b778e4d4f16fdb4a1427/LICENSE)
+**Tip:**
+- For production, always use strong secrets and manage them securely.
+- You may use the `.env` file to inject environment variables into your containers.
 
+---
+
+## API Overview
+
+- Full Swagger UI at `/swagger`
+- Example endpoints:
+    - `POST /api/signin` — Login
+    - `POST /api/signup` — Register
+    - `GET /api/posts` — List posts that were created by users
+    - `POST /api/posts` — Add a post. You specify a price per user and the maximum people capacity
+    - `GET /api/posts/{id}/messages` — List all messages that were sent by members of the post
+    - SignalR hubs: `/api/userhub`, `/api/posthub`, `/api/chathub`, `/api/notificationhub`
+
+---
+
+## Media & Illustrations
+
+- **System Architecture Diagram**  
+  ![Example architecture diagram](docs/images/architecture.png)  
+  _Shows ASP.NET Core backend, SignalR, SQL Server, and how they interact with the client._
+
+- **API Usage Example**  
+  ![Postman API example](docs/images/api-request.png)  
+  _Screenshot of a Swagger or Postman test of a typical endpoint._
+
+- **Entity Relationship Diagram**  
+  ![ER diagram](docs/images/db-er.png)  
+  _Visual of the main models: User, Dormitory, Booking, etc._
+
+- **Demo Video**  
+  [Demo Video](docs/videos/server-demo.mp4)  
+  _Short screen recording showing registration, login, and a real-time notification via SignalR._
+
+---
+
+## Contributing
+
+Pull requests are welcome! For major changes, please open an [issue](https://github.com/blendereru/DormGO/issues/new)
+first to discuss.
+
+Also contain a [discussions](https://github.com/blendereru/DormGO/discussions) section, where I can answer your
+questions.
+---
+
+## License
+
+[MIT](LICENSE)
+
+---
+
+## Related
+
+- [DormGO Client](https://github.com/Raimbek-pro/DormGo-ios-client) — Frontend for DormGO
