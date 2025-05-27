@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DormGO", "src\server\DormGO\DormGO.csproj", "{39F5AAE1-BB9E-43A2-97C3-C76A44876C38}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DormGO", "src\DormGO\DormGO.csproj", "{39F5AAE1-BB9E-43A2-97C3-C76A44876C38}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DormGO.Tests", "tests\DormGO.Tests\DormGO.Tests.csproj", "{6104FB86-F1E5-455F-A902-E49B83887F77}"
 EndProject
