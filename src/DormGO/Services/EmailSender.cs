@@ -51,7 +51,7 @@ public class EmailSender : IEmailSender<ApplicationUser>
         var body = $@"
         <p>Hi {user.UserName},</p>
         <p>You requested to reset your password. Click the link below to reset it:</p>
-        <p><a href='{resetLink}'>Reset Password</a></p>
+        <p><a href='{HtmlEncoder.Default.Encode(resetLink)}'>Reset Password</a></p>
         <p>If you did not request this, please ignore this email.</p>";
         await SendEmailAsync(email, subject, body, true);
         _logger.LogInformation("Password reset link sent to user. UserId: {UserId}", user.Id);
@@ -63,7 +63,7 @@ public class EmailSender : IEmailSender<ApplicationUser>
         var body = $@"
         <p>Hi {user.UserName},</p>
         <p>You requested to change your email. Click the link below to change it:</p>
-        <p><a href='{changeLink}'>Change Email</a></p>
+        <p><a href='{HtmlEncoder.Default.Encode(changeLink)}'>Change Email</a></p>
         <p>If you did not request this, please ignore this email.</p>";
         await SendEmailAsync(email, subject, body, true);
         _logger.LogInformation("Email change link sent to user. UserId: {UserId}", user.Id);
