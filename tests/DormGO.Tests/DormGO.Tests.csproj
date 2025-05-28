@@ -22,10 +22,9 @@
         <Using Include="Xunit"/>
     </ItemGroup>
     <ItemGroup>
-        <ProjectReference Include="..\..\src\server\DormGO\DormGO.csproj" />
+        <ProjectReference Include="..\..\src\DormGO\DormGO.csproj" />
     </ItemGroup>
     <ItemGroup>
       <Folder Include="IntegrationTests\" />
-      <Folder Include="UnitTests\" />
     </ItemGroup>
 </Project>

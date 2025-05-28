@@ -20,7 +20,8 @@ public class InputSanitizer : IInputSanitizer
             .Replace("\r", "")
             .Replace("\t", "")
             .Replace("'", "\\'")
-            .Replace("\"", "\\\"");
+            .Replace("\"", "\\\"")
+            .Trim();
         if (sanitized != input)
         {
             _logger.LogInformation("Input sanitized. Sanitized: {SanitizedInput}", sanitized);

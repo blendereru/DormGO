@@ -1,6 +1,6 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
-COPY src/server/DormGO/ .
+COPY src/DormGO/ .
 RUN dotnet tool install --global dotnet-ef --version 8.0.0
 ENV PATH="$PATH:/root/.dotnet/tools"
 RUN dotnet restore

@@ -9,11 +9,9 @@ namespace DormGO.Services;
 
 public class TokensProvider : ITokensProvider
 {
-    private readonly IConfiguration _configuration;
     private readonly ILogger<TokensProvider> _logger;
-    public TokensProvider(IConfiguration configuration, ILogger<TokensProvider> logger)
+    public TokensProvider(ILogger<TokensProvider> logger)
     {
-        _configuration = configuration;
         _logger = logger;
     }
     public string GenerateAccessToken(ApplicationUser user)
@@ -48,14 +46,17 @@ public class TokensProvider : ITokensProvider
 
     public async Task<ClaimsPrincipal?> GetPrincipalFromExpiredTokenAsync(string token)
     {
-        var key = AuthOptions.GetSymmetricSecurityKey();
         var tokenValidationParameters = new TokenValidationParameters
         {
-            ValidateIssuer = false,
-            ValidateAudience = false,
+            ValidateAudience = true,
+            ValidAudience = AuthOptions.AUDIENCE,
+            ValidateIssuer = true,
+            ValidIssuer = AuthOptions.ISSUER,
+            ValidateLifetime = false,
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = key,
-            ValidateLifetime = false
+            NameClaimType = ClaimTypes.Name,
+            IssuerSigningKey = AuthOptions.GetSymmetricSecurityKey(),
+            ClockSkew = TimeSpan.Zero
         };
 
         try
