@@ -14,7 +14,6 @@ public class TokensProviderTests
     [Fact]
     public void GenerateAccessToken_WithValidUser_ReturnsTokenContainingExpectedClaims()
     {
-        
         var user = new ApplicationUser
         {
             Id = Guid.NewGuid().ToString(),
@@ -92,6 +91,6 @@ public class TokensProviderTests
             Issuer = AuthOptions.ISSUER,
             Audience = AuthOptions.AUDIENCE
         };
-        return tokenHandler.CreateToken(tokenDescriptor);;
+        return tokenHandler.CreateToken(tokenDescriptor);
     }
 }

@@ -32,5 +32,5 @@ jobs:
     - name: Test
       run: |
         cd tests/DormGO.Tests
-        dotnet test --filter 
+        dotnet test 
 

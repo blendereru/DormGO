@@ -13,7 +13,6 @@ public class InputSanitizerTests
         var expectedValue = "my bad input value";
         var mockLogger = Mock.Of<ILogger<InputSanitizer>>();
         var sanitizer = new InputSanitizer(mockLogger);
-        
         Assert.Equal(expectedValue, sanitizer.Sanitize(badInputValue));
     }
     
