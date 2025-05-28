@@ -10,7 +10,7 @@ public class InputSanitizerTests
     public void Sanitize_InvalidInput_ReturnsChangedValue()
     {
         var badInputValue = " my \tbad input \nvalue ";
-        var expectedValue = "my bad input  value";
+        var expectedValue = "my bad input value";
         var mockLogger = Mock.Of<ILogger<InputSanitizer>>();
         var sanitizer = new InputSanitizer(mockLogger);
         
