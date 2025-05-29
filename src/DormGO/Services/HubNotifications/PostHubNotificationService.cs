@@ -1,5 +1,4 @@
 using DormGO.Data;
-using DormGO.DTOs.ResponseDTO;
 using DormGO.Hubs;
 using DormGO.Models;
 using Microsoft.AspNetCore.SignalR;

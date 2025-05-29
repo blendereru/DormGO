@@ -11,6 +11,13 @@ namespace DormGO.Tests.UnitTests;
 
 public class TokensProviderTests
 {
+    private readonly TokensProvider _sut;
+    public TokensProviderTests()
+    {
+        var logger = new Mock<ILogger<TokensProvider>>();
+        _sut = new TokensProvider(logger.Object);
+    }
+    
     [Fact]
     public void GenerateAccessToken_WithValidUser_ReturnsTokenContainingExpectedClaims()
     {
@@ -21,10 +28,8 @@ public class TokensProviderTests
             UserName = "blendereru",
             EmailConfirmed = false
         };
-        var logger = Mock.Of<ILogger<TokensProvider>>();
-        var tokensProvider = new TokensProvider(logger);
         
-        var token = tokensProvider.GenerateAccessToken(user);
+        var token = _sut.GenerateAccessToken(user);
         var jwtHandler = new JsonWebTokenHandler();
         var jwt = jwtHandler.ReadJsonWebToken(token);
         var claims = jwt.Claims.ToDictionary(c => c.Type, c => c.Value);
@@ -51,10 +56,8 @@ public class TokensProviderTests
         var email = "sanzar30062000@gmail.com";
         var emailConfirmed = Boolean.TrueString;
         var expiredJwt = GenerateExpiredJwt(userId, email, emailConfirmed);
-        var logger = Mock.Of<ILogger<TokensProvider>>();
-        var tokensProvider = new TokensProvider(logger);
         
-        var principal = await tokensProvider.GetPrincipalFromExpiredTokenAsync(expiredJwt);
+        var principal = await _sut.GetPrincipalFromExpiredTokenAsync(expiredJwt);
         
         Assert.NotNull(principal);
         Assert.Equal(userId, principal.FindFirst(JwtRegisteredClaimNames.Sub)?.Value);
@@ -66,12 +69,29 @@ public class TokensProviderTests
     public async Task GetPrincipalFromExpiredToken_WithInvalidToken_ReturnsNull()
     {
         var invalidJwt = "this.is.not.a.valid.jwt";
-        var logger = Mock.Of<ILogger<TokensProvider>>();
-        var tokensProvider = new TokensProvider(logger);
         
-        var principal = await tokensProvider.GetPrincipalFromExpiredTokenAsync(invalidJwt);
+        var principal = await _sut.GetPrincipalFromExpiredTokenAsync(invalidJwt);
         
         Assert.Null(principal);
+    }
+
+    [Fact]
+    public void GenerateRefreshToken_ReturnsBase64StringThatDecodesTo32Bytes()
+    {
+        var token = _sut.GenerateRefreshToken();
+        
+        Assert.False(string.IsNullOrWhiteSpace(token));
+        var bytes = Convert.FromBase64String(token);
+        Assert.Equal(32, bytes.Length);
+    }
+    
+    [Fact]
+    public void GenerateRefreshToken_WithEachCall_ReturnsDifferentValue()
+    {
+        var token1 = _sut.GenerateRefreshToken();
+        var token2 = _sut.GenerateRefreshToken();
+        
+        Assert.NotEqual(token1, token2);
     }
     private static string GenerateExpiredJwt(string userId, string email, string emailConfirmed)
     {
