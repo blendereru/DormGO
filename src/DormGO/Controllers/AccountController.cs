@@ -137,7 +137,7 @@ public class AccountController : ControllerBase
             RefreshToken = refreshToken,
             Fingerprint = loginRequest.VisitorId,
             UA = Request.Headers.UserAgent.ToString(),
-            Ip = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            Ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1",
             ExpiresIn = DateTimeOffset.UtcNow.AddDays(7).ToUnixTimeMilliseconds()
         };
         _db.RefreshSessions.Add(session);
@@ -355,7 +355,7 @@ public class AccountController : ControllerBase
             RefreshToken = refreshToken,
             Fingerprint = visitorId,
             UA = Request.Headers.UserAgent.ToString(),
-            Ip = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            Ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1",
             ExpiresIn = DateTimeOffset.UtcNow.AddDays(7).ToUnixTimeMilliseconds()
         };
         _db.RefreshSessions.Add(session);
@@ -470,7 +470,7 @@ public class AccountController : ControllerBase
         session.RefreshToken = newRefreshToken;
         session.ExpiresIn = DateTimeOffset.UtcNow.AddDays(7).ToUnixTimeMilliseconds();
         session.UA = Request.Headers.UserAgent.ToString();
-        session.Ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+        session.Ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1";
         _db.RefreshSessions.Update(session);
         await _db.SaveChangesAsync();
         _logger.LogInformation("Tokens refreshed successfully. UserId: {UserId}", user.Id);
