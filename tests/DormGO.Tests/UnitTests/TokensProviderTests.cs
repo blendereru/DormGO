@@ -1,10 +1,8 @@
-using System.Security.Claims;
-using DormGO.Constants;
 using DormGO.Models;
 using DormGO.Services;
+using DormGO.Tests.Helpers;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.JsonWebTokens;
-using Microsoft.IdentityModel.Tokens;
 using Moq;
 
 namespace DormGO.Tests.UnitTests;
@@ -25,7 +23,7 @@ public class TokensProviderTests
         var user = new ApplicationUser
         {
             Id = Guid.NewGuid().ToString(),
-            Email = "sanzar30062000@gmail.com",
+            Email = "your@example.com",
             UserName = "blendereru",
             EmailConfirmed = false
         };
@@ -54,10 +52,10 @@ public class TokensProviderTests
     public async Task GetPrincipalFromExpiredToken_WithExpiredToken_ReturnsPrincipal()
     {
         // Arrange
-        var userId = Guid.NewGuid().ToString();
-        var email = "sanzar30062000@gmail.com";
+        const string userId = "sample_user_id";
+        const string email = "your@example.com";
         var emailConfirmed = Boolean.TrueString;
-        var expiredJwt = GenerateExpiredJwt(userId, email, emailConfirmed);
+        var expiredJwt = TokenHelper.GenerateExpiredJwt(userId, email, emailConfirmed);
         
         // Act
         var principal = await _sut.GetPrincipalFromExpiredTokenAsync(expiredJwt);
@@ -103,24 +101,5 @@ public class TokensProviderTests
         
         // Assert   
         Assert.NotEqual(token1, token2);
-    }
-    private static string GenerateExpiredJwt(string userId, string email, string emailConfirmed)
-    {
-        var tokenHandler = new JsonWebTokenHandler();
-        var claims = new List<Claim>
-        {
-            new(JwtRegisteredClaimNames.Sub, userId),
-            new(JwtRegisteredClaimNames.Email, email),
-            new("EmailConfirmed", emailConfirmed)
-        };
-        var tokenDescriptor = new SecurityTokenDescriptor
-        {
-            Subject = new ClaimsIdentity(claims),
-            Expires = DateTime.UtcNow.AddMinutes(-30),
-            SigningCredentials = new SigningCredentials(AuthOptions.GetSymmetricSecurityKey(), SecurityAlgorithms.HmacSha256),
-            Issuer = AuthOptions.ISSUER,
-            Audience = AuthOptions.AUDIENCE
-        };
-        return tokenHandler.CreateToken(tokenDescriptor);
     }
 }

@@ -310,7 +310,7 @@ public class AccountController : ControllerBase
     public async Task<IActionResult> ConfirmEmail([Description("User's id to validate")] string userId, [Description("Token using which the link signature is validated")] string token, [Description("User's fingerprint(device id)")] string visitorId)
     {
         var sanitizedUserId = _inputSanitizer.Sanitize(userId);
-        if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(token))
+        if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(token) || string.IsNullOrEmpty(visitorId))
         {
             _logger.LogWarning("Invalid or expired link parameters. UserId: {UserId}", sanitizedUserId);
             var problem = new ProblemDetails
