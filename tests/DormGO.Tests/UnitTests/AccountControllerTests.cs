@@ -4,6 +4,7 @@ using DormGO.DTOs.RequestDTO;
 using DormGO.DTOs.ResponseDTO;
 using DormGO.Models;
 using DormGO.Services;
+using DormGO.Services.HubNotifications;
 using DormGO.Tests.Helpers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
@@ -288,5 +289,200 @@ public class AccountControllerTests
         var problemDetails = Assert.IsType<ProblemDetails>(unauthorizedResult.Value);
         Assert.NotNull(problemDetails.Title);
         Assert.Equal("Invalid credentials", problemDetails.Title);
+    }
+
+    [Fact]
+    public async Task ForgotPassword_ReturnsNoContentResult()
+    {
+        // Arrange
+        var userManagerMock = UserManagerMockHelper.GetUserManagerMock<ApplicationUser>();
+        userManagerMock.Setup(x => x.FindByEmailAsync(It.IsAny<string>()));
+        var emailSenderMock = new Mock<IEmailSender<ApplicationUser>>();
+        var loggerMock = new Mock<ILogger<AccountController>>();
+        var request = new PasswordForgotRequest() { Email = "your@example.com" };
+        var controller = new AccountController(
+            userManagerMock.Object,
+            null!,
+            emailSenderMock.Object,
+            null!,
+            null!,
+            loggerMock.Object,
+            null!);
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext()
+        };
+        controller.Url = Mock.Of<IUrlHelper>(u =>
+            u.Action(It.IsAny<UrlActionContext>()) == "http://test/confirm");
+        controller.ProblemDetailsFactory = new TestProblemDetailsFactory();
+        
+        // Act
+        var result = await controller.ForgotPassword(request);
+        
+        // Assert
+        var noContentResult = Assert.IsType<NoContentResult>(result);
+        Assert.Equal(StatusCodes.Status204NoContent, noContentResult.StatusCode);
+    }
+
+    [Theory]
+    [InlineData(null, "your@example.com", "token")]
+    [InlineData("sample_user_id", null, "token")]
+    [InlineData("sample_user_id", "your@example.com", null)]
+    public async Task UpdateEmail_WithNullParameters_ReturnsBadRequestResultWithProblemDetails(string userId, string newEmail, string token)
+    {
+        // Arrange
+        var inputSanitizerMock = new Mock<IInputSanitizer>();
+        var userManagerMock = UserManagerMockHelper.GetUserManagerMock<ApplicationUser>();
+        userManagerMock.Setup(x => x.FindByIdAsync(It.IsAny<string>()));
+        userManagerMock.Setup(x => x.ChangeEmailAsync(It.IsAny<ApplicationUser>(),
+            It.IsAny<string>(), It.IsAny<string>()));
+        var loggerMock = new Mock<ILogger<AccountController>>();
+        var userHubNotificationServiceMock = new Mock<IUserHubNotificationService>();
+        var controller = new AccountController(
+            userManagerMock.Object,
+            null!,
+            null!,
+            null!,
+            userHubNotificationServiceMock.Object,
+            loggerMock.Object,
+            inputSanitizerMock.Object);
+
+        // Act
+        var result = await controller.UpdateEmail(userId, newEmail, token);
+
+        // Assert
+        var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Equal(StatusCodes.Status400BadRequest, badRequestResult.StatusCode);
+        var problemDetails = Assert.IsType<ProblemDetails>(badRequestResult.Value);
+        Assert.NotNull(problemDetails.Title);
+        Assert.Equal("Invalid or expired link", problemDetails.Title);
+    }
+    
+    [Fact]
+    public async Task UpdateEmail_WithValidCredentials_ReturnsNoContentResult()
+    {
+        // Arrange
+        var inputSanitizerMock = new Mock<IInputSanitizer>();
+        var userManagerMock = UserManagerMockHelper.GetUserManagerMock<ApplicationUser>();
+        userManagerMock.Setup(x => x.FindByIdAsync(It.IsAny<string>()))
+            .ReturnsAsync(new ApplicationUser());
+        userManagerMock.Setup(x => x.ChangeEmailAsync(It.IsAny<ApplicationUser>(),
+            It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(IdentityResult.Success);
+        var loggerMock = new Mock<ILogger<AccountController>>();
+        var userHubNotificationServiceMock = new Mock<IUserHubNotificationService>();
+        var controller = new AccountController(
+            userManagerMock.Object,
+            null!,
+            null!,
+            null!,
+            userHubNotificationServiceMock.Object,
+            loggerMock.Object,
+            inputSanitizerMock.Object);
+        var userId = "sample_user_id";
+        var newEmail = "your@example.com";
+        var token = "token";
+        
+        // Act
+        var result = await controller.UpdateEmail(userId, newEmail, token);
+        
+        // Assert
+        var noContentResult = Assert.IsType<NoContentResult>(result);
+        Assert.Equal(StatusCodes.Status204NoContent, noContentResult.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("sample_user_id", null)]
+    [InlineData(null, "token")]
+    [InlineData(null, null)]
+    public async Task ValidatePasswordReset_WithNullParameters_ReturnsBadRequestResultWithProblemDetails(string userId, string token)
+    {
+        // Arrange
+        var inputSanitizerMock = new Mock<IInputSanitizer>();
+        var userManagerMock = UserManagerMockHelper.GetUserManagerMock<ApplicationUser>();
+        userManagerMock.Setup(x => x.FindByIdAsync(It.IsAny<string>()));
+        var loggerMock = new Mock<ILogger<AccountController>>();
+        var userHubNotificationServiceMock = new Mock<IUserHubNotificationService>();
+        var controller = new AccountController(
+            userManagerMock.Object,
+            null!,
+            null!,
+            null!,
+            userHubNotificationServiceMock.Object,
+            loggerMock.Object,
+            inputSanitizerMock.Object);
+        
+        // Act
+        var result = await controller.ValidatePasswordReset(userId, token);
+        
+        // Assert
+        var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Equal(StatusCodes.Status400BadRequest, badRequestResult.StatusCode);
+        var problemDetails = Assert.IsType<ProblemDetails>(badRequestResult.Value);
+        Assert.NotNull(problemDetails.Title);
+        Assert.Equal("Invalid or expired link", problemDetails.Title);
+    }
+    
+    [Fact]
+    public async Task ValidatePasswordReset_WithValidCredentials_ReturnsNoContentResult()
+    {
+        // Arrange
+        var inputSanitizerMock = new Mock<IInputSanitizer>();
+        var userManagerMock = UserManagerMockHelper.GetUserManagerMock<ApplicationUser>();
+        userManagerMock.Setup(x => x.FindByIdAsync(It.IsAny<string>()))
+            .ReturnsAsync(new ApplicationUser());  
+        var loggerMock = new Mock<ILogger<AccountController>>();
+        var userHubNotificationServiceMock = new Mock<IUserHubNotificationService>();   
+        var controller = new AccountController(
+            userManagerMock.Object,
+            null!,
+            null!,
+            null!,
+            userHubNotificationServiceMock.Object,
+            loggerMock.Object,
+            inputSanitizerMock.Object);
+        var userId = "sample_user_id";
+        var token = "token";
+        
+        // Act
+        var result = await controller.ValidatePasswordReset(userId, token);
+        
+        // Assert
+        var noContentResult = Assert.IsType<NoContentResult>(result);
+        Assert.Equal(StatusCodes.Status204NoContent, noContentResult.StatusCode);   
+    }
+
+    [Fact]
+    public async Task ResetPassword_ReturnsNoContentResult()
+    {
+        // Arrange
+        var request = new PasswordResetRequest
+        {
+            Email = "your@example.com",
+            NewPassword = "strong_password123@",
+            Token = "token"
+        };
+        var userManagerMock = UserManagerMockHelper.GetUserManagerMock<ApplicationUser>();
+        var logger = new Mock<ILogger<AccountController>>();
+        var controller = new AccountController(
+            userManagerMock.Object,
+            null!,
+            null!,
+            null!,
+            null!,
+            logger.Object,
+            null!);
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext()
+        };
+        controller.ProblemDetailsFactory = new TestProblemDetailsFactory();
+        
+        // Act
+        var result = await controller.ResetPassword(request);
+
+        // Assert
+        var noContentResult = Assert.IsType<NoContentResult>(result);
+        Assert.Equal(StatusCodes.Status204NoContent, noContentResult.StatusCode);
     }
 }

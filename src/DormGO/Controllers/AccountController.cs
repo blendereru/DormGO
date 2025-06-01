@@ -231,7 +231,7 @@ public class AccountController : ControllerBase
             _logger.LogWarning("Invalid or expired password reset link. UserId: {UserId}", sanitizedUserId);
             var problem = new ProblemDetails
             {
-                Title = "Invalid or Expired Link",
+                Title = "Invalid or expired link",
                 Type = "https://datatracker.ietf.org/doc/html/rfc9457#section-3",
                 Status = StatusCodes.Status400BadRequest,
                 Detail = "The password reset link is invalid, expired, or missing required parameters."
