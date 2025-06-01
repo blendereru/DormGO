@@ -28,13 +28,13 @@ public static class UserManagerMockHelper
             pwdValidators,
             new UpperInvariantLookupNormalizer(),
             new IdentityErrorDescriber(),
-            null,
+            null!,
             new Mock<ILogger<UserManager<TUser>>>().Object);
         
         userManager.Setup(x => x.GetUserIdAsync(It.IsAny<TUser>()))
-            .ReturnsAsync((TUser user) => "test-user-id");
+            .ReturnsAsync((TUser _) => "test-user-id");
         userManager.Setup(x => x.GetUserNameAsync(It.IsAny<TUser>()))
-            .ReturnsAsync((TUser user) => "test-username");
+            .ReturnsAsync((TUser _) => "test-username");
         userManager.Setup(x => x.GenerateEmailConfirmationTokenAsync(It.IsAny<TUser>()))
             .ReturnsAsync("test-confirmation-token");
 
