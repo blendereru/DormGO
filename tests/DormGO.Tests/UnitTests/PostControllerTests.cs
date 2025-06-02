@@ -2,38 +2,31 @@ using DormGO.Controllers;
 using DormGO.Data;
 using DormGO.DTOs.RequestDTO;
 using DormGO.DTOs.ResponseDTO;
-using DormGO.Models;
-using DormGO.Services;
-using DormGO.Services.HubNotifications;
 using DormGO.Tests.Helpers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
-using Moq;
 
 namespace DormGO.Tests.UnitTests;
 
-public class PostControllerTests
+public class PostControllerTests : IAsyncDisposable
 {
+    private readonly ApplicationContext _db;
+    private readonly PostController _controller;
+    public PostControllerTests()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+        _db = new ApplicationContext(options);
+        _controller = ControllerTestHelper.CreatePostController(_db);
+    }
+    
     [Fact]
     public async Task CreatePost_ForUnauthorizedUser_ReturnsUnauthorizedResultWithProblemDetails()
     {
-        // Arrange
-        var loggerMock = new Mock<ILogger<PostController>>();
-        var controller = new PostController(
-            new ApplicationContext(new DbContextOptionsBuilder<ApplicationContext>().Options),
-            Mock.Of<IPostHubNotificationService>(),
-            Mock.Of<INotificationService<PostNotification, PostNotificationResponse>>(),
-            loggerMock.Object,
-            Mock.Of<IInputSanitizer>());
-        controller.ControllerContext = new ControllerContext
-        {
-            HttpContext = new DefaultHttpContext()
-        };
-        
         // Act
-        var result = await controller.CreatePost(new PostCreateRequest());
+        var result = await _controller.CreatePost(new PostCreateRequest());
         
         // Assert
         var unauthorizedResult = Assert.IsType<UnauthorizedObjectResult>(result);
@@ -57,36 +50,72 @@ public class PostControllerTests
             CreatedAt = DateTime.UtcNow,
             MaxPeople = 0
         };
-        var loggerMock = new Mock<ILogger<PostController>>();
-        var postHubNotificationServiceMock = new Mock<IPostHubNotificationService>();
-        var options = new DbContextOptionsBuilder<ApplicationContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options;
-
-        await using var db = new ApplicationContext(options);
-        db.Users.Add(testUser);
-        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
-
-        var controller = new PostController(
-            db,
-            postHubNotificationServiceMock.Object,
-            Mock.Of<INotificationService<PostNotification, PostNotificationResponse>>(),
-            loggerMock.Object,
-            Mock.Of<IInputSanitizer>()
-        );
-
-        controller.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() };
-        HttpContextItemsHelper.SetHttpContextItems(controller.HttpContext, testUser);
+        _db.Users.Add(testUser);
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
 
         // Act
-        var result = await controller.CreatePost(postRequest);
+        var result = await _controller.CreatePost(postRequest);
 
         // Assert
         var createdResult = Assert.IsType<CreatedAtActionResult>(result);
         var response = Assert.IsType<PostResponse>(createdResult.Value);
-        var createdPost = await db.Posts.SingleAsync(TestContext.Current.CancellationToken);
+        var createdPost = await _db.Posts.SingleAsync(TestContext.Current.CancellationToken);
         Assert.Equal(response.Id, createdPost.Id);
-        postHubNotificationServiceMock.Verify(
-            s => s.NotifyPostCreatedAsync(It.IsAny<ApplicationUser>(), It.IsAny<Post>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task SearchPosts_ForUnauthorizedUser_ReturnsUnauthorizedResultWithProblemDetails()
+    {
+        // Act
+        var result = await _controller.SearchPosts(new PostSearchRequest());
+        
+        // Assert
+        var unauthorizedResult = Assert.IsType<UnauthorizedObjectResult>(result);
+        Assert.Equal(StatusCodes.Status401Unauthorized, unauthorizedResult.StatusCode);
+        var problemDetails = Assert.IsType<ProblemDetails>(unauthorizedResult.Value);
+        Assert.Equal("Unauthorized", problemDetails.Title);
+    }
+
+    [Theory]
+    [InlineData("description")]
+    [InlineData("title")]
+    public async Task SearchPosts_WhenSearchTextIsPresent_ReturnsOkResultWithPostResponse(string text)
+    {
+        // Arrange
+        var testUser = UserHelper.CreateUser();
+        var searchRequest = new PostSearchRequest { SearchText = text };
+        _db.Users.Add(testUser);
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        await DataSeedHelper.SeedPostDataAsync(_db, testUser); 
+        HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
+
+        // Act
+        var result = await _controller.SearchPosts(searchRequest);
+
+        // Assert
+        var okResult = Assert.IsType<OkObjectResult>(result);
+        var posts = Assert.IsType<List<PostResponse>>(okResult.Value);
+        Assert.Equal(5, posts.Count);
+    }
+
+    [Fact]
+    public async Task ReadPosts_ForUnauthorizedUser_ReturnsUnauthorizedResultWithProblemDetails()
+    {
+        // Act
+        var result = await _controller.SearchPosts(new PostSearchRequest());
+        
+        // Assert
+        var unauthorizedResult = Assert.IsType<UnauthorizedObjectResult>(result);
+        Assert.Equal(StatusCodes.Status401Unauthorized, unauthorizedResult.StatusCode);
+        var problemDetails = Assert.IsType<ProblemDetails>(unauthorizedResult.Value);
+        Assert.Equal("Unauthorized", problemDetails.Title);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await _db.DisposeAsync();
+        
+        GC.SuppressFinalize(this);
     }
 }

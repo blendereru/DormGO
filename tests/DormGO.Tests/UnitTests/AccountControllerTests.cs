@@ -330,7 +330,7 @@ public class AccountControllerTests
     [InlineData(null, "your@example.com", "token")]
     [InlineData("sample_user_id", null, "token")]
     [InlineData("sample_user_id", "your@example.com", null)]
-    public async Task UpdateEmail_WithNullParameters_ReturnsBadRequestResultWithProblemDetails(string userId, string newEmail, string token)
+    public async Task UpdateEmail_WithNullParameters_ReturnsBadRequestResultWithProblemDetails(string? userId, string? newEmail, string? token)
     {
         // Arrange
         var inputSanitizerMock = new Mock<IInputSanitizer>();
@@ -350,7 +350,7 @@ public class AccountControllerTests
             inputSanitizerMock.Object);
 
         // Act
-        var result = await controller.UpdateEmail(userId, newEmail, token);
+        var result = await controller.UpdateEmail(userId!, newEmail!, token!);
 
         // Assert
         var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
@@ -397,7 +397,7 @@ public class AccountControllerTests
     [InlineData("sample_user_id", null)]
     [InlineData(null, "token")]
     [InlineData(null, null)]
-    public async Task ValidatePasswordReset_WithNullParameters_ReturnsBadRequestResultWithProblemDetails(string userId, string token)
+    public async Task ValidatePasswordReset_WithNullParameters_ReturnsBadRequestResultWithProblemDetails(string? userId, string? token)
     {
         // Arrange
         var inputSanitizerMock = new Mock<IInputSanitizer>();
@@ -415,7 +415,7 @@ public class AccountControllerTests
             inputSanitizerMock.Object);
         
         // Act
-        var result = await controller.ValidatePasswordReset(userId, token);
+        var result = await controller.ValidatePasswordReset(userId!, token!);
         
         // Assert
         var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
@@ -540,7 +540,7 @@ public class AccountControllerTests
 
     [Theory]
     [InlineData("sample_user_id", "token", null)]
-    public async Task ConfirmEmail_WithNullParameters_ReturnsBadRequestResultWithProblemDetails(string userId, string token, string visitorId)
+    public async Task ConfirmEmail_WithNullParameters_ReturnsBadRequestResultWithProblemDetails(string userId, string token, string? visitorId)
     {
         // Arrange
         var inputSanitizerMock = new Mock<IInputSanitizer>();
@@ -555,7 +555,7 @@ public class AccountControllerTests
             inputSanitizerMock.Object);
         
         // Act
-        var result = await controller.ConfirmEmail(userId, token, visitorId);
+        var result = await controller.ConfirmEmail(userId, token, visitorId!);
         
         // Assert
         var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
@@ -751,7 +751,7 @@ public class AccountControllerTests
         var tokensProviderMock = new Mock<ITokensProvider>();
         var loggerMock = new Mock<ILogger<AccountController>>();
         var controller = new AccountController(
-            Mock.Of<UserManager<ApplicationUser>>(),
+            UserManagerMockHelper.GetUserManagerMock<ApplicationUser>().Object,
             new ApplicationContext(new DbContextOptionsBuilder<ApplicationContext>().Options),
             Mock.Of<IEmailSender<ApplicationUser>>(),
             tokensProviderMock.Object,

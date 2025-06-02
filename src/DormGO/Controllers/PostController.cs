@@ -90,7 +90,8 @@ public class PostController : ControllerBase
             var sanitizedSearchText = _inputSanitizer.Sanitize(postSearchRequest.SearchText);
             _logger.LogDebug("Applying text filter: {SearchText}", sanitizedSearchText);
             var searchTerm = postSearchRequest.SearchText.ToLower();
-            query = query.Where(p => p.Description.ToLower().Contains(searchTerm));
+            query = query.Where(p => p.Description.ToLower().Contains(searchTerm) || 
+                                     p.Title.ToLower().Contains(searchTerm));
         }
         if (postSearchRequest.StartDate.HasValue)
         {
