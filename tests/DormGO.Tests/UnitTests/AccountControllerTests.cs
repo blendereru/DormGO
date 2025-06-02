@@ -546,7 +546,7 @@ public class AccountControllerTests
         var inputSanitizerMock = new Mock<IInputSanitizer>();
         var loggerMock = new Mock<ILogger<AccountController>>();
         var controller = new AccountController(
-            Mock.Of<UserManager<ApplicationUser>>(),
+            UserManagerMockHelper.GetUserManagerMock<ApplicationUser>().Object,
             new ApplicationContext(new DbContextOptionsBuilder<ApplicationContext>().Options),
             Mock.Of<IEmailSender<ApplicationUser>>(),
             Mock.Of<ITokensProvider>(),
