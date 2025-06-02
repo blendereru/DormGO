@@ -47,12 +47,12 @@ public class AccountControllerTests
         var loggerMock = new Mock<ILogger<AccountController>>();
         var controller = new AccountController(
             userManagerMock.Object,
-            null!,
+            new ApplicationContext(new DbContextOptionsBuilder<ApplicationContext>().Options),
             emailSenderMock.Object,
-            null!,
-            null!,
+            Mock.Of<ITokensProvider>(),
+            Mock.Of<IUserHubNotificationService>(),
             loggerMock.Object,
-            null!);
+            Mock.Of<IInputSanitizer>());
         controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext()
@@ -91,12 +91,12 @@ public class AccountControllerTests
 
         var controller = new AccountController(
             userManagerMock.Object,
-            null!,
+            new ApplicationContext(new DbContextOptionsBuilder<ApplicationContext>().Options),
             emailSenderMock.Object,
-            null!,
-            null!,
+            Mock.Of<ITokensProvider>(),
+            Mock.Of<IUserHubNotificationService>(),
             loggerMock.Object,
-            null!);
+            Mock.Of<IInputSanitizer>());
         controller.ProblemDetailsFactory = new TestProblemDetailsFactory();
         controller.ControllerContext = new ControllerContext
         {
@@ -152,9 +152,9 @@ public class AccountControllerTests
         var controller = new AccountController(
             userManagerMock.Object,
             db,
-            null!,
+            Mock.Of<IEmailSender<ApplicationUser>>(),
             tokensProviderMock.Object,
-            null!,
+            Mock.Of<IUserHubNotificationService>(),
             loggerMock.Object,
             inputSanitizerMock.Object);
         controller.ControllerContext = new ControllerContext
@@ -212,9 +212,9 @@ public class AccountControllerTests
         var controller = new AccountController(
             userManagerMock.Object,
             db,
-            null!,
+            Mock.Of<IEmailSender<ApplicationUser>>(),
             tokensProviderMock.Object,
-            null!,
+            Mock.Of<IUserHubNotificationService>(),
             loggerMock.Object,
             inputSanitizerMock.Object);
         controller.ControllerContext = new ControllerContext
@@ -272,9 +272,9 @@ public class AccountControllerTests
         var controller = new AccountController(
             userManagerMock.Object,
             db,
-            null!,
+            Mock.Of<IEmailSender<ApplicationUser>>(),
             tokensProviderMock.Object,
-            null!,
+            Mock.Of<IUserHubNotificationService>(),
             loggerMock.Object,
             inputSanitizerMock.Object);
         controller.ControllerContext = new ControllerContext
@@ -304,12 +304,12 @@ public class AccountControllerTests
         var request = new PasswordForgotRequest() { Email = "your@example.com" };
         var controller = new AccountController(
             userManagerMock.Object,
-            null!,
+            new ApplicationContext(new DbContextOptionsBuilder<ApplicationContext>().Options),
             emailSenderMock.Object,
-            null!,
-            null!,
+            Mock.Of<ITokensProvider>(),
+            Mock.Of<IUserHubNotificationService>(),
             loggerMock.Object,
-            null!);
+            Mock.Of<IInputSanitizer>());
         controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext()
@@ -342,9 +342,9 @@ public class AccountControllerTests
         var userHubNotificationServiceMock = new Mock<IUserHubNotificationService>();
         var controller = new AccountController(
             userManagerMock.Object,
-            null!,
-            null!,
-            null!,
+            new ApplicationContext(new DbContextOptionsBuilder<ApplicationContext>().Options),
+            Mock.Of<IEmailSender<ApplicationUser>>(),
+            Mock.Of<ITokensProvider>(),
             userHubNotificationServiceMock.Object,
             loggerMock.Object,
             inputSanitizerMock.Object);
@@ -375,9 +375,9 @@ public class AccountControllerTests
         var userHubNotificationServiceMock = new Mock<IUserHubNotificationService>();
         var controller = new AccountController(
             userManagerMock.Object,
-            null!,
-            null!,
-            null!,
+            new ApplicationContext(new DbContextOptionsBuilder<ApplicationContext>().Options),
+            Mock.Of<IEmailSender<ApplicationUser>>(),
+            Mock.Of<ITokensProvider>(),
             userHubNotificationServiceMock.Object,
             loggerMock.Object,
             inputSanitizerMock.Object);
@@ -407,9 +407,9 @@ public class AccountControllerTests
         var userHubNotificationServiceMock = new Mock<IUserHubNotificationService>();
         var controller = new AccountController(
             userManagerMock.Object,
-            null!,
-            null!,
-            null!,
+            new ApplicationContext(new DbContextOptionsBuilder<ApplicationContext>().Options),
+            Mock.Of<IEmailSender<ApplicationUser>>(),
+            Mock.Of<ITokensProvider>(),
             userHubNotificationServiceMock.Object,
             loggerMock.Object,
             inputSanitizerMock.Object);
@@ -437,9 +437,9 @@ public class AccountControllerTests
         var userHubNotificationServiceMock = new Mock<IUserHubNotificationService>();   
         var controller = new AccountController(
             userManagerMock.Object,
-            null!,
-            null!,
-            null!,
+            new ApplicationContext(new DbContextOptionsBuilder<ApplicationContext>().Options),
+            Mock.Of<IEmailSender<ApplicationUser>>(),
+            Mock.Of<ITokensProvider>(),
             userHubNotificationServiceMock.Object,
             loggerMock.Object,
             inputSanitizerMock.Object);
@@ -468,12 +468,12 @@ public class AccountControllerTests
         var logger = new Mock<ILogger<AccountController>>();
         var controller = new AccountController(
             userManagerMock.Object,
-            null!,
-            null!,
-            null!,
-            null!,
+            new ApplicationContext(new DbContextOptionsBuilder<ApplicationContext>().Options),
+            Mock.Of<IEmailSender<ApplicationUser>>(),
+            Mock.Of<ITokensProvider>(),
+            Mock.Of<IUserHubNotificationService>(),
             logger.Object,
-            null!);
+            Mock.Of<IInputSanitizer>());
         controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext()
@@ -522,11 +522,11 @@ public class AccountControllerTests
         await db.AddRangeAsync(testUser, testRefreshSession);
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         var controller = new AccountController(
-            null!,
+            Mock.Of<UserManager<ApplicationUser>>(),
             db,
-            null!,
-            null!,
-            null!,
+            Mock.Of<IEmailSender<ApplicationUser>>(),
+            Mock.Of<ITokensProvider>(),
+            Mock.Of<IUserHubNotificationService>(),
             loggerMock.Object,
             inputSanitizerMock.Object);
         
@@ -546,11 +546,11 @@ public class AccountControllerTests
         var inputSanitizerMock = new Mock<IInputSanitizer>();
         var loggerMock = new Mock<ILogger<AccountController>>();
         var controller = new AccountController(
-            null!,
-            null!,
-            null!,
-            null!,
-            null!,
+            Mock.Of<UserManager<ApplicationUser>>(),
+            new ApplicationContext(new DbContextOptionsBuilder<ApplicationContext>().Options),
+            Mock.Of<IEmailSender<ApplicationUser>>(),
+            Mock.Of<ITokensProvider>(),
+            Mock.Of<IUserHubNotificationService>(),
             loggerMock.Object,
             inputSanitizerMock.Object);
         
@@ -578,10 +578,10 @@ public class AccountControllerTests
             .ReturnsAsync((ApplicationUser?)null);
         var controller = new AccountController(
             userManagerMock.Object,
-            null!,
-            null!,
-            null!,
-            null!,
+            new ApplicationContext(new DbContextOptionsBuilder<ApplicationContext>().Options),
+            Mock.Of<IEmailSender<ApplicationUser>>(),
+            Mock.Of<ITokensProvider>(),
+            Mock.Of<IUserHubNotificationService>(),
             loggerMock.Object,
             inputSanitizerMock.Object);
         
@@ -619,11 +619,11 @@ public class AccountControllerTests
         var loggerMock = new Mock<ILogger<AccountController>>();
         var inputSanitizerMock = new Mock<IInputSanitizer>();
         var controller = new AccountController(
-            userManagerMock.Object,
-            null!,
-            null!,
-            null!,
-            null!,
+            userManagerMock.Object, 
+            Mock.Of<ApplicationContext>(),
+            Mock.Of<IEmailSender<ApplicationUser>>(),
+            Mock.Of<ITokensProvider>(),
+            Mock.Of<IUserHubNotificationService>(),
             loggerMock.Object,
             inputSanitizerMock.Object);
         controller.ControllerContext = new ControllerContext
@@ -677,7 +677,7 @@ public class AccountControllerTests
         var controller = new AccountController(
             userManagerMock.Object,
             db,
-            null!,
+            Mock.Of<IEmailSender<ApplicationUser>>(),
             tokensProviderMock.Object,
             userHubNotificationServiceMock.Object,
             loggerMock.Object,
@@ -716,10 +716,10 @@ public class AccountControllerTests
         var inputSanitizerMock = new Mock<IInputSanitizer>();
         var controller = new AccountController(
             userManagerMock.Object,
-            null!,
+            new ApplicationContext(new DbContextOptionsBuilder<ApplicationContext>().Options),
             emailSenderMock.Object,
-            null!,
-            null!,
+            Mock.Of<ITokensProvider>(),
+            Mock.Of<IUserHubNotificationService>(),
             loggerMock.Object,
             inputSanitizerMock.Object);
         controller.ControllerContext = new ControllerContext()
@@ -751,11 +751,11 @@ public class AccountControllerTests
         var tokensProviderMock = new Mock<ITokensProvider>();
         var loggerMock = new Mock<ILogger<AccountController>>();
         var controller = new AccountController(
-            null!,
-            null!,
-            null!,
+            Mock.Of<UserManager<ApplicationUser>>(),
+            new ApplicationContext(new DbContextOptionsBuilder<ApplicationContext>().Options),
+            Mock.Of<IEmailSender<ApplicationUser>>(),
             tokensProviderMock.Object,
-            null!,
+            Mock.Of<IUserHubNotificationService>(),
             loggerMock.Object,
             inputSanitizerMock.Object);
         
@@ -784,11 +784,11 @@ public class AccountControllerTests
             .ReturnsAsync((ClaimsPrincipal?)null);
         var inputSanitizerMock = new Mock<IInputSanitizer>();
         var controller = new AccountController(
-            null!,
-            null!,         
-            null!,
+            Mock.Of<UserManager<ApplicationUser>>(),
+            new ApplicationContext(new DbContextOptionsBuilder<ApplicationContext>().Options),         
+            Mock.Of<IEmailSender<ApplicationUser>>(),
             tokensProviderMock.Object,
-            null!,
+            Mock.Of<IUserHubNotificationService>(),
             loggerMock.Object,
             inputSanitizerMock.Object);
         controller.ControllerContext = new ControllerContext
@@ -855,9 +855,9 @@ public class AccountControllerTests
         var controller = new AccountController(
             null!,
             db,         
-            null!,
+            Mock.Of<IEmailSender<ApplicationUser>>(),
             tokensProviderMock.Object,
-            null!,
+            Mock.Of<IUserHubNotificationService>(),
             loggerMock.Object,
             inputSanitizerMock.Object);
         controller.ControllerContext = new ControllerContext
@@ -921,11 +921,11 @@ public class AccountControllerTests
             .ReturnsAsync(claimsPrincipalMock);
         var inputSanitizerMock = new Mock<IInputSanitizer>();
         var controller = new AccountController(
-            null!,
+            Mock.Of<UserManager<ApplicationUser>>(),
             db,         
-            null!,
+            Mock.Of<IEmailSender<ApplicationUser>>(),
             tokensProviderMock.Object,
-            null!,
+            Mock.Of<IUserHubNotificationService>(),
             loggerMock.Object,
             inputSanitizerMock.Object);
         controller.ControllerContext = new ControllerContext
@@ -989,11 +989,11 @@ public class AccountControllerTests
             .ReturnsAsync(claimsPrincipalMock);
         var inputSanitizerMock = new Mock<IInputSanitizer>();
         var controller = new AccountController(
-            null!,
+            Mock.Of<UserManager<ApplicationUser>>(),
             db,         
-            null!,
+            Mock.Of<IEmailSender<ApplicationUser>>(),
             tokensProviderMock.Object,
-            null!,
+            Mock.Of<IUserHubNotificationService>(),
             loggerMock.Object,
             inputSanitizerMock.Object);
         controller.ControllerContext = new ControllerContext
@@ -1057,11 +1057,11 @@ public class AccountControllerTests
             .ReturnsAsync(claimsPrincipalMock);
         var inputSanitizerMock = new Mock<IInputSanitizer>();
         var controller = new AccountController(
-            null!,
+            Mock.Of<UserManager<ApplicationUser>>(),
             db,         
-            null!,
+            Mock.Of<IEmailSender<ApplicationUser>>(),
             tokensProviderMock.Object,
-            null!,
+            Mock.Of<IUserHubNotificationService>(),
             loggerMock.Object,
             inputSanitizerMock.Object);
         controller.ControllerContext = new ControllerContext

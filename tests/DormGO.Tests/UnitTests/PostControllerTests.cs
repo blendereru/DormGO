@@ -6,10 +6,8 @@ using DormGO.Models;
 using DormGO.Services;
 using DormGO.Services.HubNotifications;
 using DormGO.Tests.Helpers;
-using Mapster;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -24,8 +22,8 @@ public class PostControllerTests
         // Arrange
         var loggerMock = new Mock<ILogger<PostController>>();
         var controller = new PostController(
-            Mock.Of<ApplicationContext>(),
-            Mock.Of<PostHubNotificationService>(),
+            new ApplicationContext(new DbContextOptionsBuilder<ApplicationContext>().Options),
+            Mock.Of<IPostHubNotificationService>(),
             Mock.Of<INotificationService<PostNotification, PostNotificationResponse>>(),
             loggerMock.Object,
             Mock.Of<IInputSanitizer>());
@@ -35,7 +33,7 @@ public class PostControllerTests
         };
         
         // Act
-        var result = await controller.CreatePost(null!);
+        var result = await controller.CreatePost(new PostCreateRequest());
         
         // Assert
         var unauthorizedResult = Assert.IsType<UnauthorizedObjectResult>(result);
