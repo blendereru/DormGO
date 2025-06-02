@@ -522,7 +522,7 @@ public class AccountControllerTests
         await db.AddRangeAsync(testUser, testRefreshSession);
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         var controller = new AccountController(
-            Mock.Of<UserManager<ApplicationUser>>(),
+            UserManagerMockHelper.GetUserManagerMock<ApplicationUser>().Object,
             db,
             Mock.Of<IEmailSender<ApplicationUser>>(),
             Mock.Of<ITokensProvider>(),
@@ -620,7 +620,7 @@ public class AccountControllerTests
         var inputSanitizerMock = new Mock<IInputSanitizer>();
         var controller = new AccountController(
             userManagerMock.Object, 
-            Mock.Of<ApplicationContext>(),
+            new ApplicationContext(new DbContextOptionsBuilder<ApplicationContext>().Options),
             Mock.Of<IEmailSender<ApplicationUser>>(),
             Mock.Of<ITokensProvider>(),
             Mock.Of<IUserHubNotificationService>(),
@@ -784,7 +784,7 @@ public class AccountControllerTests
             .ReturnsAsync((ClaimsPrincipal?)null);
         var inputSanitizerMock = new Mock<IInputSanitizer>();
         var controller = new AccountController(
-            Mock.Of<UserManager<ApplicationUser>>(),
+            UserManagerMockHelper.GetUserManagerMock<ApplicationUser>().Object,
             new ApplicationContext(new DbContextOptionsBuilder<ApplicationContext>().Options),         
             Mock.Of<IEmailSender<ApplicationUser>>(),
             tokensProviderMock.Object,
@@ -921,7 +921,7 @@ public class AccountControllerTests
             .ReturnsAsync(claimsPrincipalMock);
         var inputSanitizerMock = new Mock<IInputSanitizer>();
         var controller = new AccountController(
-            Mock.Of<UserManager<ApplicationUser>>(),
+            UserManagerMockHelper.GetUserManagerMock<ApplicationUser>().Object,
             db,         
             Mock.Of<IEmailSender<ApplicationUser>>(),
             tokensProviderMock.Object,
@@ -989,7 +989,7 @@ public class AccountControllerTests
             .ReturnsAsync(claimsPrincipalMock);
         var inputSanitizerMock = new Mock<IInputSanitizer>();
         var controller = new AccountController(
-            Mock.Of<UserManager<ApplicationUser>>(),
+            UserManagerMockHelper.GetUserManagerMock<ApplicationUser>().Object,
             db,         
             Mock.Of<IEmailSender<ApplicationUser>>(),
             tokensProviderMock.Object,
@@ -1057,7 +1057,7 @@ public class AccountControllerTests
             .ReturnsAsync(claimsPrincipalMock);
         var inputSanitizerMock = new Mock<IInputSanitizer>();
         var controller = new AccountController(
-            Mock.Of<UserManager<ApplicationUser>>(),
+            UserManagerMockHelper.GetUserManagerMock<ApplicationUser>().Object,
             db,         
             Mock.Of<IEmailSender<ApplicationUser>>(),
             tokensProviderMock.Object,
