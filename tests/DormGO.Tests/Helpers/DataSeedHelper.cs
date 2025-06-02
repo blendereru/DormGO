@@ -5,7 +5,7 @@ namespace DormGO.Tests.Helpers;
 
 public static class DataSeedHelper
 {
-    public static async Task SeedPostDataAsync(ApplicationContext db, ApplicationUser creator)
+    public static async Task SeedPostDataAsync(ApplicationContext db, ApplicationUser creator, bool saveChanges = true)
     {
         var post1 = new Post
         {
@@ -65,6 +65,9 @@ public static class DataSeedHelper
             CreatorId = creator.Id       
         };
         await db.Posts.AddRangeAsync(post1, post2, post3, post4, post5);
-        await db.SaveChangesAsync();
+        if (saveChanges)
+        {
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
     }
 }

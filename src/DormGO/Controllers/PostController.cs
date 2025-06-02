@@ -253,7 +253,7 @@ public class PostController : ControllerBase
             _logger.LogWarning("Post read failed: post not found. UserId: {UserId}, PostId: {PostId}", user.Id, sanitizedPostId);
             var problem = new ProblemDetails
             {
-                Title = "Not Found",
+                Title = "Not found",
                 Detail = "The post with the specified ID was not found.",
                 Status = StatusCodes.Status404NotFound,
                 Instance = $"{Request.Method} {Request.Path}"
@@ -293,7 +293,7 @@ public class PostController : ControllerBase
             _logger.LogWarning("Post join failed due to not found or membership/ownership violation. UserId: {UserId}, PostId: {PostId}", user.Id, sanitizedPostId);
             var problem = new ProblemDetails
             {
-                Title = "Not Found",
+                Title = "Not found",
                 Detail = "Post not found.",
                 Status = StatusCodes.Status404NotFound,
                 Instance = $"{Request.Method} {Request.Path}"
@@ -305,7 +305,7 @@ public class PostController : ControllerBase
             _logger.LogWarning("Post join requested for post that reached its maximum capacity. UserId: {UserId}, PostId: {PostId}", user.Id, post.Id);
             var problem = new ProblemDetails
             {
-                Title = "Post Full",
+                Title = "Post is full",
                 Detail = "The post has reached its maximum member capacity.",
                 Status = StatusCodes.Status409Conflict,
                 Instance = $"{Request.Method} {Request.Path}"
@@ -361,7 +361,7 @@ public class PostController : ControllerBase
             _logger.LogWarning("Ownership transfer failed: not found, not owner, or new owner not member. UserId: {UserId}, PostId: {PostId}", user.Id, sanitizedPostId);
             var problem = new ProblemDetails
             {
-                Title = "Not Found",
+                Title = "Not found",
                 Detail = "The post does not exist.",
                 Status = StatusCodes.Status404NotFound,
                 Instance = $"{Request.Method} {Request.Path}"
@@ -410,7 +410,7 @@ public class PostController : ControllerBase
             _logger.LogWarning("Post update failed: not found or not owner. PostId: {PostId}", sanitizedPostId);
             var problem = new ProblemDetails
             {
-                Title = "Not Found",
+                Title = "Not found",
                 Detail = "The post with the specified ID was not found.",
                 Status = StatusCodes.Status404NotFound,
                 Instance = $"{Request.Method} {Request.Path}"
@@ -494,7 +494,7 @@ public class PostController : ControllerBase
             _logger.LogWarning("Post leave forbidden: user not a member or owner. UserId: {UserId}, PostId: {PostId}", user.Id, post.Id);
             var problem = new ProblemDetails
             {
-                Title = "Not Found",
+                Title = "Not found",
                 Detail = "The post with the specified ID was not found.",
                 Status = StatusCodes.Status404NotFound,
                 Instance = $"{Request.Method} {Request.Path}"
@@ -562,7 +562,7 @@ public class PostController : ControllerBase
             _logger.LogWarning("Post delete failed. Post not found. PostId: {PostId}", sanitizedPostId);
             var problem = new ProblemDetails
             {
-                Title = "Not Found",
+                Title = "Not found",
                 Detail = "The post with the specified ID was not found.",
                 Status = StatusCodes.Status404NotFound,
                 Instance = $"{Request.Method} {Request.Path}"
