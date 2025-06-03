@@ -36,12 +36,16 @@ public static class ControllerTestHelper
 
     public static PostController CreatePostController(ApplicationContext db)
     {
+        var inputSanitizerMock = new Mock<IInputSanitizer>();
+        inputSanitizerMock.Setup(x => x.Sanitize(It.IsAny<string>()))
+            .Returns<string>(s => s);
         var postController = new PostController(
             db,
             Mock.Of<IPostHubNotificationService>(),
             Mock.Of<INotificationService<PostNotification, PostNotificationResponse>>(),
             Mock.Of<ILogger<PostController>>(),
-            Mock.Of<IInputSanitizer>());
+            inputSanitizerMock.Object
+            );
         return CreateController(postController);
     }
 }

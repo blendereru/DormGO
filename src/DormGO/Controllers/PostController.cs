@@ -479,7 +479,7 @@ public class PostController : ControllerBase
             _logger.LogWarning("Post leave failed. Post not found. PostId: {PostId}", sanitizedPostId);
             var problem = new ProblemDetails
             {
-                Title = "Not Found",
+                Title = "Not found",
                 Detail = "The post with the specified ID was not found.",
                 Status = StatusCodes.Status404NotFound,
                 Instance = $"{Request.Method} {Request.Path}"

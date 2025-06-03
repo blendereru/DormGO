@@ -299,6 +299,7 @@ public class PostControllerTests : IAsyncDisposable
         var testPostCreator = UserHelper.CreateUser();
         var testUser = UserHelper.CreateUser();
         _db.Users.AddRange(testPostCreator, testUser);
+        const int testMaxPeople = 5;
         var testPost = new Post
         {
             Id = Guid.NewGuid().ToString(),
@@ -308,7 +309,7 @@ public class PostControllerTests : IAsyncDisposable
             Longitude = 0,
             CurrentPrice = 0,
             CreatedAt = DateTime.UtcNow,
-            MaxPeople = 0,
+            MaxPeople = testMaxPeople,
             CreatorId = testPostCreator.Id
         };
         _db.Posts.Add(testPost);
@@ -374,9 +375,14 @@ public class PostControllerTests : IAsyncDisposable
         var testUser = UserHelper.CreateUser();
         _db.Users.Add(testUser);
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
+        var request = new OwnershipTransferRequest
+        {
+            Email = "your@anotherexample.com"
+        };
         
         // Act
-        var result = await _controller.TransferPostOwnership(testId, new OwnershipTransferRequest());
+        var result = await _controller.TransferPostOwnership(testId, request);
         
         // Assert
         var notFoundResult = Assert.IsType<NotFoundObjectResult>(result);
@@ -391,7 +397,9 @@ public class PostControllerTests : IAsyncDisposable
         // Arrange
         var testPostCreator = UserHelper.CreateUser();
         var testUser = UserHelper.CreateUser();
+        testUser.Email = "your@anotherexample.com";
         _db.Users.AddRange(testPostCreator, testUser);
+        const int testMaxPeople = 5;
         var testPost = new Post
         {
             Id = Guid.NewGuid().ToString(),
@@ -401,15 +409,16 @@ public class PostControllerTests : IAsyncDisposable
             Longitude = 0,
             CurrentPrice = 0,
             CreatedAt = DateTime.UtcNow,
-            MaxPeople = 0,
-            CreatorId = testPostCreator.Id
+            MaxPeople = testMaxPeople,
+            CreatorId = testPostCreator.Id,
+            Members = new List<ApplicationUser>() {testUser}
         };
         _db.Posts.Add(testPost);
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
-        HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
+        HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testPostCreator);
         var request = new OwnershipTransferRequest
         {
-            Email = "your@example.com"
+            Email = testUser.Email
         };
         
         // Act
@@ -418,6 +427,8 @@ public class PostControllerTests : IAsyncDisposable
         // Assert
         var noContentResult = Assert.IsType<NoContentResult>(result);
         Assert.Equal(StatusCodes.Status204NoContent, noContentResult.StatusCode);
+        var post = await _db.Posts.SingleAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(testUser.Id, post.CreatorId);
     }
 
     [Fact]
@@ -444,6 +455,7 @@ public class PostControllerTests : IAsyncDisposable
         var testUser = UserHelper.CreateUser();
         _db.Users.Add(testUser);
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
         
         // Act
         var result = await _controller.UpdatePost(testId, new PostUpdateRequest());
@@ -558,6 +570,7 @@ public class PostControllerTests : IAsyncDisposable
         var testUser = UserHelper.CreateUser();
         _db.Users.Add(testUser);
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
         
         // Act
         var result = await _controller.LeavePost(testId);
@@ -589,7 +602,7 @@ public class PostControllerTests : IAsyncDisposable
         _db.Users.AddRange(testCreator, currentTestUser);
         _db.Posts.Add(testPost);
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
-        HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testCreator);
+        HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, currentTestUser);
         
         // Act
         var result = await _controller.LeavePost(testPost.Id);
@@ -696,7 +709,7 @@ public class PostControllerTests : IAsyncDisposable
         var noContentResult = Assert.IsType<NoContentResult>(result);
         Assert.Equal(StatusCodes.Status204NoContent, noContentResult.StatusCode);
         var post = await _db.Posts.SingleAsync(TestContext.Current.CancellationToken);
-        Assert.Single(post.Members);
+        Assert.Empty(post.Members);
         Assert.Equal(testCreator.Id, post.CreatorId);
     }
 
@@ -722,6 +735,7 @@ public class PostControllerTests : IAsyncDisposable
         var testUser = UserHelper.CreateUser();
         _db.Users.Add(testUser);
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
         
         // Act
         var result = await _controller.DeletePost(testId);
