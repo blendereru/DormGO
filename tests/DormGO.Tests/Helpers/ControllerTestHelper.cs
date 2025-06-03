@@ -21,19 +21,6 @@ public static class ControllerTestHelper
         return controller;
     }
 
-    public static AccountController CreateAccountController(ApplicationContext db)
-    {
-        var accountController = new AccountController(
-            UserManagerMockHelper.GetUserManagerMock<ApplicationUser>().Object,
-            db,         
-            Mock.Of<IEmailSender<ApplicationUser>>(),
-            Mock.Of<ITokensProvider>(),
-            Mock.Of<IUserHubNotificationService>(),
-            Mock.Of<ILogger<AccountController>>(),
-            Mock.Of<IInputSanitizer>());
-        return CreateController(accountController);
-    }
-
     public static PostController CreatePostController(ApplicationContext db)
     {
         var inputSanitizerMock = new Mock<IInputSanitizer>();
@@ -42,7 +29,7 @@ public static class ControllerTestHelper
         var postController = new PostController(
             db,
             Mock.Of<IPostHubNotificationService>(),
-            Mock.Of<INotificationService<PostNotification, PostNotificationResponse>>(),
+            Mock.Of<INotificationHubNotificationService<PostNotification>>(),
             Mock.Of<ILogger<PostController>>(),
             inputSanitizerMock.Object
             );

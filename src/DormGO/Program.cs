@@ -93,7 +93,7 @@ builder.Services.AddScoped<IUserHubNotificationService, UserHubNotificationServi
 builder.Services.AddScoped<IPostHubNotificationService, PostHubNotificationService>();
 builder.Services.AddScoped<IChatHubNotificationService, ChatHubNotificationService>();
 builder.Services.AddScoped<ValidateUserEmailFilter>();
-builder.Services.AddScoped(typeof(INotificationService<,>), typeof(NotificationService<,>));
+builder.Services.AddScoped(typeof(INotificationHubNotificationService<>), typeof(NotificationHubNotificationService<>));
 builder.Services.AddScoped<ITokensProvider, TokensProvider>();
 var app = builder.Build();
 using (var scope = app.Services.CreateScope())

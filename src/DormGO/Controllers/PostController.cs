@@ -24,19 +24,19 @@ public class PostController : ControllerBase
 {
     private readonly ApplicationContext _db;
     private readonly IPostHubNotificationService _postHubNotificationService;
-    private readonly INotificationService<PostNotification, PostNotificationResponse> _notificationService;
+    private readonly INotificationHubNotificationService<PostNotification> _notificationHubNotificationService;
     private readonly ILogger<PostController> _logger;
     private readonly IInputSanitizer _inputSanitizer;
 
     public PostController(ApplicationContext db,
         IPostHubNotificationService postHubNotificationService,
-        INotificationService<PostNotification, PostNotificationResponse> notificationService,
+        INotificationHubNotificationService<PostNotification> notificationHubNotificationService,
         ILogger<PostController> logger,
         IInputSanitizer inputSanitizer)
     {
         _db = db;
         _postHubNotificationService = postHubNotificationService;
-        _notificationService = notificationService;
+        _notificationHubNotificationService = notificationHubNotificationService;
         _logger = logger;
         _inputSanitizer = inputSanitizer;
     }
@@ -376,9 +376,13 @@ public class PostController : ControllerBase
         {
             Title = "Post ownership",
             Description = $"You are now the owner of the post: {post.Title}",
-            Post = post
+            UserId = newOwner.Id,
+            PostId = post.Id
         };
-        await _notificationService.SendNotificationAsync(newOwner, notification, "OwnershipTransferred"); 
+        _db.Notifications.Add(notification);
+        await _db.SaveChangesAsync();
+        _logger.LogInformation("Notification saved successfully. NotificationId: {NotificationId}", notification.Id);
+        await _notificationHubNotificationService.NotifyNotificationSentAsync(newOwner, notification);
         return NoContent();
     }
     [EndpointSummary("Updates a post")]
@@ -426,17 +430,40 @@ public class PostController : ControllerBase
             var users = await _db.Users
                 .Where(u => memberIds.Contains(u.Id))
                 .ToListAsync();
-
             if (users.Count > 0)
             {
-                var notification = new PostNotification
-                {
-                    Title = "Post leave",
-                    Description = $"You have been removed from the post: {post.Title}"
-                };
+                var notifications = new List<PostNotification>();
+
                 foreach (var removedUser in users)
                 {
-                    await _notificationService.SendNotificationAsync(removedUser, notification, "PostLeft");
+                    var notification = new PostNotification
+                    {
+                        Title = "Post leave",
+                        Description = $"You have been removed from the post: {post.Title}",
+                        PostId = post.Id,
+                        UserId = removedUser.Id
+                    };
+                    notifications.Add(notification);
+                    _db.Notifications.Add(notification);
+                }
+                
+                await _db.SaveChangesAsync();
+                _logger.LogInformation("Notifications saved successfully. NotificationsCount: {NotificationsCount}", notifications.Count);
+                foreach (var notification in notifications)
+                {
+                    var recipient = users.FirstOrDefault(u => u.Id == notification.UserId);
+                    if(recipient == null) 
+                    {
+                        var problem = new ProblemDetails
+                        {
+                            Title = "Not found",
+                            Detail = "The user with the specified ID was not found.",
+                            Status = StatusCodes.Status404NotFound,
+                            Instance = $"{Request.Method} {Request.Path}"
+                        };
+                        return NotFound(problem);
+                    }
+                    await _notificationHubNotificationService.NotifyNotificationSentAsync(recipient, notification);
                 }
                 _logger.LogInformation("Removing {Count} members from post {PostId}.", users.Count, post.Id);
                 post.Members = post.Members.Except(users).ToList();

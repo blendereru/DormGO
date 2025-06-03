@@ -34,7 +34,8 @@ public static class MapsterConfig
             .Map(dest => dest.CurrentPrice, src => src.CurrentPrice)
             .Map(dest => dest.Latitude, src => src.Latitude)
             .Map(dest => dest.Longitude, src => src.Longitude)
-            .Map(dest => dest.MaxPeople, src => src.MaxPeople);
+            .Map(dest => dest.MaxPeople, src => src.MaxPeople)
+            .IgnoreNullValues(true);
         TypeAdapterConfig<Post, PostResponse>.NewConfig()
             .Map(dest => dest.Id, src => src.Id)
             .Map(dest => dest.Title, src => src.Title)
