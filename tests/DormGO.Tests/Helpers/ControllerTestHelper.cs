@@ -1,11 +1,9 @@
 using DormGO.Controllers;
 using DormGO.Data;
-using DormGO.DTOs.ResponseDTO;
 using DormGO.Models;
 using DormGO.Services;
 using DormGO.Services.HubNotifications;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -34,5 +32,19 @@ public static class ControllerTestHelper
             inputSanitizerMock.Object
             );
         return CreateController(postController);
+    }
+
+    public static ChatController CreateChatController(ApplicationContext db)
+    {
+        var inputSanitizerMock = new Mock<IInputSanitizer>();
+        inputSanitizerMock.Setup(x => x.Sanitize(It.IsAny<string>()))
+            .Returns<string>(s => s);
+        var chatController = new ChatController(
+            db,
+            Mock.Of<IChatHubNotificationService>(),
+            Mock.Of<ILogger<ChatController>>(),
+            inputSanitizerMock.Object
+        );
+        return CreateController(chatController);
     }
 }

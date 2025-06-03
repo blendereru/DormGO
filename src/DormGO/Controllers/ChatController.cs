@@ -37,7 +37,7 @@ public class ChatController : ControllerBase
         _inputSanitizer = inputSanitizer;
     }
     [EndpointSummary("Retrieve messages for post")]
-    [EndpointDescription("Retrieve all messages belonding to the same post")]
+    [EndpointDescription("Retrieve all messages belonging to the same post")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
     [ProducesResponseType<List<MessageResponse>>(StatusCodes.Status200OK, "application/json")]
     [HttpGet]
@@ -67,14 +67,14 @@ public class ChatController : ControllerBase
             _logger.LogWarning("Messages retrieve requested for non-existent post. UserId: {UserId}, PostId: {PostId}", user.Id, sanitizedPostId);
             return NotFound(new ProblemDetails
             {
-                Title = "Not Found",
+                Title = "Not found",
                 Detail = "The post does not exist.",
                 Status = StatusCodes.Status404NotFound,
                 Instance = $"{Request.Method} {Request.Path}"
             });
         }
         var messages = await _db.Messages
-            .Where(m => m.PostId == postId)
+            .Where(m => m.PostId == sanitizedPostId)
             .OrderBy(m => m.SentAt)
             .Include(m => m.Sender)
             .ProjectToType<MessageResponse>()

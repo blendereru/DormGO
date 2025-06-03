@@ -172,6 +172,28 @@ public class PostControllerTests : IAsyncDisposable
         Assert.Equal("Unauthorized", problemDetails.Title);
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public async Task ReadPost_WithNullOrEmptyPostId_ReturnsBadRequestResultWithValidationProblemDetails(string? testPostId)
+    {
+        // Arrange
+        var testUser = UserHelper.CreateUser();
+        _db.Users.Add(testUser);
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
+        
+        // Act
+        var result = await _controller.ReadPost(testPostId!);
+        
+        // Assert
+        var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Equal(StatusCodes.Status400BadRequest, badRequestResult.StatusCode);
+        var validationProblemDetails = Assert.IsType<ValidationProblemDetails>(badRequestResult.Value);
+        const string error = "The id field is required";
+        Assert.Contains(error, validationProblemDetails.Errors.SelectMany(e => e.Value));
+    }
+    
     [Fact]
     public async Task ReadPost_WhenPostDoesNotExist_ReturnsNotFoundResultWithProblemDetails()
     {
@@ -239,6 +261,28 @@ public class PostControllerTests : IAsyncDisposable
         Assert.Equal("Unauthorized", problemDetails.Title);
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public async Task JoinPost_WhenPostIdNullOrEmpty_ReturnsBadRequestResultWithValidationProblemDetails(string? testPostId)
+    {
+        // Arrange
+        var testUser = UserHelper.CreateUser();
+        _db.Users.Add(testUser);
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
+        
+        // Act
+        var result = await _controller.JoinPost(testPostId!);
+        
+        // Assert
+        var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Equal(StatusCodes.Status400BadRequest, badRequestResult.StatusCode);
+        var validationProblemDetails = Assert.IsType<ValidationProblemDetails>(badRequestResult.Value);
+        const string error = "The id field is required";
+        Assert.Contains(error, validationProblemDetails.Errors.SelectMany(e => e.Value));
+    }
+    
     [Fact]
     public async Task JoinPost_WhenPostDoesNotExist_ReturnsNotFoundResultWithProblemDetails()
     {
@@ -344,9 +388,32 @@ public class PostControllerTests : IAsyncDisposable
         var problemDetails = Assert.IsType<ProblemDetails>(unauthorizedResult.Value);
         Assert.Equal("Unauthorized", problemDetails.Title);
     }
-
+    
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public async Task TransferPostOwnership_WhenPostIdNullOrEmpty_ReturnsBadRequestResultWithValidationProblemDetails(string? testPostId)
+    {
+        // Arrange
+        var testUser = UserHelper.CreateUser();
+        var request = new OwnershipTransferRequest();
+        _db.Users.Add(testUser);
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
+        
+        // Act
+        var result = await _controller.TransferPostOwnership(testPostId!, request);
+        
+        // Assert
+        var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Equal(StatusCodes.Status400BadRequest, badRequestResult.StatusCode);
+        var validationProblemDetails = Assert.IsType<ValidationProblemDetails>(badRequestResult.Value);
+        const string error = "The id field is required";
+        Assert.Contains(error, validationProblemDetails.Errors.SelectMany(e => e.Value));
+    }
+    
     [Fact]
-    public async Task TransferPostOwnership_WithNotEnoughData_ReturnsBadRequestResultWithValidationProblemDetails()
+    public async Task TransferPostOwnership_WithNotEnoughRequestBodyData_ReturnsBadRequestResultWithValidationProblemDetails()
     {
         // Arrange
         var testId = Guid.NewGuid().ToString();
@@ -445,6 +512,29 @@ public class PostControllerTests : IAsyncDisposable
         Assert.Equal(StatusCodes.Status401Unauthorized, unauthorizedResult.StatusCode);
         var problemDetails = Assert.IsType<ProblemDetails>(unauthorizedResult.Value);
         Assert.Equal("Unauthorized", problemDetails.Title);
+    }
+    
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public async Task UpdatePost_WhenPostIdNullOrEmpty_ReturnsBadRequestResultWithValidationProblemDetails(string? testPostId)
+    {
+        // Arrange
+        var testUser = UserHelper.CreateUser();
+        var request = new PostUpdateRequest();
+        _db.Users.Add(testUser);
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
+        
+        // Act
+        var result = await _controller.UpdatePost(testPostId!, request);
+        
+        // Assert
+        var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Equal(StatusCodes.Status400BadRequest, badRequestResult.StatusCode);
+        var validationProblemDetails = Assert.IsType<ValidationProblemDetails>(badRequestResult.Value);
+        const string error = "The id field is required";
+        Assert.Contains(error, validationProblemDetails.Errors.SelectMany(e => e.Value));
     }
     
     [Fact]
@@ -561,7 +651,29 @@ public class PostControllerTests : IAsyncDisposable
         var unauthorizedResult = Assert.IsType<UnauthorizedObjectResult>(result);
         Assert.Equal(StatusCodes.Status401Unauthorized, unauthorizedResult.StatusCode);
     }
-
+    
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public async Task LeavePost_WhenPostIdNullOrEmpty_ReturnsBadRequestResultWithValidationProblemDetails(string? testPostId)
+    {
+        // Arrange
+        var testUser = UserHelper.CreateUser();
+        _db.Users.Add(testUser);
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
+        
+        // Act
+        var result = await _controller.LeavePost(testPostId!);
+        
+        // Assert
+        var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Equal(StatusCodes.Status400BadRequest, badRequestResult.StatusCode);
+        var validationProblemDetails = Assert.IsType<ValidationProblemDetails>(badRequestResult.Value);
+        const string error = "The id field is required";
+        Assert.Contains(error, validationProblemDetails.Errors.SelectMany(e => e.Value));
+    }
+    
     [Fact]
     public async Task LeavePost_WhenPostDoesNotExist_ReturnsNotFoundResultWithProblemDetails()
     {
@@ -727,6 +839,28 @@ public class PostControllerTests : IAsyncDisposable
         Assert.Equal(StatusCodes.Status401Unauthorized, unauthorizedResult.StatusCode);
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public async Task DeletePost_WhenPostIdNullOrEmpty_ReturnsBadRequestResultWithValidationProblemDetails(string? testPostId)
+    {
+        // Arrange
+        var testUser = UserHelper.CreateUser();
+        _db.Users.Add(testUser);
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
+        
+        // Act
+        var result = await _controller.DeletePost(testPostId!);
+        
+        // Assert
+        var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Equal(StatusCodes.Status400BadRequest, badRequestResult.StatusCode);
+        var validationProblemDetails = Assert.IsType<ValidationProblemDetails>(badRequestResult.Value);
+        const string error = "The id field is required";
+        Assert.Contains(error, validationProblemDetails.Errors.SelectMany(e => e.Value));
+    }
+    
     [Fact]
     public async Task DeletePost_WhenPostDoesNotExist_ReturnsNotFoundResultWithProblemDetails()
     {

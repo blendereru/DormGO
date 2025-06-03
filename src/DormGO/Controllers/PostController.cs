@@ -243,13 +243,21 @@ public class PostController : ControllerBase
                 Instance = $"{Request.Method} {Request.Path}"
             });
         }
+
+        if (string.IsNullOrEmpty(id))
+        {
+            _logger.LogWarning("Id not provided during post retrieve. UserId: {UserId}", user.Id);
+            ModelState.AddModelError(nameof(id), "The id field is required");
+            return ValidationProblem(ModelState);
+        }
+        
+        var sanitizedPostId = _inputSanitizer.Sanitize(id);
         var post = await _db.Posts
             .Include(p => p.Members)
             .Include(p => p.Creator)
-            .FirstOrDefaultAsync(p => p.Id == id);
+            .FirstOrDefaultAsync(p => p.Id == sanitizedPostId);
         if (post == null)
         {
-            var sanitizedPostId = _inputSanitizer.Sanitize(id);
             _logger.LogWarning("Post read failed: post not found. UserId: {UserId}, PostId: {PostId}", user.Id, sanitizedPostId);
             var problem = new ProblemDetails
             {
@@ -283,6 +291,13 @@ public class PostController : ControllerBase
                 Status = StatusCodes.Status401Unauthorized,
                 Instance = $"{Request.Method} {Request.Path}"
             });
+        }
+        
+        if (string.IsNullOrEmpty(id))
+        {
+            _logger.LogWarning("Id not provided during post join. UserId: {UserId}", user.Id);
+            ModelState.AddModelError(nameof(id), "The id field is required");
+            return ValidationProblem(ModelState);
         }
         var sanitizedPostId = _inputSanitizer.Sanitize(id);
         var post = await _db.Posts
@@ -336,6 +351,12 @@ public class PostController : ControllerBase
                 Instance = $"{Request.Method} {Request.Path}"
             };
             return Unauthorized(problem);
+        }
+        if (string.IsNullOrEmpty(id))
+        {
+            _logger.LogWarning("Id not provided during post ownership transfer. UserId: {UserId}", user.Id);
+            ModelState.AddModelError(nameof(id), "The id field is required");
+            return ValidationProblem(ModelState);
         }
         var sanitizedPostId = _inputSanitizer.Sanitize(id);
         var post = await _db.Posts.Include(p => p.Members)
@@ -403,6 +424,12 @@ public class PostController : ControllerBase
                 Instance = $"{Request.Method} {Request.Path}"
             };
             return Unauthorized(problem);
+        }
+        if (string.IsNullOrEmpty(id))
+        {
+            _logger.LogWarning("Id not provided during post update. UserId: {UserId}", user.Id);
+            ModelState.AddModelError(nameof(id), "The id field is required");
+            return ValidationProblem(ModelState);
         }
         var post = await _db.Posts
             .Include(p => p.Members)
@@ -498,6 +525,12 @@ public class PostController : ControllerBase
             };
             return Unauthorized(problem);
         }
+        if (string.IsNullOrEmpty(id))
+        {
+            _logger.LogWarning("Id not provided during post join. UserId: {UserId}", user.Id);
+            ModelState.AddModelError(nameof(id), "The id field is required");
+            return ValidationProblem(ModelState);
+        }
         var post = await _db.Posts
             .Include(p => p.Members)
             .FirstOrDefaultAsync(p => p.Id == id);
@@ -580,6 +613,12 @@ public class PostController : ControllerBase
                 Instance = $"{Request.Method} {Request.Path}"
             };
             return Unauthorized(problem);
+        }
+        if (string.IsNullOrEmpty(id))
+        {
+            _logger.LogWarning("Id not provided during post join. UserId: {UserId}", user.Id);
+            ModelState.AddModelError(nameof(id), "The id field is required");
+            return ValidationProblem(ModelState);
         }
         var post = await _db.Posts
             .Include(p => p.Members)

@@ -70,4 +70,49 @@ public static class DataSeedHelper
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
     }
+
+    public static async Task SeedMessageDataAsync(ApplicationContext db, ApplicationUser sender, Post post, bool saveChanges = true)
+    {
+        var message1 = new Message
+        {
+            Id = Guid.NewGuid().ToString(),
+            SenderId = sender.Id,
+            PostId = post.Id,
+            Content = "content1"
+        };
+        
+        var message2 = new Message
+        {
+            Id = Guid.NewGuid().ToString(),
+            SenderId = sender.Id,
+            PostId = post.Id,
+            Content = "content2"
+        };
+        var message3 = new Message
+        {
+            Id = Guid.NewGuid().ToString(),
+            SenderId = sender.Id,
+            PostId = post.Id,
+            Content = "content3"
+        };
+        var message4 = new Message
+        {
+            Id = Guid.NewGuid().ToString(),
+            SenderId = sender.Id,
+            PostId = post.Id,
+            Content = "content4"
+        };
+        var message5 = new Message
+        {
+            Id = Guid.NewGuid().ToString(),
+            SenderId = sender.Id,
+            PostId = post.Id,
+            Content = "content5"
+        };
+        await db.Messages.AddRangeAsync(message1, message2, message3, message4, message5);
+        if (saveChanges)
+        {
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+    }
 }
