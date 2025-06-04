@@ -244,7 +244,7 @@ public class PostController : ControllerBase
             });
         }
 
-        if (string.IsNullOrEmpty(id))
+        if (string.IsNullOrWhiteSpace(id))
         {
             _logger.LogWarning("Id not provided during post retrieve. UserId: {UserId}", user.Id);
             ModelState.AddModelError(nameof(id), "The id field is required");
@@ -293,7 +293,7 @@ public class PostController : ControllerBase
             });
         }
         
-        if (string.IsNullOrEmpty(id))
+        if (string.IsNullOrWhiteSpace(id))
         {
             _logger.LogWarning("Id not provided during post join. UserId: {UserId}", user.Id);
             ModelState.AddModelError(nameof(id), "The id field is required");
@@ -352,7 +352,7 @@ public class PostController : ControllerBase
             };
             return Unauthorized(problem);
         }
-        if (string.IsNullOrEmpty(id))
+        if (string.IsNullOrWhiteSpace(id))
         {
             _logger.LogWarning("Id not provided during post ownership transfer. UserId: {UserId}", user.Id);
             ModelState.AddModelError(nameof(id), "The id field is required");
@@ -425,7 +425,7 @@ public class PostController : ControllerBase
             };
             return Unauthorized(problem);
         }
-        if (string.IsNullOrEmpty(id))
+        if (string.IsNullOrWhiteSpace(id))
         {
             _logger.LogWarning("Id not provided during post update. UserId: {UserId}", user.Id);
             ModelState.AddModelError(nameof(id), "The id field is required");
@@ -525,7 +525,7 @@ public class PostController : ControllerBase
             };
             return Unauthorized(problem);
         }
-        if (string.IsNullOrEmpty(id))
+        if (string.IsNullOrWhiteSpace(id))
         {
             _logger.LogWarning("Id not provided during post join. UserId: {UserId}", user.Id);
             ModelState.AddModelError(nameof(id), "The id field is required");
@@ -614,7 +614,7 @@ public class PostController : ControllerBase
             };
             return Unauthorized(problem);
         }
-        if (string.IsNullOrEmpty(id))
+        if (string.IsNullOrWhiteSpace(id))
         {
             _logger.LogWarning("Id not provided during post join. UserId: {UserId}", user.Id);
             ModelState.AddModelError(nameof(id), "The id field is required");
