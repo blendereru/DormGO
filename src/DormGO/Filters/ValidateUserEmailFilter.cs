@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using DormGO.Constants;
 using DormGO.Models;
 using Microsoft.AspNetCore.Http.Features;
@@ -6,6 +5,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.IdentityModel.JsonWebTokens;
 
 namespace DormGO.Filters;
 
@@ -24,8 +24,8 @@ public class ValidateUserEmailFilter : IAsyncActionFilter
         {
             var controllerName = descriptor.ControllerName;
             var actionName = descriptor.ActionName;
-            var emailClaim = context.HttpContext.User.FindFirst(ClaimTypes.Email)?.Value;
-            if (string.IsNullOrEmpty(emailClaim))
+            var emailClaim = context.HttpContext.User.FindFirst(JwtRegisteredClaimNames.Email)?.Value;
+            if (string.IsNullOrWhiteSpace(emailClaim))
             {
                 _logger.LogWarning("Unauthorized access attempt. Email claim missing. Controller: {Controller}, Action: {Action}", controllerName, actionName);
                 context.Result = ProblemResult(

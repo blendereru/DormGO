@@ -328,7 +328,6 @@ public class ProfileControllerTests
     public async Task GetUserProfile_ForUnauthorizedUser_ReturnsUnauthorizedResultWithProblemDetails()
     {
         // Arrange
-        var testUser = UserHelper.CreateUser();
         var testId = Guid.NewGuid().ToString();
         
         // Act

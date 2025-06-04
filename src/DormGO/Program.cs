@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
 
@@ -50,7 +51,7 @@ builder.Services.AddAuthentication(opts =>
             ValidIssuer = AuthOptions.ISSUER,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            NameClaimType = ClaimTypes.Name,
+            NameClaimType = JwtRegisteredClaimNames.Name,
             IssuerSigningKey = AuthOptions.GetSymmetricSecurityKey(),
             ClockSkew = TimeSpan.Zero
         };
