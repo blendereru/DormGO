@@ -62,4 +62,17 @@ public static class ControllerTestHelper
         );
         return CreateController(profileController);
     }
+
+    public static NotificationController CreateNotificationController(ApplicationContext db)
+    {
+        var inputSanitizerMock = new Mock<IInputSanitizer>();
+        inputSanitizerMock.Setup(x => x.Sanitize(It.IsAny<string>()))
+            .Returns<string>(s => s);
+        var notificationController = new NotificationController(
+            db,
+            Mock.Of<ILogger<NotificationController>>(),
+            inputSanitizerMock.Object
+        );
+        return CreateController(notificationController);
+    }
 }

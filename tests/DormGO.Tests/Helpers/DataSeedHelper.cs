@@ -71,45 +71,49 @@ public static class DataSeedHelper
         }
     }
 
-    public static async Task SeedMessageDataAsync(ApplicationContext db, ApplicationUser sender, Post post, bool saveChanges = true)
+    public async static Task SeedPostNotificationData(ApplicationContext db, ApplicationUser user, Post post, bool saveChanges = true)
     {
-        var message1 = new Message
+        var notification1 = new PostNotification
         {
             Id = Guid.NewGuid().ToString(),
-            SenderId = sender.Id,
-            PostId = post.Id,
-            Content = "content1"
+            Title = "title1",
+            Description = "description1",
+            UserId = user.Id,
+            PostId = post.Id
         };
-        
-        var message2 = new Message
+        var notification2 = new PostNotification
         {
             Id = Guid.NewGuid().ToString(),
-            SenderId = sender.Id,
-            PostId = post.Id,
-            Content = "content2"
+            Title = "title2",
+            Description = "description2",
+            UserId = user.Id,
+            PostId = post.Id
         };
-        var message3 = new Message
+        var notification3 = new PostNotification
         {
             Id = Guid.NewGuid().ToString(),
-            SenderId = sender.Id,
-            PostId = post.Id,
-            Content = "content3"
+            Title = "title3",
+            Description = "description3",
+            UserId = user.Id,
+            PostId = post.Id
         };
-        var message4 = new Message
+        var notification4 = new PostNotification
         {
             Id = Guid.NewGuid().ToString(),
-            SenderId = sender.Id,
-            PostId = post.Id,
-            Content = "content4"
+            Title = "title4",
+            Description = "description4",
+            UserId = user.Id,
+            PostId = post.Id
         };
-        var message5 = new Message
+        var notification5 = new PostNotification
         {
             Id = Guid.NewGuid().ToString(),
-            SenderId = sender.Id,
-            PostId = post.Id,
-            Content = "content5"
+            Title = "title5",
+            Description = "description5",
+            UserId = user.Id,
+            PostId = post.Id
         };
-        await db.Messages.AddRangeAsync(message1, message2, message3, message4, message5);
+        await db.PostNotifications.AddRangeAsync(notification1, notification2, notification3, notification4, notification5);
         if (saveChanges)
         {
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);

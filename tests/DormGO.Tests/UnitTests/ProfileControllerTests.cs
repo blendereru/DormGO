@@ -330,7 +330,6 @@ public class ProfileControllerTests
         // Arrange
         var testUser = UserHelper.CreateUser();
         var testId = Guid.NewGuid().ToString();
-        HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
         
         // Act
         var result = await _controller.GetUserProfile(testId);
@@ -356,7 +355,7 @@ public class ProfileControllerTests
         
         // Assert
         var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
-        Assert.Equal(StatusCodes.Status404NotFound, badRequestResult.StatusCode);
+        Assert.Equal(StatusCodes.Status400BadRequest, badRequestResult.StatusCode);
         var validationProblemDetails = Assert.IsType<ValidationProblemDetails>(badRequestResult.Value);
         const string error = "User id is required.";
         Assert.Contains(error, validationProblemDetails.Errors.SelectMany(e => e.Value));

@@ -76,6 +76,14 @@ public class NotificationController : ControllerBase
                 Instance = $"{Request.Method} {Request.Path}"
             });
         }
+
+        var anyChange = false;
+        if(string.IsNullOrWhiteSpace(id)) 
+        {
+            _logger.LogWarning("Id not provided during notification update. UserId: {UserId}", user.Id);
+            ModelState.AddModelError(nameof(id), "The id field is required.");
+            return ValidationProblem(ModelState);
+        }
         var sanitizedNotificationId = _inputSanitizer.Sanitize(id);
         var notification = await _db.Notifications
             .FirstOrDefaultAsync(n => n.Id == sanitizedNotificationId && n.UserId == user.Id);
@@ -84,16 +92,29 @@ public class NotificationController : ControllerBase
             _logger.LogWarning("Notification update requested for non-existent notification. UserId: {UserId}, NotificationId: {NotificationId}", user.Id, sanitizedNotificationId);
             return NotFound(new ProblemDetails
             {
-                Title = "Not Found",
+                Title = "Not found",
                 Detail = "Notification not found.",
                 Status = StatusCodes.Status404NotFound,
                 Instance = $"{Request.Method} {Request.Path}"
             });
         }
-        if (updateRequest.IsRead.HasValue)
+        if (updateRequest.IsRead.HasValue && notification.IsRead != updateRequest.IsRead)
         {
+            anyChange = true;
             _logger.LogInformation("Marking the notification as read. UserId: {UserId}, NotificationId: {NotificationId}", user.Id, notification.Id);
             notification.IsRead = updateRequest.IsRead.Value;
+        }
+
+        if (!anyChange)
+        {
+            _logger.LogWarning("Notification update performed with no valid fields for UserId: {UserId}. NotificationId: {NotificationId}", user.Id, notification.Id);
+            return BadRequest(new ProblemDetails
+            {
+                Title = "No Update Performed",
+                Detail = "No valid fields were provided for update.",
+                Status = StatusCodes.Status400BadRequest,
+                Instance = $"{Request.Method} {Request.Path}"
+            });
         }
         await _db.SaveChangesAsync();
         _logger.LogInformation("Notification {NotificationId} updated for user {UserId}.", notification.Id, user.Id);
@@ -117,6 +138,12 @@ public class NotificationController : ControllerBase
                 Instance = $"{Request.Method} {Request.Path}"
             });
         }
+        if(string.IsNullOrWhiteSpace(id)) 
+        {
+            _logger.LogWarning("Id not provided during notification delete. UserId: {UserId}", user.Id);
+            ModelState.AddModelError(nameof(id), "The id field is required.");
+            return ValidationProblem(ModelState);
+        }
         var sanitizedNotificationId = _inputSanitizer.Sanitize(id);
         var notification = await _db.Notifications
             .FirstOrDefaultAsync(n => n.Id == sanitizedNotificationId && n.UserId == user.Id);
@@ -125,7 +152,7 @@ public class NotificationController : ControllerBase
             _logger.LogWarning("Notification deletion requested for non-existent notification. UserId: {UserId}, NotificationId: {NotificationId}", user.Id, sanitizedNotificationId);
             return NotFound(new ProblemDetails
             {
-                Title = "Not Found",
+                Title = "Not found",
                 Detail = "Notification not found.",
                 Status = StatusCodes.Status404NotFound,
                 Instance = $"{Request.Method} {Request.Path}"
