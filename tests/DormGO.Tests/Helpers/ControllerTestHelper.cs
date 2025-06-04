@@ -4,6 +4,7 @@ using DormGO.Models;
 using DormGO.Services;
 using DormGO.Services.HubNotifications;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -46,5 +47,19 @@ public static class ControllerTestHelper
             inputSanitizerMock.Object
         );
         return CreateController(chatController);
+    }
+
+    public static ProfileController CreateProfileController(UserManager<ApplicationUser> userManager)
+    {
+        var inputSanitizerMock = new Mock<IInputSanitizer>();
+        inputSanitizerMock.Setup(x => x.Sanitize(It.IsAny<string>()))
+            .Returns<string>(s => s);
+        var profileController = new ProfileController(
+            userManager,
+            Mock.Of<IEmailSender<ApplicationUser>>(),
+            inputSanitizerMock.Object,
+            Mock.Of<ILogger<ProfileController>>()
+        );
+        return CreateController(profileController);
     }
 }

@@ -73,9 +73,9 @@ public class ProfileController : ControllerBase
         }
         IdentityResult? result;
         var anyChange = false;
-        if (!string.IsNullOrWhiteSpace(updateRequest.UserName))
+        if (!string.IsNullOrWhiteSpace(updateRequest.NewUserName) && user.UserName != updateRequest.NewUserName)
         {
-            result = await _userManager.SetUserNameAsync(user, updateRequest.UserName);
+            result = await _userManager.SetUserNameAsync(user, updateRequest.NewUserName);
             if (!result.Succeeded)
             {
                 foreach (var error in result.Errors)
@@ -90,7 +90,7 @@ public class ProfileController : ControllerBase
                 _logger.LogInformation("Username updated for UserId: {UserId}", user.Id);
             }
         }
-        if (!string.IsNullOrWhiteSpace(updateRequest.NewEmail))
+        if (!string.IsNullOrWhiteSpace(updateRequest.NewEmail) && user.Email != updateRequest.NewEmail)
         {
             if (_emailSender is not EmailSender emailSender)
             {
@@ -120,21 +120,27 @@ public class ProfileController : ControllerBase
 
             if (string.IsNullOrWhiteSpace(updateRequest.CurrentPassword))
             {
-                ModelState.AddModelError(nameof(updateRequest.CurrentPassword), "Current password is required.");
+                ModelState.AddModelError(nameof(updateRequest.CurrentPassword), "Current password field is required.");
                 validationFailed = true;
                 _logger.LogWarning("Password update failed: missing current password for UserId: {UserId}", user.Id);
             }
             if (string.IsNullOrWhiteSpace(updateRequest.NewPassword))
             {
-                ModelState.AddModelError(nameof(updateRequest.NewPassword), "New password is required.");
+                ModelState.AddModelError(nameof(updateRequest.NewPassword), "New password field is required.");
                 validationFailed = true;
                 _logger.LogWarning("Password update failed: missing new password for UserId: {UserId}", user.Id);
             }
             if (string.IsNullOrWhiteSpace(updateRequest.ConfirmNewPassword))
             {
-                ModelState.AddModelError(nameof(updateRequest.ConfirmNewPassword), "Please confirm your new password.");
+                ModelState.AddModelError(nameof(updateRequest.ConfirmNewPassword), "Confirm new password field is required.");
                 validationFailed = true;
                 _logger.LogWarning("Password update failed: missing confirm new password for UserId: {UserId}", user.Id);
+            }
+            if (!validationFailed && updateRequest.CurrentPassword == updateRequest.NewPassword)
+            {
+                ModelState.AddModelError(nameof(updateRequest.NewPassword), "New password must be different from the current password.");
+                validationFailed = true;
+                _logger.LogWarning("Password update failed: new password is same as current for UserId: {UserId}", user.Id);
             }
             if (!validationFailed && updateRequest.NewPassword != updateRequest.ConfirmNewPassword)
             {
@@ -142,7 +148,6 @@ public class ProfileController : ControllerBase
                 validationFailed = true;
                 _logger.LogWarning("Password update failed: new passwords do not match for UserId: {UserId}", user.Id);
             }
-
             if (!validationFailed && ModelState.ErrorCount == 0)
             {
                 result = await _userManager.ChangePasswordAsync(user, updateRequest.CurrentPassword!, updateRequest.NewPassword!);
@@ -202,7 +207,7 @@ public class ProfileController : ControllerBase
         if (string.IsNullOrWhiteSpace(id))
         {
             _logger.LogWarning("Id of user to search is not provided during profile search. InitiatorId: {InitiatorId}", user.Id);
-            ModelState.AddModelError(nameof(id), "Email is required.");
+            ModelState.AddModelError(nameof(id), "User id is required.");
             return ValidationProblem(ModelState);
         }
 
@@ -213,7 +218,7 @@ public class ProfileController : ControllerBase
             _logger.LogInformation("User with specified id not found during profile search. InitiatorId: {InitiatorId}, RequestedUserId: {RequestedUserid}", user.Id, sanitizedUserId);
             return NotFound(new ProblemDetails
             {
-                Title = "Not Found",
+                Title = "Not found",
                 Detail = "User not found.",
                 Status = StatusCodes.Status404NotFound,
                 Instance = $"{Request.Method} {Request.Path}"

@@ -152,14 +152,13 @@ public class ChatControllerTests : IAsyncDisposable
     {
         // Arrange
         var testUser = UserHelper.CreateUser();
-        var testPost = PostHelper.CreatePost(testUser);
+        var testPostId = Guid.NewGuid().ToString();
         _db.Users.Add(testUser);
-        _db.Posts.Add(testPost);
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
         HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
         
         // Act
-        var result = await _controller.AddMessageToPost(testPost.Id, new MessageCreateRequest());
+        var result = await _controller.AddMessageToPost(testPostId, new MessageCreateRequest());
         
         // Assert
         var notFoundResult = Assert.IsType<NotFoundObjectResult>(result);
