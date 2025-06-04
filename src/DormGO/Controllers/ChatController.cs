@@ -57,7 +57,7 @@ public class ChatController : ControllerBase
         if (string.IsNullOrWhiteSpace(postId))
         {
             _logger.LogWarning("Post id not provided during messages retrieve for post. UserId: {UserId}", user.Id);
-            ModelState.AddModelError(nameof(postId), "The postId parameter is required");
+            ModelState.AddModelError(nameof(postId), "The postId field is required.");
             return ValidationProblem(ModelState);
         }
         var sanitizedPostId = _inputSanitizer.Sanitize(postId);
@@ -104,7 +104,7 @@ public class ChatController : ControllerBase
         if (string.IsNullOrWhiteSpace(postId))
         {
             _logger.LogWarning("Post id not provided during message send for post. UserId: {UserId}", user.Id);
-            ModelState.AddModelError(nameof(postId), "The postId parameter is required.");
+            ModelState.AddModelError(nameof(postId), "The postId field is required.");
             return ValidationProblem(ModelState);
         }
         var sanitizedPostId = _inputSanitizer.Sanitize(postId);
@@ -114,7 +114,7 @@ public class ChatController : ControllerBase
             _logger.LogWarning("Message send requested for non-existent post. UserId: {UserId}, PostId: {PostId}", user.Id, sanitizedPostId);
             return NotFound(new ProblemDetails
             {
-                Title = "Not Found",
+                Title = "Not found",
                 Detail = "The post does not exist.",
                 Status = StatusCodes.Status404NotFound,
                 Instance = $"{Request.Method} {Request.Path}"
@@ -150,13 +150,13 @@ public class ChatController : ControllerBase
         if (string.IsNullOrWhiteSpace(postId))
         {
             _logger.LogWarning("Post id not provided during message retrieve. UserId: {UserId}", user.Id);
-            ModelState.AddModelError(nameof(postId), "The postId parameter is required.");
+            ModelState.AddModelError(nameof(postId), "The postId field is required.");
             return ValidationProblem(ModelState);
         }
         if (string.IsNullOrWhiteSpace(messageId))
         {
             _logger.LogWarning("Message id not provided during message retrieve. UserId: {UserId}", user.Id);
-            ModelState.AddModelError(nameof(messageId), "The messageId parameter is required.");
+            ModelState.AddModelError(nameof(messageId), "The messageId field is required.");
             return ValidationProblem(ModelState);
         }
         var sanitizedPostId = _inputSanitizer.Sanitize(postId);
@@ -170,7 +170,7 @@ public class ChatController : ControllerBase
             _logger.LogWarning("Message retrieve requested for non-existent or unauthorized message. UserId: {UserId}, MessageId: {MessageId}", user.Id, sanitizedMessageId);
             return NotFound(new ProblemDetails
             {
-                Title = "Not Found",
+                Title = "Not found",
                 Detail = "Message not found.",
                 Status = StatusCodes.Status404NotFound,
                 Instance = $"{Request.Method} {Request.Path}"
@@ -202,13 +202,13 @@ public class ChatController : ControllerBase
         if (string.IsNullOrWhiteSpace(postId))
         {
             _logger.LogWarning("Post id not provided during message update. UserId: {UserId}", user.Id);
-            ModelState.AddModelError(nameof(postId), "The postId parameter is required.");
+            ModelState.AddModelError(nameof(postId), "The postId field is required.");
             return ValidationProblem(ModelState);
         }
         if (string.IsNullOrWhiteSpace(messageId))
         {
             _logger.LogWarning("Message id not provided during message update. UserId: {UserId}", user.Id);
-            ModelState.AddModelError(nameof(messageId), "The messageId parameter is required.");
+            ModelState.AddModelError(nameof(messageId), "The messageId field is required.");
             return ValidationProblem(ModelState);
         }
         var sanitizedPostId = _inputSanitizer.Sanitize(postId);
@@ -222,7 +222,7 @@ public class ChatController : ControllerBase
             _logger.LogWarning("Message update requested for non-existent or unauthorized message. UserId: {UserId}, MessageId: {MessageId}", user.Id, sanitizedMessageId);
             return NotFound(new ProblemDetails
             {
-                Title = "Not Found",
+                Title = "Not found",
                 Detail = "Message not found.",
                 Status = StatusCodes.Status404NotFound,
                 Instance = $"{Request.Method} {Request.Path}"
@@ -265,13 +265,13 @@ public class ChatController : ControllerBase
         if (string.IsNullOrWhiteSpace(postId))
         {
             _logger.LogWarning("Post id not provided during message delete. UserId: {UserId}", user.Id);
-            ModelState.AddModelError(nameof(postId), "The postId parameter is required.");
+            ModelState.AddModelError(nameof(postId), "The postId field is required.");
             return ValidationProblem(ModelState);
         }
         if (string.IsNullOrWhiteSpace(messageId))
         {
             _logger.LogWarning("Message id not provided during message delete. UserId: {UserId}", user.Id);
-            ModelState.AddModelError(nameof(messageId), "The messageId parameter is required.");
+            ModelState.AddModelError(nameof(messageId), "The messageId field is required.");
             return ValidationProblem(ModelState);
         }
         var sanitizedPostId = _inputSanitizer.Sanitize(postId);
@@ -285,7 +285,7 @@ public class ChatController : ControllerBase
             _logger.LogWarning("Message delete requested for non-existent or unauthorized message. UserId: {UserId}, MessageId: {MessageId}", user.Id, sanitizedMessageId);
             return NotFound(new ProblemDetails
             {
-                Title = "Not Found",
+                Title = "Not found",
                 Detail = "Message not found.",
                 Status = StatusCodes.Status404NotFound,
                 Instance = $"{Request.Method} {Request.Path}"
