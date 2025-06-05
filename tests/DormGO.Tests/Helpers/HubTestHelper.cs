@@ -103,7 +103,35 @@ public static class HubTestHelper
             Groups = groupManager ?? new Mock<IGroupManager>().Object,
             Clients = new Mock<IHubCallerClients>().Object
         };
-
+        return hub;
+    }
+    
+    public static NotificationHub CreateNotificationHub(
+        out TestHubCallerContext context,
+        UserManager<ApplicationUser>? userManager = null,
+        string? userId = "test-user-id",
+        string? connectionId = null,
+        string? ipAddress = "127.0.0.1",
+        ApplicationContext? db = null,
+        IGroupManager? groupManager = null)
+    {
+        var logger = new Mock<ILogger<NotificationHub>>();
+        userManager ??= UserManagerMockHelper.GetUserManagerMock<ApplicationUser>().Object;
+        var options = new DbContextOptionsBuilder<ApplicationContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+        db ??= new ApplicationContext(options);
+        var httpContext = new DefaultHttpContext();
+        httpContext.Connection.RemoteIpAddress = string.IsNullOrWhiteSpace(ipAddress)
+            ? null
+            : IPAddress.Parse(ipAddress);
+        context = new TestHubCallerContext(userId, connectionId, httpContext);
+        var hub = new NotificationHub(db, userManager, logger.Object)
+        {
+            Context = context,
+            Groups = groupManager ?? new Mock<IGroupManager>().Object,
+            Clients = new Mock<IHubCallerClients>().Object
+        };
         return hub;
     }
 }
