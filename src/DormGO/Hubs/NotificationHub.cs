@@ -28,7 +28,7 @@ public class NotificationHub : Hub
         try
         {
             var userId = Context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userId))
+            if (string.IsNullOrWhiteSpace(userId))
             {
                 _logger.LogWarning("[{Hub}] Connection aborted: Missing or empty user ID. ConnectionId: {ConnectionId}", hubName, connectionId);
                 Context.Abort();
@@ -36,7 +36,7 @@ public class NotificationHub : Hub
             }
 
             var ip = Context.GetHttpContext()?.Connection.RemoteIpAddress?.ToString();
-            if (string.IsNullOrEmpty(ip))
+            if (string.IsNullOrWhiteSpace(ip))
             {
                 _logger.LogWarning("[{Hub}] Connection aborted: Missing IP address. UserId: {UserId}, ConnectionId: {ConnectionId}", hubName, userId, connectionId);
                 Context.Abort();
@@ -79,7 +79,7 @@ public class NotificationHub : Hub
         try
         {
             var userId = Context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-            if (!string.IsNullOrEmpty(userId))
+            if (!string.IsNullOrWhiteSpace(userId))
             {
                 await Groups.RemoveFromGroupAsync(connectionId, userId);
             }

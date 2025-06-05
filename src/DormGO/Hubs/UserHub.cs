@@ -26,7 +26,7 @@ public class UserHub : Hub
         try
         {
             var userName = Context.GetHttpContext()?.Request.Query["userName"].ToString();
-            if (string.IsNullOrEmpty(userName))
+            if (string.IsNullOrWhiteSpace(userName))
             {
                 _logger.LogWarning("[{Hub}] Connection aborted: Missing user name. ConnectionId: {ConnectionId}", hubName, connectionId);
                 Context.Abort();
@@ -34,7 +34,7 @@ public class UserHub : Hub
             }
 
             var ip = Context.GetHttpContext()?.Connection.RemoteIpAddress?.ToString();
-            if (string.IsNullOrEmpty(ip))
+            if (string.IsNullOrWhiteSpace(ip))
             {
                 _logger.LogWarning("[{Hub}] Connection aborted: Missing IP address. ConnectionId: {ConnectionId}", hubName, connectionId);
                 Context.Abort();

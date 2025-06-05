@@ -4,7 +4,7 @@ namespace DormGO.Tests.Helpers;
 
 public static class PostHelper
 {
-    public static Post CreatePost()
+    public static Post CreatePost(ApplicationUser? creator = null)
     {
         const int testMaxPeople = 5;
         return new Post
@@ -15,14 +15,8 @@ public static class PostHelper
             Longitude = 0,
             CurrentPrice = 0,
             CreatedAt = DateTime.UtcNow,
+            CreatorId = creator?.Id ?? "test_user_id",
             MaxPeople = testMaxPeople
         };
-    }
-
-    public static Post CreatePost(ApplicationUser creator)
-    {
-        var post = CreatePost();
-        post.CreatorId = creator.Id;
-        return post;
     }
 }
