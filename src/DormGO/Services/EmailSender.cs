@@ -22,17 +22,17 @@ public class EmailSender : IEmailSender<ApplicationUser>
         var fromEmail = _conf["EmailSettings:FromEmail"]!;
         var password = _conf["EmailSettings:Password"]!;
         var port = int.Parse(_conf["EmailSettings:MailPort"]!);
-        using var smtpClient = new SmtpClient(mailServer, port)
+        using (var smtpClient = new SmtpClient(mailServer, port))
         {
-            Credentials = new NetworkCredential(fromEmail, password),
-            EnableSsl = true
-        };
-        var mailMessage = new MailMessage(fromEmail, to, subject, body) { IsBodyHtml = isBodyHtml };
-        await smtpClient.SendMailAsync(mailMessage);
+            smtpClient.Credentials = new NetworkCredential(fromEmail, password);
+            smtpClient.EnableSsl = true;
+            var mailMessage = new MailMessage(fromEmail, to, subject, body) { IsBodyHtml = isBodyHtml };
+            await smtpClient.SendMailAsync(mailMessage);
+        }
     }
     public async Task SendConfirmationLinkAsync(ApplicationUser user, string email, string confirmationLink)
     {
-        var subject = "Confirm your email";
+        const string subject = "Confirm your email";
         var body = $"Please confirm your email by <a href='{HtmlEncoder.Default.Encode(confirmationLink)}'>clicking here</a>.";
         await SendEmailAsync(email, subject, body, isBodyHtml: true);
         _logger.LogInformation("Email confirmation link sent to user. UserId: {UserId}", user.Id);
@@ -47,7 +47,7 @@ public class EmailSender : IEmailSender<ApplicationUser>
     }
     public async Task SendPasswordResetLinkAsync(ApplicationUser user, string email, string resetLink)
     {
-        var subject = "Reset Your Password";
+        const string subject = "Reset Your Password";
         var body = $@"
         <p>Hi {user.UserName},</p>
         <p>You requested to reset your password. Click the link below to reset it:</p>

@@ -6,6 +6,7 @@ using DormGO.Services.HubNotifications;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -20,6 +21,67 @@ public static class ControllerTestHelper
         return controller;
     }
 
+    private static AccountController CreateAccountController(UserManager<ApplicationUser> userManager,
+        ApplicationContext db, IEmailSender<ApplicationUser> emailSender, ITokensProvider provider,
+        IInputSanitizer sanitizer)
+    {
+        var accountController = new AccountController(
+            userManager,
+            db,
+            emailSender,
+            provider,
+            Mock.Of<IUserHubNotificationService>(),
+            Mock.Of<ILogger<AccountController>>(),
+            sanitizer);
+        return CreateController(accountController);
+    }
+
+    private static AccountController CreateAccountController(UserManager<ApplicationUser> userManager,
+        ApplicationContext db, IEmailSender<ApplicationUser> emailSender) 
+        => CreateAccountController(userManager, db, emailSender, Mock.Of<ITokensProvider>(),
+            Mock.Of<IInputSanitizer>());
+
+    public static AccountController CreateAccountController(UserManager<ApplicationUser> userManager,
+        ApplicationContext db, ITokensProvider tokensProvider)
+        => CreateAccountController(userManager, db, Mock.Of<IEmailSender<ApplicationUser>>(),
+            tokensProvider, Mock.Of<IInputSanitizer>());
+    public static AccountController CreateAccountController(UserManager<ApplicationUser> userManager,
+        ApplicationContext db)
+        => CreateAccountController(userManager, db, Mock.Of<IEmailSender<ApplicationUser>>());
+    
+    
+    public static async Task<AccountController> CreateAccountController(UserManager<ApplicationUser> userManager,
+        IEmailSender<ApplicationUser> emailSender)
+    {
+        var dbOptions = new DbContextOptionsBuilder<ApplicationContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+        await using var db = new ApplicationContext(dbOptions);
+        return CreateAccountController(userManager, db, emailSender);
+    }
+    
+    public static async Task<AccountController> CreateAccountController(UserManager<ApplicationUser> userManager)
+    {
+        var dbOptions = new DbContextOptionsBuilder<ApplicationContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+        await using var db = new ApplicationContext(dbOptions);
+        return CreateAccountController(userManager, db);
+    }
+
+    public static async Task<AccountController> CreateAccountControllerWithTokensProvider(ITokensProvider tokensProvider)
+    {
+        var dbOptions = new DbContextOptionsBuilder<ApplicationContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+        await using var db = new ApplicationContext(dbOptions);
+        var userManagerMock = UserManagerMockHelper.GetUserManagerMock<ApplicationUser>();
+        return CreateAccountController(userManagerMock.Object, db, tokensProvider);
+    }
+    
+    public static async Task<AccountController> CreateAccountController()
+        => await CreateAccountController(UserManagerMockHelper.GetUserManagerMock<ApplicationUser>().Object);
+    
     public static PostController CreatePostController(ApplicationContext db)
     {
         var inputSanitizerMock = new Mock<IInputSanitizer>();
