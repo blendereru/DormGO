@@ -23,7 +23,7 @@ public class NotificationHub : Hub
 
     public override async Task OnConnectedAsync()
     {
-        var hubName = nameof(NotificationHub);
+        const string hubName = nameof(NotificationHub);
         var connectionId = Context.ConnectionId;
         try
         {
@@ -74,7 +74,7 @@ public class NotificationHub : Hub
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
-        var hubName = nameof(NotificationHub);
+        const string hubName = nameof(NotificationHub);
         var connectionId = Context.ConnectionId;
         try
         {

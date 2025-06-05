@@ -24,7 +24,7 @@ public class PostHub : Hub
 
     public override async Task OnConnectedAsync()
     {
-        var hubName = nameof(PostHub);
+        const string hubName = nameof(PostHub);
         var connectionId = Context.ConnectionId;
         try
         {
@@ -74,7 +74,7 @@ public class PostHub : Hub
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
-        var hubName = nameof(PostHub);
+        const string hubName = nameof(PostHub);
         var connectionId = Context.ConnectionId;
         try
         {
