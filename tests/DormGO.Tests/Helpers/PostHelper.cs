@@ -9,14 +9,16 @@ public static class PostHelper
         const int testMaxPeople = 5;
         return new Post
         {
+            Id = "test_post_id",
             Title = "title",
             Description = "description",
-            Latitude = 0,
-            Longitude = 0,
-            CurrentPrice = 0,
+            Latitude = 12,
+            Longitude = 1234,
+            CurrentPrice = 12345.678m,
             CreatedAt = DateTime.UtcNow,
+            MaxPeople = 5,
             CreatorId = creator?.Id ?? "test_user_id",
-            MaxPeople = testMaxPeople
+            Members = new List<ApplicationUser>()
         };
     }
 }

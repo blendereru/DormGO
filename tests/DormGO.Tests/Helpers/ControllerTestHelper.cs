@@ -6,7 +6,6 @@ using DormGO.Services.HubNotifications;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -36,12 +35,8 @@ public static class ControllerTestHelper
         hubNotifier ??= Mock.Of<IUserHubNotificationService>();
         if (db == null)
         {
-            var dbOptions = new DbContextOptionsBuilder<ApplicationContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options;
-    
-            db = new ApplicationContext(dbOptions);
-        }
+            db = TestDbContextFactory.CreateDbContext();
+        } 
         var controller = new AccountController(
             userManager,
             db,

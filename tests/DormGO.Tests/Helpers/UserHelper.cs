@@ -8,6 +8,7 @@ public static class UserHelper
     {
         return new ApplicationUser
         {
+            Id = "test_user_id",
             Email = "your@example.com",
             UserName = "blendereru",
             EmailConfirmed = true,

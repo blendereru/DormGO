@@ -5,118 +5,118 @@ namespace DormGO.Tests.Helpers;
 
 public static class DataSeedHelper
 {
-    public static async Task SeedPostDataAsync(ApplicationContext db, ApplicationUser creator, bool saveChanges = true)
+    public static async Task<ApplicationUser> SeedUserDataAsync(ApplicationContext db)
     {
-        var post1 = new Post
+        var user = new ApplicationUser
         {
-            Id = Guid.NewGuid().ToString(),
-            Title = "title1",
-            Description = "description1",
-            Latitude = 0,
-            Longitude = 0,
-            CurrentPrice = 0,
-            CreatedAt = DateTime.UtcNow,
-            MaxPeople = 0,
-            CreatorId = creator.Id
+            UserName = "user",
+            Email = "user@example.com",
+            NormalizedUserName = "USER",
+            NormalizedEmail = "USER@EXAMPLE.COM",
+            EmailConfirmed = true,
+            SecurityStamp = Guid.NewGuid().ToString("D")
         };
-        var post2 = new Post
-        {
-            Id = Guid.NewGuid().ToString(),
-            Title = "title2",
-            Description = "description2",
-            Latitude = 0,
-            Longitude = 0,
-            CurrentPrice = 0,
-            CreatedAt = DateTime.UtcNow.AddDays(-1),
-            MaxPeople = 0,
-            CreatorId = creator.Id
-        };
-        var post3 = new Post
-        {
-            Id = Guid.NewGuid().ToString(),
-            Title = "title3",
-            Description = "description3",
-            Latitude = 0,
-            Longitude = 0,
-            CurrentPrice = 0,
-            CreatedAt = DateTime.UtcNow.AddDays(-2),
-            CreatorId = creator.Id
-        };
-        var post4 = new Post
-        {
-            Id = Guid.NewGuid().ToString(),
-            Title = "title4",
-            Description = "description4",
-            Latitude = 0,
-            Longitude = 0,
-            CurrentPrice = 0,
-            CreatedAt = DateTime.UtcNow.AddDays(-3),
-            CreatorId = creator.Id       
-        };
-        var post5 = new Post
-        {
-            Id = Guid.NewGuid().ToString(),
-            Title = "title5",
-            Description = "description5",
-            Latitude = 0,
-            Longitude = 0,
-            CurrentPrice = 0,
-            CreatedAt = DateTime.UtcNow.AddDays(-4),
-            CreatorId = creator.Id       
-        };
-        await db.Posts.AddRangeAsync(post1, post2, post3, post4, post5);
-        if (saveChanges)
-        {
-            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
-        }
+        db.Users.Add(user);
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        return user;
     }
 
-    public async static Task SeedPostNotificationData(ApplicationContext db, ApplicationUser user, Post post, bool saveChanges = true)
+    public static async Task<List<ApplicationUser>> SeedUserDataAsync(ApplicationContext db, int maxCount)
     {
-        var notification1 = new PostNotification
+        var users = new List<ApplicationUser>();
+        for (var i = 0; i < maxCount; i++)
         {
-            Id = Guid.NewGuid().ToString(),
-            Title = "title1",
-            Description = "description1",
-            UserId = user.Id,
-            PostId = post.Id
-        };
-        var notification2 = new PostNotification
-        {
-            Id = Guid.NewGuid().ToString(),
-            Title = "title2",
-            Description = "description2",
-            UserId = user.Id,
-            PostId = post.Id
-        };
-        var notification3 = new PostNotification
-        {
-            Id = Guid.NewGuid().ToString(),
-            Title = "title3",
-            Description = "description3",
-            UserId = user.Id,
-            PostId = post.Id
-        };
-        var notification4 = new PostNotification
-        {
-            Id = Guid.NewGuid().ToString(),
-            Title = "title4",
-            Description = "description4",
-            UserId = user.Id,
-            PostId = post.Id
-        };
-        var notification5 = new PostNotification
-        {
-            Id = Guid.NewGuid().ToString(),
-            Title = "title5",
-            Description = "description5",
-            UserId = user.Id,
-            PostId = post.Id
-        };
-        await db.PostNotifications.AddRangeAsync(notification1, notification2, notification3, notification4, notification5);
-        if (saveChanges)
-        {
-            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+            var user = new ApplicationUser
+            {
+                UserName = $"user{i}",
+                Email = $"user{i}@example.com",
+                NormalizedUserName = $"USER{i}",
+                NormalizedEmail = $"USER{i}@EXAMPLE.COM",
+                EmailConfirmed = true,
+                SecurityStamp = Guid.NewGuid().ToString("D")
+            };
+            users.Add(user);
         }
+
+        db.Users.AddRange(users);
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        return users;
+    }
+
+    public static async Task<Post> SeedPostDataAsync(ApplicationContext db, ApplicationUser creator)
+    {
+        var post = new Post
+        {
+            Title = "title",
+            Description = "description",
+            Latitude = 12,
+            Longitude = 1234,
+            CurrentPrice = 12345.678m,
+            CreatedAt = DateTime.UtcNow,
+            MaxPeople = 5,
+            CreatorId = creator.Id,
+            Members = new List<ApplicationUser>()
+        };
+        db.Posts.Add(post);
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        return post;
+    }
+
+    public static async Task<List<Post>> SeedPostDataAsync(ApplicationContext db, ApplicationUser creator, int maxCount)
+    {
+        var posts = new List<Post>();
+        for (var i = 0; i < maxCount; i++)
+        {
+            var post = new Post
+            {
+                Title = $"title{i}",
+                Description = $"description{i}",
+                Latitude = 12,
+                Longitude = 1234,
+                CurrentPrice = 12345.678m,
+                CreatedAt = DateTime.UtcNow,
+                MaxPeople = 5,
+                CreatorId = creator.Id
+            };
+            posts.Add(post);
+        }
+
+        db.Posts.AddRange(posts);
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        return posts;
+    }
+
+    public static async Task<PostNotification> SeedPostNotificationData(ApplicationContext db, ApplicationUser user, Post post)
+    {
+        var notification = new PostNotification
+        {
+            Title = "title",
+            Description = "description",
+            UserId = user.Id,
+            PostId = post.Id
+        };
+        db.PostNotifications.Add(notification);
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        return notification;
+    }
+
+    public static async Task<List<PostNotification>> SeedPostNotificationData(ApplicationContext db, ApplicationUser user, Post post, int maxCount)
+    {
+        var notifications = new List<PostNotification>();
+        for (var i = 0; i < maxCount; i++)
+        {
+            var notification = new PostNotification
+            {
+                Title = $"title{i}",
+                Description = $"description{i}",
+                UserId = user.Id,
+                PostId = post.Id
+            };
+            notifications.Add(notification);
+        }
+
+        db.PostNotifications.AddRange(notifications);
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        return notifications;
     }
 }
