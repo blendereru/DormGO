@@ -81,21 +81,28 @@ public class ChatHub : Hub
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
-        var hubName = nameof(ChatHub);
+        const string hubName = nameof(ChatHub);
         var connectionId = Context.ConnectionId;
         try
         {
             var userId = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
             if (!string.IsNullOrWhiteSpace(userId))
             {
-                await Groups.RemoveFromGroupAsync(connectionId, userId);
+                var userPosts = await _db.Posts
+                    .Where(p => p.Members.Any(m => m.Id == userId) || p.CreatorId == userId)
+                    .Select(p => p.Id)
+                    .ToListAsync();
+                foreach (var postId in userPosts)
+                {
+                    await Groups.RemoveFromGroupAsync(connectionId, postId);
+                }
             }
             var userConnection = await _db.UserConnections.FirstOrDefaultAsync(uc => uc.ConnectionId == connectionId);
             if (userConnection != null)
             {
                 _db.UserConnections.Remove(userConnection);
                 await _db.SaveChangesAsync();
+
                 _logger.LogInformation("[{Hub}] User disconnected. UserId: {UserId}, ConnectionId: {ConnectionId}", hubName, userConnection.UserId, connectionId);
             }
             else

@@ -11,9 +11,9 @@ public class TestHubCallerContext : HubCallerContext
     private readonly HttpContext _httpContext;
     private readonly FeatureCollection _features = new();
 
-    public TestHubCallerContext(string? userId, HttpContext httpContext)
+    public TestHubCallerContext(string? userId, string? connectionId,HttpContext httpContext)
     {
-        ConnectionId = Guid.NewGuid().ToString();
+        ConnectionId = connectionId ?? Guid.NewGuid().ToString();
         _httpContext = httpContext;
         _features.Set<IHttpContextFeature>(new HttpContextFeature { HttpContext = _httpContext });
         if (string.IsNullOrWhiteSpace(userId))
@@ -27,7 +27,6 @@ public class TestHubCallerContext : HubCallerContext
                 new Claim(ClaimTypes.NameIdentifier, userId)
             }));
         }
-
         UserIdentifier = userId;
     }
 

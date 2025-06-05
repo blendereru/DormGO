@@ -16,6 +16,7 @@ public static class HubTestHelper
     public static ChatHub CreateChatHub(
         out TestHubCallerContext testContext,
         UserManager<ApplicationUser>? userManager = null,
+        string? connectionId = null,
         string? userId = "test-user-id",
         string? ipAddress = "127.0.0.1",
         IGroupManager? groupManager = null,
@@ -32,11 +33,12 @@ public static class HubTestHelper
         httpContext.Connection.RemoteIpAddress = string.IsNullOrWhiteSpace(ipAddress)
             ? null
             : IPAddress.Parse(ipAddress);
-        testContext = new TestHubCallerContext(userId, httpContext);
+        testContext = new TestHubCallerContext(userId, connectionId, httpContext);
         hub.Context = testContext;
         groupManager ??= new Mock<IGroupManager>().Object;
         hub.Groups = groupManager;
         hub.Clients = new Mock<IHubCallerClients>().Object;
         return hub;
     }
+    
 }

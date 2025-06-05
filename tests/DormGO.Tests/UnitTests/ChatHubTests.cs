@@ -70,9 +70,9 @@ public class ChatHubTests
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options;
         var db = new ApplicationContext(dbOptions);
-        var post = PostHelper.CreatePost(testUser);
+        var testPost = PostHelper.CreatePost(testUser);
         db.Users.Add(testUser);
-        db.Posts.Add(post);
+        db.Posts.Add(testPost);
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         var hub = HubTestHelper.CreateChatHub(
             out var context,
@@ -93,7 +93,113 @@ public class ChatHubTests
         Assert.Equal("/api/chathub", connection.Hub);
         groupsMock.Verify(g => g.AddToGroupAsync(
                 It.IsAny<string>(),
-                post.Id,
+                testPost.Id,
                 It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task OnDisconnectedAsync_ForValidUserId_RemovesUserFromGroup()
+    {
+        // Arrange
+        var testUser = UserHelper.CreateUser();
+        var testPost = PostHelper.CreatePost(testUser);
+        var dbOptions = new DbContextOptionsBuilder<ApplicationContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+        var db = new ApplicationContext(dbOptions);
+        db.Users.Add(testUser);
+        db.Posts.Add(testPost);
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var groupsMock = new Mock<IGroupManager>();
+        groupsMock.Setup(x => x.RemoveFromGroupAsync(It.IsAny<string>(),
+            It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        var hub = HubTestHelper.CreateChatHub(out var context,
+            userId: testUser.Id,
+            groupManager: groupsMock.Object,
+            db: db);
+        
+        // Act
+        await hub.OnDisconnectedAsync(null);
+        
+        // Assert
+        Assert.False(context.Aborted);
+        groupsMock.Verify(g => g.RemoveFromGroupAsync(
+            It.IsAny<string>(),
+            testPost.Id,
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+    
+    [Fact]
+    public async Task OnDisconnectedAsync_NoUserId_DoesNotThrow()
+    {
+        // Arrange
+        var groupsMock = new Mock<IGroupManager>();
+        var hub = HubTestHelper.CreateChatHub(out _, userId: null, groupManager: groupsMock.Object);
+
+        // Act
+        var exception = await Record.ExceptionAsync(() => hub.OnDisconnectedAsync(null));
+
+        // Assert
+        Assert.Null(exception);
+        groupsMock.Verify(g => g.RemoveFromGroupAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+    
+    [Fact]
+    public async Task OnDisconnectedAsync_UserWithNoPosts_DoesNotRemoveFromGroups()
+    {
+        // Arrange
+        var testUser = UserHelper.CreateUser();
+        var dbOptions = new DbContextOptionsBuilder<ApplicationContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
+        var db = new ApplicationContext(dbOptions);
+        db.Users.Add(testUser);
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var groupsMock = new Mock<IGroupManager>();
+        var hub = HubTestHelper.CreateChatHub(out _, userId: testUser.Id,
+            groupManager: groupsMock.Object,
+            db: db);
+
+        // Act
+        await hub.OnDisconnectedAsync(null);
+
+        // Assert
+        groupsMock.Verify(g => g.RemoveFromGroupAsync(It.IsAny<string>(), 
+            It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+    
+    [Fact]
+    public async Task OnDisconnectedAsync_WithValidInputData_RemovesUserConnectionFromDatabase()
+    {
+        // Arrange
+        var testUser = UserHelper.CreateUser();
+        var dbOptions = new DbContextOptionsBuilder<ApplicationContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
+        var db = new ApplicationContext(dbOptions);
+        db.Users.Add(testUser);
+        var testUserConnection = new UserConnection
+        {
+            ConnectionId = "test-connection",
+            UserId = testUser.Id,
+            Ip = "127.0.0.1",
+            ConnectedAt = DateTime.UtcNow,
+            Hub = "/api/chathub"
+        };
+        db.UserConnections.Add(testUserConnection);
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var groupsMock = new Mock<IGroupManager>();
+        var hub = HubTestHelper.CreateChatHub(out _, 
+            connectionId: testUserConnection.ConnectionId,
+            userId: testUser.Id,
+            groupManager: groupsMock.Object, 
+            db: db);
+        
+        // Act
+        await hub.OnDisconnectedAsync(null);
+
+        // Assert
+        var removedRecord = await db.UserConnections.SingleOrDefaultAsync(TestContext.Current.CancellationToken);
+        Assert.Null(removedRecord);
     }
 }
