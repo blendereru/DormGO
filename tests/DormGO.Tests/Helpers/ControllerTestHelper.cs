@@ -21,67 +21,38 @@ public static class ControllerTestHelper
         return controller;
     }
 
-    private static AccountController CreateAccountController(UserManager<ApplicationUser> userManager,
-        ApplicationContext db, IEmailSender<ApplicationUser> emailSender, ITokensProvider provider,
-        IInputSanitizer sanitizer)
+    public static AccountController CreateAccountController(
+        UserManager<ApplicationUser>? userManager = null,
+        ApplicationContext? db = null,
+        IEmailSender<ApplicationUser>? emailSender = null,
+        ITokensProvider? tokensProvider = null,
+        IInputSanitizer? sanitizer = null,
+        IUserHubNotificationService? hubNotifier = null)
     {
-        var accountController = new AccountController(
+        userManager ??= UserManagerMockHelper.GetUserManagerMock<ApplicationUser>().Object;
+        emailSender ??= Mock.Of<IEmailSender<ApplicationUser>>();
+        tokensProvider ??= Mock.Of<ITokensProvider>();
+        sanitizer ??= Mock.Of<IInputSanitizer>();
+        hubNotifier ??= Mock.Of<IUserHubNotificationService>();
+        if (db == null)
+        {
+            var dbOptions = new DbContextOptionsBuilder<ApplicationContext>()
+                .UseInMemoryDatabase(Guid.NewGuid().ToString())
+                .Options;
+    
+            db = new ApplicationContext(dbOptions);
+        }
+        var controller = new AccountController(
             userManager,
             db,
             emailSender,
-            provider,
-            Mock.Of<IUserHubNotificationService>(),
+            tokensProvider,
+            hubNotifier,
             Mock.Of<ILogger<AccountController>>(),
             sanitizer);
-        return CreateController(accountController);
+        return CreateController(controller);
     }
 
-    private static AccountController CreateAccountController(UserManager<ApplicationUser> userManager,
-        ApplicationContext db, IEmailSender<ApplicationUser> emailSender) 
-        => CreateAccountController(userManager, db, emailSender, Mock.Of<ITokensProvider>(),
-            Mock.Of<IInputSanitizer>());
-
-    public static AccountController CreateAccountController(UserManager<ApplicationUser> userManager,
-        ApplicationContext db, ITokensProvider tokensProvider)
-        => CreateAccountController(userManager, db, Mock.Of<IEmailSender<ApplicationUser>>(),
-            tokensProvider, Mock.Of<IInputSanitizer>());
-    public static AccountController CreateAccountController(UserManager<ApplicationUser> userManager,
-        ApplicationContext db)
-        => CreateAccountController(userManager, db, Mock.Of<IEmailSender<ApplicationUser>>());
-    
-    
-    public static async Task<AccountController> CreateAccountController(UserManager<ApplicationUser> userManager,
-        IEmailSender<ApplicationUser> emailSender)
-    {
-        var dbOptions = new DbContextOptionsBuilder<ApplicationContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options;
-        await using var db = new ApplicationContext(dbOptions);
-        return CreateAccountController(userManager, db, emailSender);
-    }
-    
-    public static async Task<AccountController> CreateAccountController(UserManager<ApplicationUser> userManager)
-    {
-        var dbOptions = new DbContextOptionsBuilder<ApplicationContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options;
-        await using var db = new ApplicationContext(dbOptions);
-        return CreateAccountController(userManager, db);
-    }
-
-    public static async Task<AccountController> CreateAccountControllerWithTokensProvider(ITokensProvider tokensProvider)
-    {
-        var dbOptions = new DbContextOptionsBuilder<ApplicationContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options;
-        await using var db = new ApplicationContext(dbOptions);
-        var userManagerMock = UserManagerMockHelper.GetUserManagerMock<ApplicationUser>();
-        return CreateAccountController(userManagerMock.Object, db, tokensProvider);
-    }
-    
-    public static async Task<AccountController> CreateAccountController()
-        => await CreateAccountController(UserManagerMockHelper.GetUserManagerMock<ApplicationUser>().Object);
-    
     public static PostController CreatePostController(ApplicationContext db)
     {
         var inputSanitizerMock = new Mock<IInputSanitizer>();
