@@ -21,14 +21,14 @@ public class UserHub : Hub
 
     public override async Task OnConnectedAsync()
     {
-        var hubName = nameof(UserHub);
+        const string hubName = nameof(UserHub);
         var connectionId = Context.ConnectionId;
         try
         {
-            var userName = Context.GetHttpContext()?.Request.Query["userName"].ToString();
-            if (string.IsNullOrWhiteSpace(userName))
+            var userEmail = Context.GetHttpContext()?.Request.Query["userEmail"].ToString();
+            if (string.IsNullOrWhiteSpace(userEmail))
             {
-                _logger.LogWarning("[{Hub}] Connection aborted: Missing user name. ConnectionId: {ConnectionId}", hubName, connectionId);
+                _logger.LogWarning("[{Hub}] Connection aborted: Missing user email. ConnectionId: {ConnectionId}", hubName, connectionId);
                 Context.Abort();
                 return;
             }
@@ -41,7 +41,7 @@ public class UserHub : Hub
                 return;
             }
 
-            var user = await _userManager.FindByEmailAsync(userName);
+            var user = await _userManager.FindByEmailAsync(userEmail);
             if (user == null)
             {
                 _logger.LogWarning("[{Hub}] Connection aborted: User not found. ConnectionId: {ConnectionId}", hubName, connectionId);
@@ -73,7 +73,7 @@ public class UserHub : Hub
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
-        var hubName = nameof(UserHub);
+        const string hubName = nameof(UserHub);
         var connectionId = Context.ConnectionId;
         try
         {

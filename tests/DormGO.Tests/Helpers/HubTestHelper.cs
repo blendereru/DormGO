@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Primitives;
 using Moq;
 
 namespace DormGO.Tests.Helpers;
@@ -40,5 +41,40 @@ public static class HubTestHelper
         hub.Clients = new Mock<IHubCallerClients>().Object;
         return hub;
     }
-    
+
+    public static UserHub CreateUserHub(
+        out TestHubCallerContext testContext,
+        string? userEmail = "test@example.com",
+        string? connectionId = "test-connection-id",
+        string? ipAddress = "127.0.0.1",
+        ApplicationContext? db = null,
+        UserManager<ApplicationUser>? userManager = null,
+        ILogger<UserHub>? logger = null)
+    {
+        var options = new DbContextOptionsBuilder<ApplicationContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
+        db ??= new ApplicationContext(options);
+
+        userManager ??= UserManagerMockHelper.GetUserManagerMock<ApplicationUser>().Object;
+        logger ??= new Mock<ILogger<UserHub>>().Object;
+
+        var hub = new UserHub(db, userManager, logger);
+        var httpContext = new DefaultHttpContext();
+
+        if (!string.IsNullOrWhiteSpace(userEmail))
+        {
+            var query = new QueryCollection(new Dictionary<string, StringValues>
+            {
+                { "userEmail", userEmail }
+            });
+            httpContext.Request.Query = query;
+        }
+        httpContext.Connection.RemoteIpAddress = string.IsNullOrWhiteSpace(ipAddress)
+            ? null
+            : IPAddress.Parse(ipAddress);
+        testContext = new TestHubCallerContext(null, connectionId, httpContext);
+        hub.Context = testContext;
+        hub.Clients = new Mock<IHubCallerClients>().Object;
+        return hub;
+    }
 }

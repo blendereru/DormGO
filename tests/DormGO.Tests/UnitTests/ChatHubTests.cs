@@ -69,7 +69,7 @@ public class ChatHubTests
         var dbOptions = new DbContextOptionsBuilder<ApplicationContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options;
-        var db = new ApplicationContext(dbOptions);
+        await using var db = new ApplicationContext(dbOptions);
         var testPost = PostHelper.CreatePost(testUser);
         db.Users.Add(testUser);
         db.Posts.Add(testPost);
@@ -106,7 +106,7 @@ public class ChatHubTests
         var dbOptions = new DbContextOptionsBuilder<ApplicationContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options;
-        var db = new ApplicationContext(dbOptions);
+        await using var db = new ApplicationContext(dbOptions);
         db.Users.Add(testUser);
         db.Posts.Add(testPost);
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
@@ -152,7 +152,7 @@ public class ChatHubTests
         var testUser = UserHelper.CreateUser();
         var dbOptions = new DbContextOptionsBuilder<ApplicationContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
-        var db = new ApplicationContext(dbOptions);
+        await using var db = new ApplicationContext(dbOptions);
         db.Users.Add(testUser);
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
@@ -176,7 +176,7 @@ public class ChatHubTests
         var testUser = UserHelper.CreateUser();
         var dbOptions = new DbContextOptionsBuilder<ApplicationContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
-        var db = new ApplicationContext(dbOptions);
+        await using var db = new ApplicationContext(dbOptions);
         db.Users.Add(testUser);
         var testUserConnection = new UserConnection
         {
