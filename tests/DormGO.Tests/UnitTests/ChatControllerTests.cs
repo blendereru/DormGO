@@ -2,12 +2,10 @@ using DormGO.Controllers;
 using DormGO.Data;
 using DormGO.DTOs.RequestDTO;
 using DormGO.DTOs.ResponseDTO;
-using DormGO.Models;
 using DormGO.Tests.Helpers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-
 namespace DormGO.Tests.UnitTests;
 
 public class ChatControllerTests : IAsyncDisposable
@@ -16,17 +14,14 @@ public class ChatControllerTests : IAsyncDisposable
     private readonly ChatController _controller;
     public ChatControllerTests()
     {
-        var options = new DbContextOptionsBuilder<ApplicationContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options;
-        _db = new ApplicationContext(options);
+        _db = TestDbContextFactory.CreateDbContext();
         _controller = ControllerTestHelper.CreateChatController(_db);
     }
     [Fact]
     public async Task GetMessagesForPost_ForUnauthorizedUser_ReturnsUnauthorizedResultWithProblemDetails()
     {
         // Arrange
-        var testId = Guid.NewGuid().ToString();
+        const string testId = "test_post_id";
         
         // Act
         var result = await _controller.GetMessagesForPost(testId);
@@ -45,8 +40,6 @@ public class ChatControllerTests : IAsyncDisposable
     {
         // Arrange
         var testUser = UserHelper.CreateUser();
-        _db.Users.Add(testUser);
-        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
         HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
         
         // Act
@@ -64,10 +57,8 @@ public class ChatControllerTests : IAsyncDisposable
     public async Task GetMessagesForPost_ForNonExistentPost_ReturnsNotFoundResultWithProblemDetails()
     {
         // Arrange
-        var testId = Guid.NewGuid().ToString();
+        const string testId = "test_post_id";
         var testUser = UserHelper.CreateUser();
-        _db.Users.Add(testUser);
-        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
         HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
         
         // Act
@@ -84,19 +75,9 @@ public class ChatControllerTests : IAsyncDisposable
     public async Task GetMessagesForPost_WithValidInputData_ReturnsOkResultWithMessagesResponse()
     {
         // Arrange
-        var testUser = UserHelper.CreateUser();
-        var testPost = PostHelper.CreatePost(testUser);
-        var testMessageToAdd = new Message
-        {
-            Id = Guid.NewGuid().ToString(),
-            SenderId = testUser.Id,
-            PostId = testPost.Id,
-            Content = "content"
-        };
-        _db.Users.Add(testUser);
-        _db.Posts.Add(testPost);
-        _db.Messages.Add(testMessageToAdd);
-        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var testUser = await DataSeedHelper.SeedUserDataAsync(_db);
+        var testPost = await DataSeedHelper.SeedPostDataAsync(_db, testUser);
+        var testMessageToAdd = await DataSeedHelper.SeedMessageDataAsync(_db, testUser, testPost);
         HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
         
         // Act
@@ -113,7 +94,7 @@ public class ChatControllerTests : IAsyncDisposable
     public async Task AddMessageToPost_WhenUserUnauthorized_ReturnsUnauthorizedResultWithProblemDetails()
     {
         // Arrange
-        var testId = Guid.NewGuid().ToString();
+        const string testId = "test_post_id";
         
         // Act
         var result = await _controller.AddMessageToPost(testId, new MessageCreateRequest());
@@ -132,8 +113,6 @@ public class ChatControllerTests : IAsyncDisposable
     {
         // Arrange
         var testUser = UserHelper.CreateUser();
-        _db.Users.Add(testUser);
-        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
         HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
         
         // Act
@@ -152,9 +131,7 @@ public class ChatControllerTests : IAsyncDisposable
     {
         // Arrange
         var testUser = UserHelper.CreateUser();
-        var testPostId = Guid.NewGuid().ToString();
-        _db.Users.Add(testUser);
-        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        const string testPostId = "test_post_id";
         HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
         
         // Act
@@ -172,10 +149,7 @@ public class ChatControllerTests : IAsyncDisposable
     {
         // Arrange
         var testUser = UserHelper.CreateUser();
-        var testPost = PostHelper.CreatePost(testUser);
-        _db.Users.Add(testUser);
-        _db.Posts.Add(testPost);
-        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var testPost = await DataSeedHelper.SeedPostDataAsync(_db, testUser);
         var request = new MessageCreateRequest
         {
             Content = "content"
@@ -198,8 +172,8 @@ public class ChatControllerTests : IAsyncDisposable
     public async Task GetMessageById_ForUnauthorizedUser_ReturnsUnauthorizedResultWithProblemDetails()
     {
         // Arrange
-        var testPostId = Guid.NewGuid().ToString();
-        var testMessageId = Guid.NewGuid().ToString();
+        const string testPostId = "test_post_id";
+        const string testMessageId = "test_message_id";
         
         // Act
         var result = await _controller.GetMessageById(testPostId, testMessageId);
@@ -218,9 +192,7 @@ public class ChatControllerTests : IAsyncDisposable
     {
         // Arrange
         var testUser = UserHelper.CreateUser();
-        var testMessageId = Guid.NewGuid().ToString();
-        _db.Users.Add(testUser);
-        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        const string testMessageId = "test_message_id";
         HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
         
         // Act
@@ -241,9 +213,7 @@ public class ChatControllerTests : IAsyncDisposable
     {
         // Arrange
         var testUser = UserHelper.CreateUser();
-        var testPostId = Guid.NewGuid().ToString();
-        _db.Users.Add(testUser);
-        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        const string testPostId = "test_post_id";
         HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
         
         // Act
@@ -261,11 +231,9 @@ public class ChatControllerTests : IAsyncDisposable
     public async Task GetMessageById_ForNonExistentPostAndMessage_ReturnsMessageNotFoundResultWithProblemDetails()
     {
         // Arrange
-        var testUser = UserHelper.CreateUser();
-        var testPostId = Guid.NewGuid().ToString();
-        var testMessageId = Guid.NewGuid().ToString();
-        _db.Users.Add(testUser);
-        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var testUser = await DataSeedHelper.SeedUserDataAsync(_db);
+        const string testPostId = "test_post_id";
+        const string testMessageId = "test_message_id";
         HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
         
         // Act
@@ -282,12 +250,9 @@ public class ChatControllerTests : IAsyncDisposable
     public async Task GetMessageById_ForNonExistentMessage_ReturnsMessageNotFoundResultWithProblemDetails()
     {
         // Arrange
-        var testUser = UserHelper.CreateUser();
-        var testPost = PostHelper.CreatePost(testUser);
-        var testMessageId = Guid.NewGuid().ToString();
-        _db.Users.Add(testUser);
-        _db.Posts.Add(testPost);
-        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var testUser = await DataSeedHelper.SeedUserDataAsync(_db);
+        var testPost = await DataSeedHelper.SeedPostDataAsync(_db, testUser);
+        const string testMessageId = "test_message_id";
         HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
         
         // Act
@@ -304,19 +269,9 @@ public class ChatControllerTests : IAsyncDisposable
     public async Task GetMessageById_ForValidInputData_ReturnsOkResultWithMessageResponse()
     {
         // Arrange
-        var testUser = UserHelper.CreateUser();
-        var testPost = PostHelper.CreatePost(testUser);
-        var testMessage = new Message
-        {
-            Id = Guid.NewGuid().ToString(),
-            SenderId = testUser.Id,
-            PostId = testPost.Id,
-            Content = "content"
-        };
-        _db.Users.Add(testUser);
-        _db.Posts.Add(testPost);
-        _db.Messages.Add(testMessage);
-        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var testUser = await DataSeedHelper.SeedUserDataAsync(_db);
+        var testPost = await DataSeedHelper.SeedPostDataAsync(_db, testUser);
+        var testMessage = await DataSeedHelper.SeedMessageDataAsync(_db, testUser, testPost);
         HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
         
         // Act
@@ -337,8 +292,8 @@ public class ChatControllerTests : IAsyncDisposable
     public async Task UpdateMessage_ForUnauthorizedUser_ReturnsUnauthorizedResultWithProblemDetails()
     {
         // Arrange
-        var testPostId = Guid.NewGuid().ToString();
-        var testMessageId = Guid.NewGuid().ToString();
+        const string testPostId = "test_post_id";
+        const string testMessageId = "test_message_id";
         
         // Act
         var result = await _controller.UpdateMessage(testPostId, testMessageId, new MessageUpdateRequest());
@@ -357,9 +312,7 @@ public class ChatControllerTests : IAsyncDisposable
     {
         // Arrange
         var testUser = UserHelper.CreateUser();
-        var testMessageId = Guid.NewGuid().ToString();
-        _db.Users.Add(testUser);
-        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        const string testMessageId = "test_message_id";
         HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
         
         // Act
@@ -380,9 +333,7 @@ public class ChatControllerTests : IAsyncDisposable
     {
         // Arrange
         var testUser = UserHelper.CreateUser();
-        var testPostId = Guid.NewGuid().ToString();
-        _db.Users.Add(testUser);
-        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        const string testPostId = "test_post_id";
         HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
         
         // Act
@@ -400,11 +351,9 @@ public class ChatControllerTests : IAsyncDisposable
     public async Task UpdateMessage_ForNonExistentPostAndMessage_ReturnsMessageNotFoundResultWithProblemDetails()
     {
         // Arrange
-        var testUser = UserHelper.CreateUser();
-        var testPostId = Guid.NewGuid().ToString();
-        var testMessageId = Guid.NewGuid().ToString();
-        _db.Users.Add(testUser);
-        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var testUser = await DataSeedHelper.SeedUserDataAsync(_db);
+        const string testPostId = "test_post_id";
+        const string testMessageId = "test_message_id";
         HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
         
         // Act
@@ -421,12 +370,9 @@ public class ChatControllerTests : IAsyncDisposable
     public async Task UpdateMessage_ForNonExistentMessage_ReturnsMessageNotFoundResultWithProblemDetails()
     {
         // Arrange
-        var testUser = UserHelper.CreateUser();
-        var testPost = PostHelper.CreatePost(testUser);
-        var testMessageId = Guid.NewGuid().ToString();
-        _db.Users.Add(testUser);
-        _db.Posts.Add(testPost);
-        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var testUser = await DataSeedHelper.SeedUserDataAsync(_db);
+        var testPost = await DataSeedHelper.SeedPostDataAsync(_db, testUser);
+        const string testMessageId = "test_message_id";
         HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
         
         // Act
@@ -443,19 +389,9 @@ public class ChatControllerTests : IAsyncDisposable
     public async Task UpdateMessage_ForValidInputData_UpdatesMessageAndReturnsNoContentResult()
     {
         // Arrange
-        var testUser = UserHelper.CreateUser();
-        var testPost = PostHelper.CreatePost(testUser);
-        var testMessage = new Message
-        {
-            Id = Guid.NewGuid().ToString(),
-            SenderId = testUser.Id,
-            PostId = testPost.Id,
-            Content = "content"
-        };
-        _db.Users.Add(testUser);
-        _db.Posts.Add(testPost);
-        _db.Messages.Add(testMessage);
-        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var testUser = await DataSeedHelper.SeedUserDataAsync(_db);
+        var testPost = await DataSeedHelper.SeedPostDataAsync(_db, testUser);
+        var testMessage = await DataSeedHelper.SeedMessageDataAsync(_db, testUser, testPost);
         var request = new MessageUpdateRequest
         {
             Content = "new_test_content"
@@ -478,8 +414,8 @@ public class ChatControllerTests : IAsyncDisposable
     public async Task DeleteMessage_ForUnauthorizedUser_ReturnsUnauthorizedResultWithProblemDetails()
     {
         // Arrange
-        var testPostId = Guid.NewGuid().ToString();
-        var testMessageId = Guid.NewGuid().ToString();
+        const string testPostId = "test_post_id";
+        const string testMessageId = "test_message_id";
         
         // Act
         var result = await _controller.DeleteMessage(testPostId, testMessageId);
@@ -498,9 +434,7 @@ public class ChatControllerTests : IAsyncDisposable
     {
         // Arrange
         var testUser = UserHelper.CreateUser();
-        var testMessageId = Guid.NewGuid().ToString();
-        _db.Users.Add(testUser);
-        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        const string testMessageId = "test_message_id";
         HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
         
         // Act
@@ -521,9 +455,7 @@ public class ChatControllerTests : IAsyncDisposable
     {
         // Arrange
         var testUser = UserHelper.CreateUser();
-        var testPostId = Guid.NewGuid().ToString();
-        _db.Users.Add(testUser);
-        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        const string testPostId = "test_post_id";
         HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
         
         // Act
@@ -541,11 +473,9 @@ public class ChatControllerTests : IAsyncDisposable
     public async Task DeleteMessage_ForNonExistentPostAndMessage_ReturnsMessageNotFoundResultWithProblemDetails()
     {
         // Arrange
-        var testUser = UserHelper.CreateUser();
-        var testPostId = Guid.NewGuid().ToString();
-        var testMessageId = Guid.NewGuid().ToString();
-        _db.Users.Add(testUser);
-        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var testUser = await DataSeedHelper.SeedUserDataAsync(_db);
+        const string testPostId = "test_post_id";
+        const string testMessageId = "test_message_id";
         HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
         
         // Act
@@ -562,12 +492,9 @@ public class ChatControllerTests : IAsyncDisposable
     public async Task DeleteMessage_ForNonExistentMessage_ReturnsMessageNotFoundResultWithProblemDetails()
     {
         // Arrange
-        var testUser = UserHelper.CreateUser();
-        var testPost = PostHelper.CreatePost(testUser);
-        var testMessageId = Guid.NewGuid().ToString();
-        _db.Users.Add(testUser);
-        _db.Posts.Add(testPost);
-        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var testUser = await DataSeedHelper.SeedUserDataAsync(_db);
+        var testPost = await DataSeedHelper.SeedPostDataAsync(_db, testUser);
+        const string testMessageId = "test_message_id";
         HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
         
         // Act
@@ -584,19 +511,9 @@ public class ChatControllerTests : IAsyncDisposable
     public async Task DeleteMessage_ForValidInputData_UpdatesMessageAndReturnsNoContentResult()
     {
         // Arrange
-        var testUser = UserHelper.CreateUser();
-        var testPost = PostHelper.CreatePost(testUser);
-        var testMessage = new Message
-        {
-            Id = Guid.NewGuid().ToString(),
-            SenderId = testUser.Id,
-            PostId = testPost.Id,
-            Content = "content"
-        };
-        _db.Users.Add(testUser);
-        _db.Posts.Add(testPost);
-        _db.Messages.Add(testMessage);
-        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var testUser = await DataSeedHelper.SeedUserDataAsync(_db);
+        var testPost = await DataSeedHelper.SeedPostDataAsync(_db, testUser);
+        var testMessage = await DataSeedHelper.SeedMessageDataAsync(_db, testUser, testPost);
         HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
         
         // Act

@@ -86,6 +86,21 @@ public static class DataSeedHelper
         return posts;
     }
 
+    public static async Task<Message> SeedMessageDataAsync(ApplicationContext db, ApplicationUser sender,
+        Post post)
+    {
+        var message = new Message
+        {
+            Content = "content",
+            SenderId = sender.Id,
+            PostId = post.Id,
+            SentAt = DateTime.UtcNow
+        };
+        db.Messages.Add(message);
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        return message;
+    }
+    
     public static async Task<PostNotification> SeedPostNotificationData(ApplicationContext db, ApplicationUser user, Post post)
     {
         var notification = new PostNotification
