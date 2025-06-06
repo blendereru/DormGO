@@ -21,8 +21,8 @@ public static class ControllerTestHelper
     }
 
     public static AccountController CreateAccountController(
+        ApplicationContext db,
         UserManager<ApplicationUser>? userManager = null,
-        ApplicationContext? db = null,
         IEmailSender<ApplicationUser>? emailSender = null,
         ITokensProvider? tokensProvider = null,
         IInputSanitizer? sanitizer = null,

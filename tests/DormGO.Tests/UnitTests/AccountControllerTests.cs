@@ -15,8 +15,13 @@ using Moq;
 
 namespace DormGO.Tests.UnitTests;
 
-public class AccountControllerTests
+public class AccountControllerTests : IAsyncDisposable
 {
+    private readonly ApplicationContext _db;
+    public AccountControllerTests()
+    {
+        _db = TestDbContextFactory.CreateDbContext();
+    }
     
     [Fact]
     public async Task Register_WithValidInput_ReturnsCreatedResultWithUserResponse()
@@ -39,7 +44,7 @@ public class AccountControllerTests
                 It.IsAny<string>(),
                 It.IsAny<string>()))
             .Returns(Task.CompletedTask);
-        var controller = ControllerTestHelper.CreateAccountController(userManagerMock.Object, 
+        var controller = ControllerTestHelper.CreateAccountController(_db, userManagerMock.Object, 
             emailSender: emailSenderMock.Object);
         controller.Url = Mock.Of<IUrlHelper>(u =>
             u.Action(It.IsAny<UrlActionContext>()) == "http://test/confirm");
@@ -69,7 +74,7 @@ public class AccountControllerTests
                 It.IsAny<string>()))
             .ReturnsAsync(IdentityResult.Failed(new IdentityError {Code = "Password",
                 Description = "Invalid password."}));
-        var controller = ControllerTestHelper.CreateAccountController(userManagerMock.Object);
+        var controller = ControllerTestHelper.CreateAccountController(_db, userManagerMock.Object);
         
         // Act
         var result = await controller.Register(registerRequest);
@@ -92,10 +97,6 @@ public class AccountControllerTests
             Name = "blendereru",
             VisitorId = "sample_visitor_id"
         };
-        var dbOptions = new DbContextOptionsBuilder<ApplicationContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options;
-        await using var db = new ApplicationContext(dbOptions);
         var tokensProviderMock = new Mock<ITokensProvider>();
         tokensProviderMock.Setup(x => x.GenerateAccessToken(It.IsAny<ApplicationUser>()))
             .Returns("bearer_token");
@@ -108,14 +109,14 @@ public class AccountControllerTests
             EmailConfirmed = true,
             Fingerprint = loginRequest.VisitorId
         };
-        db.Users.Add(currentUser);
-        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        _db.Users.Add(currentUser);
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
         var userManagerMock = UserManagerMockHelper.GetUserManagerMock<ApplicationUser>();
         userManagerMock.Setup(x => x.CheckPasswordAsync(It.IsAny<ApplicationUser>(),
                     loginRequest.Password))
             .ReturnsAsync(true);
-        var controller = ControllerTestHelper.CreateAccountController(
-            userManagerMock.Object, db, tokensProvider: tokensProviderMock.Object);
+        var controller = ControllerTestHelper.CreateAccountController(_db,
+            userManagerMock.Object, tokensProvider: tokensProviderMock.Object);
         
         // Act
         var result = await controller.Login(loginRequest);
@@ -126,7 +127,7 @@ public class AccountControllerTests
         Assert.Equal("bearer_token", response.AccessToken);
         Assert.Equal("refresh_token", response.RefreshToken);
         
-        var sessionCount = await db.RefreshSessions.CountAsync(TestContext.Current.CancellationToken);
+        var sessionCount = await _db.RefreshSessions.CountAsync(TestContext.Current.CancellationToken);
         Assert.Equal(1, sessionCount);
     }
 
@@ -146,17 +147,14 @@ public class AccountControllerTests
             EmailConfirmed = true,
             Fingerprint = invalidLoginRequest.VisitorId
         };
-        var options = new DbContextOptionsBuilder<ApplicationContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-            .Options;
-        await using var db = new ApplicationContext(options);
-        db.Users.Add(actualUser);
-        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        _db.Users.Add(actualUser);
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
         var userManagerMock = UserManagerMockHelper.GetUserManagerMock<ApplicationUser>();
         userManagerMock.Setup(x => x.CheckPasswordAsync(It.IsAny<ApplicationUser>(),
                 invalidLoginRequest.Password))
             .ReturnsAsync(false);
-        var controller = ControllerTestHelper.CreateAccountController(userManagerMock.Object, db);
+        var controller = ControllerTestHelper.CreateAccountController(_db, userManagerMock.Object);
+        
         // Act
         var result = await controller.Login(invalidLoginRequest);
         
@@ -186,22 +184,18 @@ public class AccountControllerTests
             EmailConfirmed = true,
             Fingerprint = invalidLoginRequest.VisitorId
         };
-        var options = new DbContextOptionsBuilder<ApplicationContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-            .Options;
-        await using var db = new ApplicationContext(options);
         var tokensProviderMock = new Mock<ITokensProvider>();
         tokensProviderMock.Setup(x => x.GenerateAccessToken(It.IsAny<ApplicationUser>()))
             .Returns("bearer_token");
         tokensProviderMock.Setup(x => x.GenerateRefreshToken())
             .Returns("refresh_token");
-        db.Users.Add(actualUser);
-        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        _db.Users.Add(actualUser);
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
         var userManagerMock = UserManagerMockHelper.GetUserManagerMock<ApplicationUser>();
         userManagerMock.Setup(x => x.CheckPasswordAsync(It.IsAny<ApplicationUser>(),
                 invalidLoginRequest.Password))
             .ReturnsAsync(false);
-        var controller = ControllerTestHelper.CreateAccountController(userManagerMock.Object, db,
+        var controller = ControllerTestHelper.CreateAccountController(_db, userManagerMock.Object,
             tokensProvider: tokensProviderMock.Object);
         
         // Act
@@ -221,7 +215,7 @@ public class AccountControllerTests
         var userManagerMock = UserManagerMockHelper.GetUserManagerMock<ApplicationUser>();
         userManagerMock.Setup(x => x.FindByEmailAsync(It.IsAny<string>()));
         var request = new PasswordForgotRequest() { Email = "your@example.com" };
-        var controller = ControllerTestHelper.CreateAccountController(userManagerMock.Object);
+        var controller = ControllerTestHelper.CreateAccountController(_db, userManagerMock.Object);
         controller.Url = Mock.Of<IUrlHelper>(u =>
             u.Action(It.IsAny<UrlActionContext>()) == "http://test/confirm");
         
@@ -244,7 +238,7 @@ public class AccountControllerTests
         userManagerMock.Setup(x => x.FindByIdAsync(It.IsAny<string>()));
         userManagerMock.Setup(x => x.ChangeEmailAsync(It.IsAny<ApplicationUser>(),
             It.IsAny<string>(), It.IsAny<string>()));
-        var controller = ControllerTestHelper.CreateAccountController(userManagerMock.Object);
+        var controller = ControllerTestHelper.CreateAccountController(_db, userManagerMock.Object);
 
         // Act
         var result = await controller.UpdateEmail(userId!, newEmail!, token!);
@@ -261,10 +255,10 @@ public class AccountControllerTests
     public async Task UpdateEmail_ForNonExistentUser_ReturnsNotFoundResultWithProblemDetails()
     {
         // Arrange
-        var testUserId = Guid.NewGuid().ToString();
+        const string testUserId = "test_user_id";
         const string testNewEmail = "your@example.com";
         const string testToken = "token";
-        var controller = ControllerTestHelper.CreateAccountController();
+        var controller = ControllerTestHelper.CreateAccountController(_db);
         
         // Act
         var result = await controller.UpdateEmail(testUserId, testNewEmail, testToken);
@@ -286,10 +280,10 @@ public class AccountControllerTests
         userManagerMock.Setup(x => x.ChangeEmailAsync(It.IsAny<ApplicationUser>(),
             It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(IdentityResult.Success);
-        var testUserId = Guid.NewGuid().ToString();
+        const string testUserId = "test_user_id";
         const string newTestEmail = "your@example.com";
         const string token = "token";
-        var controller = ControllerTestHelper.CreateAccountController(userManagerMock.Object);
+        var controller = ControllerTestHelper.CreateAccountController(_db, userManagerMock.Object);
         
         // Act
         var result = await controller.UpdateEmail(testUserId, newTestEmail, token);
@@ -306,7 +300,7 @@ public class AccountControllerTests
     public async Task ValidatePasswordReset_WithNullParameters_ReturnsBadRequestResultWithProblemDetails(string? userId, string? token)
     {
         // Arrange
-        var controller = ControllerTestHelper.CreateAccountController();
+        var controller = ControllerTestHelper.CreateAccountController(_db);
         
         // Act
         var result = await controller.ValidatePasswordReset(userId!, token!);
@@ -326,9 +320,9 @@ public class AccountControllerTests
         var userManagerMock = UserManagerMockHelper.GetUserManagerMock<ApplicationUser>();
         userManagerMock.Setup(x => x.FindByIdAsync(It.IsAny<string>()))
             .ReturnsAsync(new ApplicationUser());
-        var userId = Guid.NewGuid().ToString();
+        const string userId = "test_user_id";
         const string token = "token";
-        var controller = ControllerTestHelper.CreateAccountController(userManagerMock.Object);
+        var controller = ControllerTestHelper.CreateAccountController(_db, userManagerMock.Object);
         
         // Act
         var result = await controller.ValidatePasswordReset(userId, token);
@@ -348,7 +342,7 @@ public class AccountControllerTests
             NewPassword = "strong_password123@",
             Token = "token"
         };
-        var controller = ControllerTestHelper.CreateAccountController();
+        var controller = ControllerTestHelper.CreateAccountController(_db);
         
         // Act
         var result = await controller.ResetPassword(request);
@@ -362,10 +356,6 @@ public class AccountControllerTests
     public async Task Logout_ReturnsNoContentResult()
     {
         // Arrange
-        var options = new DbContextOptionsBuilder<ApplicationContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-            .Options;
-        await using var db = new ApplicationContext(options);
         var testUser = UserHelper.CreateUser();
         var testRefreshSession = new RefreshSession
         {
@@ -381,11 +371,10 @@ public class AccountControllerTests
             RefreshToken = "refresh_token",
             VisitorId = "sample_visitor_id"
         };
-        await db.AddRangeAsync(testUser, testRefreshSession);
-        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
-        var controller = ControllerTestHelper.CreateAccountController(
-            UserManagerMockHelper.GetUserManagerMock<ApplicationUser>().Object,
-            db);
+        await _db.AddRangeAsync(testUser, testRefreshSession);
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var controller = ControllerTestHelper.CreateAccountController(_db, 
+            UserManagerMockHelper.GetUserManagerMock<ApplicationUser>().Object);
         
         // Act
         var result = await controller.Logout(request);
@@ -400,7 +389,7 @@ public class AccountControllerTests
     public async Task ConfirmEmail_WithNullParameters_ReturnsBadRequestResultWithProblemDetails(string userId, string token, string? visitorId)
     {
         // Arrange
-        var controller = ControllerTestHelper.CreateAccountController();
+        var controller = ControllerTestHelper.CreateAccountController(_db);
         
         // Act
         var result = await controller.ConfirmEmail(userId, token, visitorId!);
@@ -421,7 +410,7 @@ public class AccountControllerTests
         var userManagerMock = UserManagerMockHelper.GetUserManagerMock<ApplicationUser>();
         userManagerMock.Setup(x => x.FindByIdAsync(It.IsAny<string>()))
             .ReturnsAsync((ApplicationUser?)null);
-        var controller = ControllerTestHelper.CreateAccountController(userManagerMock.Object);
+        var controller = ControllerTestHelper.CreateAccountController(_db, userManagerMock.Object);
         
         // Act
         var result = await controller.ConfirmEmail(userId, token, visitorId);
@@ -455,7 +444,7 @@ public class AccountControllerTests
                 It.IsAny<string>()))
             .ReturnsAsync(IdentityResult.Failed(new IdentityError { Code = "InvalidToken",
                 Description = "Invalid token" }));
-        var controller = ControllerTestHelper.CreateAccountController(userManagerMock.Object);
+        var controller = ControllerTestHelper.CreateAccountController(_db, userManagerMock.Object);
         
         // Act
         var result = await controller.ConfirmEmail(userId, token, visitorId);
@@ -492,12 +481,7 @@ public class AccountControllerTests
             .Returns("bearer_token");
         tokensProviderMock.Setup(x => x.GenerateRefreshToken())
             .Returns("refresh_token");
-        var options = new DbContextOptionsBuilder<ApplicationContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options;
-        await using var db = new ApplicationContext(options);
-        var controller = ControllerTestHelper.CreateAccountController(userManagerMock.Object,
-            db,
+        var controller = ControllerTestHelper.CreateAccountController(_db, userManagerMock.Object,
             tokensProvider: tokensProviderMock.Object);
         
         // Act
@@ -507,7 +491,7 @@ public class AccountControllerTests
         var okResult = Assert.IsType<OkObjectResult>(result);
         Assert.Equal(StatusCodes.Status200OK, okResult.StatusCode);
         Assert.Equal("good on you", okResult.Value);
-        var sessionsCount = await db.RefreshSessions.CountAsync(TestContext.Current.CancellationToken);
+        var sessionsCount = await _db.RefreshSessions.CountAsync(TestContext.Current.CancellationToken);
         Assert.Equal(1, sessionsCount);
     }
 
@@ -523,7 +507,7 @@ public class AccountControllerTests
         userManagerMock.Setup(x => x.FindByEmailAsync(It.IsAny<string>()));
         userManagerMock.Setup(x => x.IsEmailConfirmedAsync(It.IsAny<ApplicationUser>()))
             .ReturnsAsync(false);
-        var controller = ControllerTestHelper.CreateAccountController(userManagerMock.Object);
+        var controller = ControllerTestHelper.CreateAccountController(_db, userManagerMock.Object);
         controller.Url = Mock.Of<IUrlHelper>(u =>
             u.Action(It.IsAny<UrlActionContext>()) == "http://test/confirm");
         
@@ -545,7 +529,7 @@ public class AccountControllerTests
             RefreshToken = "refresh_token"
         };
 
-        var controller = ControllerTestHelper.CreateAccountController();
+        var controller = ControllerTestHelper.CreateAccountController(_db);
         
         // Act
         var result = await controller.RefreshTokens(request);
@@ -571,7 +555,8 @@ public class AccountControllerTests
         tokensProviderMock
             .Setup(tp => tp.GetPrincipalFromExpiredTokenAsync(request.AccessToken))
             .ReturnsAsync((ClaimsPrincipal?)null);
-        var controller = ControllerTestHelper.CreateAccountController(tokensProvider: tokensProviderMock.Object);
+        var controller = ControllerTestHelper.CreateAccountController(_db, 
+            tokensProvider: tokensProviderMock.Object);
 
         // Act
         var result = await controller.RefreshTokens(request);
@@ -595,7 +580,7 @@ public class AccountControllerTests
             RefreshToken = "invalid_refresh_token",
             VisitorId = "sample_visitor_id"
         };
-        var testUser = UserHelper.CreateUser();
+        var testUser = await DataSeedHelper.SeedUserDataAsync(_db);
         testUser.Fingerprint = request.VisitorId;
         var testSession = new RefreshSession
         {
@@ -606,13 +591,8 @@ public class AccountControllerTests
             Ip = "127.0.0.1",
             UserId = testUser.Id,
         };
-        var options = new DbContextOptionsBuilder<ApplicationContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options;
-        await using var db = new ApplicationContext(options);
-        db.Users.Add(testUser);
-        db.RefreshSessions.Add(testSession);
-        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        _db.RefreshSessions.Add(testSession);
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
         var tokensProviderMock = new Mock<ITokensProvider>();
         var identityMock = new Mock<IIdentity>();
         identityMock.Setup(i => i.Name).Returns(testUser.Email);
@@ -621,8 +601,8 @@ public class AccountControllerTests
             .Setup(tp => tp.GetPrincipalFromExpiredTokenAsync(request.AccessToken))
             .ReturnsAsync(claimsPrincipalMock);
         var controller = ControllerTestHelper.CreateAccountController(
+            _db,
             UserManagerMockHelper.GetUserManagerMock<ApplicationUser>().Object,
-            db,
             tokensProvider: tokensProviderMock.Object);
         
         // Act
@@ -646,7 +626,7 @@ public class AccountControllerTests
             RefreshToken = "refresh_token",
             VisitorId = "sample_visitor_id"
         };
-        var testUser = UserHelper.CreateUser();
+        var testUser = await DataSeedHelper.SeedUserDataAsync(_db);
         testUser.Fingerprint = request.VisitorId;
         var testSession = new RefreshSession
         {
@@ -657,13 +637,8 @@ public class AccountControllerTests
             Ip = "127.0.0.1",
             UserId = testUser.Id,
         };
-        var options = new DbContextOptionsBuilder<ApplicationContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options;
-        await using var db = new ApplicationContext(options);
-        db.Users.Add(testUser);
-        db.RefreshSessions.Add(testSession);
-        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        _db.RefreshSessions.Add(testSession);
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
         var tokensProviderMock = new Mock<ITokensProvider>();
         var identityMock = new Mock<IIdentity>();
         identityMock.Setup(i => i.Name).Returns(testUser.Email);
@@ -671,9 +646,8 @@ public class AccountControllerTests
         tokensProviderMock
             .Setup(tp => tp.GetPrincipalFromExpiredTokenAsync(request.AccessToken))
             .ReturnsAsync(claimsPrincipalMock);
-        var controller = ControllerTestHelper.CreateAccountController(
+        var controller = ControllerTestHelper.CreateAccountController(_db,
             UserManagerMockHelper.GetUserManagerMock<ApplicationUser>().Object,
-            db,
             tokensProvider: tokensProviderMock.Object);
         
         // Act
@@ -697,7 +671,7 @@ public class AccountControllerTests
             RefreshToken = "refresh_token",
             VisitorId = "invalid_visitor_id"
         };
-        var testUser = UserHelper.CreateUser();
+        var testUser = await DataSeedHelper.SeedUserDataAsync(_db);
         var testSession = new RefreshSession
         {
             RefreshToken = "refresh_token",
@@ -707,13 +681,8 @@ public class AccountControllerTests
             Ip = "127.0.0.1",
             UserId = testUser.Id,
         };
-        var options = new DbContextOptionsBuilder<ApplicationContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options;
-        await using var db = new ApplicationContext(options);
-        db.Users.Add(testUser);
-        db.RefreshSessions.Add(testSession);
-        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        _db.RefreshSessions.Add(testSession);
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
         var tokensProviderMock = new Mock<ITokensProvider>();
         var identityMock = new Mock<IIdentity>();
         identityMock.Setup(i => i.Name).Returns(testUser.Email);
@@ -722,8 +691,8 @@ public class AccountControllerTests
             .Setup(tp => tp.GetPrincipalFromExpiredTokenAsync(request.AccessToken))
             .ReturnsAsync(claimsPrincipalMock);
         var controller = ControllerTestHelper.CreateAccountController(
+            _db,
             UserManagerMockHelper.GetUserManagerMock<ApplicationUser>().Object,
-            db,
             tokensProvider: tokensProviderMock.Object);
         
         // Act
@@ -747,7 +716,7 @@ public class AccountControllerTests
             RefreshToken = "refresh_token",
             VisitorId = "sample_visitor_id"
         };
-        var testUser = UserHelper.CreateUser();
+        var testUser = await DataSeedHelper.SeedUserDataAsync(_db);
         testUser.Fingerprint = request.VisitorId;
         var testSession = new RefreshSession
         {
@@ -758,13 +727,8 @@ public class AccountControllerTests
             Ip = "127.0.0.1",
             UserId = testUser.Id,
         };
-        var options = new DbContextOptionsBuilder<ApplicationContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options;
-        await using var db = new ApplicationContext(options);
-        db.Users.Add(testUser);
-        db.RefreshSessions.Add(testSession);
-        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        _db.RefreshSessions.Add(testSession);
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
         var tokensProviderMock = new Mock<ITokensProvider>();
         var identityMock = new Mock<IIdentity>();
         identityMock.Setup(i => i.Name).Returns(testUser.Email);
@@ -773,8 +737,8 @@ public class AccountControllerTests
             .Setup(tp => tp.GetPrincipalFromExpiredTokenAsync(request.AccessToken))
             .ReturnsAsync(claimsPrincipalMock);
         var controller = ControllerTestHelper.CreateAccountController(
+            _db,
             UserManagerMockHelper.GetUserManagerMock<ApplicationUser>().Object,
-            db,
             tokensProvider: tokensProviderMock.Object);
         
         // Act
@@ -784,7 +748,14 @@ public class AccountControllerTests
         var okResult = Assert.IsType<OkObjectResult>(result);
         Assert.Equal(StatusCodes.Status200OK, okResult.StatusCode);
         var response = Assert.IsType<RefreshTokensResponse>(okResult.Value);
-        var refreshSession = await db.RefreshSessions.SingleAsync(TestContext.Current.CancellationToken);
+        var refreshSession = await _db.RefreshSessions.SingleAsync(TestContext.Current.CancellationToken);
         Assert.Equal(refreshSession.RefreshToken, response.RefreshToken);
-    } 
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await _db.DisposeAsync();
+        
+        GC.SuppressFinalize(this);
+    }
 }

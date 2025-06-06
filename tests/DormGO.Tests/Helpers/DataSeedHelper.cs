@@ -14,7 +14,8 @@ public static class DataSeedHelper
             NormalizedUserName = "USER",
             NormalizedEmail = "USER@EXAMPLE.COM",
             EmailConfirmed = true,
-            SecurityStamp = Guid.NewGuid().ToString("D")
+            SecurityStamp = Guid.NewGuid().ToString("D"),
+            Fingerprint = "user_visitor_id"
         };
         db.Users.Add(user);
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
