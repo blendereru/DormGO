@@ -2,7 +2,6 @@ using DormGO.Controllers;
 using DormGO.Data;
 using DormGO.DTOs.RequestDTO;
 using DormGO.DTOs.ResponseDTO;
-using DormGO.Models;
 using DormGO.Tests.Helpers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -16,10 +15,7 @@ public class NotificationControllerTests : IAsyncDisposable
     private readonly NotificationController _controller;
     public NotificationControllerTests()
     {
-        var options = new DbContextOptionsBuilder<ApplicationContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options;
-        _db = new ApplicationContext(options);
+        _db = TestDbContextFactory.CreateDbContext();
         _controller = ControllerTestHelper.CreateNotificationController(_db);
     }
 
@@ -40,9 +36,7 @@ public class NotificationControllerTests : IAsyncDisposable
     public async Task GetAllNotifications_ForAuthorizedUser_ReturnsOkResultWithNotificationsResponse()
     {
         // Arrange
-        var testUser = UserHelper.CreateUser();
-        _db.Users.Add(testUser);
-        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var testUser = await DataSeedHelper.SeedUserDataAsync(_db);
         HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
         
         // Act
@@ -63,12 +57,9 @@ public class NotificationControllerTests : IAsyncDisposable
     public async Task GetAllNotifications_WithSeededNotifications_ReturnsOkResultWithNotificationsResponse()
     {
         // Arrange
-        var testUser = UserHelper.CreateUser();
-        var testPost = PostHelper.CreatePost(testUser);
-        await DataSeedHelper.SeedPostNotificationData(_db, testUser, testPost);
-        _db.Users.Add(testUser);
-        _db.Posts.Add(testPost);
-        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var testUser = await DataSeedHelper.SeedUserDataAsync(_db);
+        var testPost = await DataSeedHelper.SeedPostDataAsync(_db, testUser);
+        await DataSeedHelper.SeedPostNotificationData(_db, testUser, testPost, maxCount: 5);
         HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
         
         // Act
@@ -91,7 +82,7 @@ public class NotificationControllerTests : IAsyncDisposable
     public async Task UpdateNotification_ForUnauthorizedUser_ReturnsUnauthorizedResultWithProblemDetails()
     {
         // Arrange
-        var testNotificationId = Guid.NewGuid().ToString();
+        const string testNotificationId = "test_notification_id";
         
         // Act
         var result = await _controller.UpdateNotification(testNotificationId, new NotificationUpdateRequest());
@@ -127,10 +118,8 @@ public class NotificationControllerTests : IAsyncDisposable
     public async Task UpdateNotification_ForNonExistentPost_ReturnsNotFoundResultWithProblemDetails()
     {
         // Arrange
-        var testUser = UserHelper.CreateUser();
-        var testNotificationId = Guid.NewGuid().ToString();
-        _db.Users.Add(testUser);
-        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var testUser = await DataSeedHelper.SeedUserDataAsync(_db);
+        const string testNotificationId = "test_notification_id";
         HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
         
         // Act
@@ -148,20 +137,9 @@ public class NotificationControllerTests : IAsyncDisposable
         UpdateNotification_WhenNotificationMarkingAsReadRequestedWithTheValueAsPrevious_ReturnsBadRequestResultWithProblemDetails()
     {
         // Arrange
-        var testUser = UserHelper.CreateUser();
-        var testPost = PostHelper.CreatePost(testUser);
-        var testPostNotification = new PostNotification
-        {
-            Id = Guid.NewGuid().ToString(),
-            Title = "title",
-            Description = "description",
-            UserId = testUser.Id,
-            PostId = testPost.Id
-        };
-        _db.Users.Add(testUser);
-        _db.Posts.Add(testPost);
-        _db.PostNotifications.Add(testPostNotification);
-        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var testUser = await DataSeedHelper.SeedUserDataAsync(_db);
+        var testPost = await DataSeedHelper.SeedPostDataAsync(_db, testUser);
+        var testPostNotification = await DataSeedHelper.SeedPostNotificationData(_db, testUser, testPost);
         var request = new NotificationUpdateRequest
         {
             IsRead = false
@@ -182,20 +160,9 @@ public class NotificationControllerTests : IAsyncDisposable
     public async Task UpdateNotification_WithValidInputData_ReturnsNoContentResult()
     {
         // Arrange
-        var testUser = UserHelper.CreateUser();
-        var testPost = PostHelper.CreatePost(testUser);
-        var testPostNotification = new PostNotification
-        {
-            Id = Guid.NewGuid().ToString(),
-            Title = "title",
-            Description = "description",
-            UserId = testUser.Id,
-            PostId = testPost.Id
-        };
-        _db.Users.Add(testUser);
-        _db.Posts.Add(testPost);
-        _db.PostNotifications.Add(testPostNotification);
-        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var testUser = await DataSeedHelper.SeedUserDataAsync(_db);
+        var testPost = await DataSeedHelper.SeedPostDataAsync(_db, testUser);
+        var testPostNotification = await DataSeedHelper.SeedPostNotificationData(_db, testUser, testPost);
         var request = new NotificationUpdateRequest
         {
             IsRead = true
@@ -216,7 +183,7 @@ public class NotificationControllerTests : IAsyncDisposable
     public async Task DeleteNotification_ForUnauthorizedUser_ReturnsUnauthorizedResultWithProblemDetails()
     {
         // Arrange
-        var testNotificationId = Guid.NewGuid().ToString();
+        const string testNotificationId = "test_notification_id";
         
         // Act
         var result = await _controller.DeleteNotification(testNotificationId);
@@ -252,10 +219,8 @@ public class NotificationControllerTests : IAsyncDisposable
     public async Task DeleteNotification_ForNonExistentPost_ReturnsNotFoundResultWithProblemDetails()
     {
         // Arrange
-        var testUser = UserHelper.CreateUser();
-        var testNotificationId = Guid.NewGuid().ToString();
-        _db.Users.Add(testUser);
-        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var testUser = await DataSeedHelper.SeedUserDataAsync(_db);
+        const string testNotificationId = "test_notification_id";
         HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
         
         // Act
@@ -272,20 +237,9 @@ public class NotificationControllerTests : IAsyncDisposable
     public async Task DeleteNotification_WithValidInputData_ReturnsNoContentResult()
     {
         // Arrange
-        var testUser = UserHelper.CreateUser();
-        var testPost = PostHelper.CreatePost(testUser);
-        var testPostNotification = new PostNotification
-        {
-            Id = Guid.NewGuid().ToString(),
-            Title = "title",
-            Description = "description",
-            UserId = testUser.Id,
-            PostId = testPost.Id
-        };
-        _db.Users.Add(testUser);
-        _db.Posts.Add(testPost);
-        _db.PostNotifications.Add(testPostNotification);
-        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var testUser = await DataSeedHelper.SeedUserDataAsync(_db);
+        var testPost = await DataSeedHelper.SeedPostDataAsync(_db, testUser);
+        var testPostNotification = await DataSeedHelper.SeedPostNotificationData(_db, testUser, testPost);
         HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
         
         // Act

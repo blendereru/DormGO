@@ -1,5 +1,4 @@
 using DormGO.Controllers;
-using DormGO.Data;
 using DormGO.DTOs.RequestDTO;
 using DormGO.DTOs.ResponseDTO;
 using DormGO.Models;
@@ -7,7 +6,6 @@ using DormGO.Tests.Helpers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Moq;
 
 namespace DormGO.Tests.UnitTests;
@@ -229,19 +227,14 @@ public class ProfileControllerTests
         UpdateMyProfile_WhenRequestCurrentPasswordNotEqualCurrentPassword_ReturnsBadRequestResultWithValidationProblemDetails()
     {
         // Arrange
-        var testUser = UserHelper.CreateUser();
+        await using var db = TestDbContextFactory.CreateDbContext();
+        var testUser = await DataSeedHelper.SeedUserDataAsync(db);
         var request = new UserUpdateRequest
         {
             CurrentPassword = "test_password",
             NewPassword = "new_test_password",
             ConfirmNewPassword = "new_test_password"
         };
-        var options = new DbContextOptionsBuilder<ApplicationContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options;
-        var db = new ApplicationContext(options);
-        db.Users.Add(testUser);
-        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         _userManagerMock
             .Setup(x => x.ChangePasswordAsync(It.IsAny<ApplicationUser>(),
                 It.IsAny<string>(), It.IsAny<string>()))
@@ -268,7 +261,8 @@ public class ProfileControllerTests
     public async Task UpdateMyProfile_WithValidUserNameUpdateRequest_ReturnsNoContentResult()
     {
         // Arrange
-        var testUser = UserHelper.CreateUser();
+        await using var db = TestDbContextFactory.CreateDbContext();
+        var testUser = await DataSeedHelper.SeedUserDataAsync(db);
         var request = new UserUpdateRequest
         {
             NewUserName = "new_user_name"
@@ -277,12 +271,6 @@ public class ProfileControllerTests
             .Setup(x => x.SetUserNameAsync(It.IsAny<ApplicationUser>(), 
                 It.IsAny<string>()))
             .ReturnsAsync(IdentityResult.Success);
-        var options = new DbContextOptionsBuilder<ApplicationContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options;
-        var db = new ApplicationContext(options);
-        db.Users.Add(testUser);
-        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
         
         // Act
@@ -297,7 +285,8 @@ public class ProfileControllerTests
     public async Task UpdateMyProfile_WithValidPasswordUpdateRequest_ReturnsNoContentResult()
     {
         // Arrange
-        var testUser = UserHelper.CreateUser();
+        await using var db = TestDbContextFactory.CreateDbContext();
+        var testUser = await DataSeedHelper.SeedUserDataAsync(db);
         var request = new UserUpdateRequest
         {
             CurrentPassword = "password",
@@ -308,12 +297,6 @@ public class ProfileControllerTests
             .Setup(x => x.ChangePasswordAsync(It.IsAny<ApplicationUser>(),
                 It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(IdentityResult.Success);
-        var options = new DbContextOptionsBuilder<ApplicationContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options;
-        var db = new ApplicationContext(options);
-        db.Users.Add(testUser);
-        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
         
         // Act
@@ -328,7 +311,7 @@ public class ProfileControllerTests
     public async Task GetUserProfile_ForUnauthorizedUser_ReturnsUnauthorizedResultWithProblemDetails()
     {
         // Arrange
-        var testId = Guid.NewGuid().ToString();
+        const string testId = "test_user_id";
         
         // Act
         var result = await _controller.GetUserProfile(testId);
@@ -365,7 +348,7 @@ public class ProfileControllerTests
     {
         // Arrange
         var testUser = UserHelper.CreateUser();
-        var testUserToSearchId = Guid.NewGuid().ToString();
+        const string testUserToSearchId = "test_user_to_search_id";
         HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
         
         // Act
@@ -384,6 +367,7 @@ public class ProfileControllerTests
         // Arrange
         var testUser = UserHelper.CreateUser();
         var testUserToSearch = UserHelper.CreateUser();
+        testUserToSearch.Id = "test_user_to_search_id";
         _userManagerMock.Setup(x => x.FindByIdAsync(It.IsAny<string>()))
             .ReturnsAsync(testUserToSearch);
         HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
