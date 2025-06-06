@@ -2,6 +2,7 @@ using DormGO.Data;
 using DormGO.Models;
 using DormGO.Tests.Helpers;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Moq;
 
@@ -10,9 +11,10 @@ namespace DormGO.Tests.UnitTests;
 public class ChatHubTests : IAsyncDisposable
 {
     private readonly ApplicationContext _db;
+    private readonly SqliteConnection _connection;
     public ChatHubTests()
     {
-        _db = TestDbContextFactory.CreateDbContext();
+        (_db, _connection) = TestDbContextFactory.CreateSqliteDbContext();
     }
     
     [Theory]
@@ -45,7 +47,7 @@ public class ChatHubTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task OnConnectedAsync_ForNonExistentPost_AbortsConnection()
+    public async Task OnConnectedAsync_ForNonExistentUser_AbortsConnection()
     {
         // Arrange
         var userManagerMock = UserManagerMockHelper.GetUserManagerMock<ApplicationUser>();
@@ -60,6 +62,41 @@ public class ChatHubTests : IAsyncDisposable
         Assert.True(context.Aborted);
     }
 
+    [Fact]
+    public async Task OnConnectedAsync_ForUserEmptyPosts_ConnectsUser()
+    {
+        // Arrange
+        var testUser = await DataSeedHelper.SeedUserDataAsync(_db);
+        var userManagerMock = UserManagerMockHelper.GetUserManagerMock<ApplicationUser>();
+        userManagerMock.Setup(x => x.FindByIdAsync(It.IsAny<string>()))
+            .ReturnsAsync(testUser);
+        var groupsMock = new Mock<IGroupManager>();
+        groupsMock.Setup(g => g.AddToGroupAsync(It.IsAny<string>(),
+                It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        var hub = HubTestHelper.CreateChatHub(
+            out var context,
+            _db,
+            userManager: userManagerMock.Object,
+            userId: testUser.Id,
+            groupManager: groupsMock.Object
+        );
+    
+        // Act
+        await hub.OnConnectedAsync();
+    
+        // Assert
+        Assert.False(context.Aborted);
+        var connection = await _db.UserConnections.SingleAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(testUser.Id, connection.UserId);
+        Assert.Equal("127.0.0.1", connection.Ip);
+        Assert.Equal("/api/chathub", connection.Hub);
+        groupsMock.Verify(g => g.AddToGroupAsync(
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+    
     [Fact]
     public async Task OnConnectedAsync_ForValidInputData_ConnectsUser()
     {
@@ -186,6 +223,7 @@ public class ChatHubTests : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         await _db.DisposeAsync();
+        await _connection.DisposeAsync();
         
         GC.SuppressFinalize(this);
     }

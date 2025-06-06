@@ -223,88 +223,120 @@ public class ProfileControllerTests
     }
 
     [Fact]
-    public async Task
-        UpdateMyProfile_WhenRequestCurrentPasswordNotEqualCurrentPassword_ReturnsBadRequestResultWithValidationProblemDetails()
+    public async Task UpdateMyProfile_WhenRequestCurrentPasswordNotEqualCurrentPassword_ReturnsBadRequestResultWithValidationProblemDetails()
     {
         // Arrange
-        await using var db = TestDbContextFactory.CreateDbContext();
-        var testUser = await DataSeedHelper.SeedUserDataAsync(db);
-        var request = new UserUpdateRequest
+        var (db, connection) = TestDbContextFactory.CreateSqliteDbContext();
+
+        try
         {
-            CurrentPassword = "test_password",
-            NewPassword = "new_test_password",
-            ConfirmNewPassword = "new_test_password"
-        };
-        _userManagerMock
-            .Setup(x => x.ChangePasswordAsync(It.IsAny<ApplicationUser>(),
-                It.IsAny<string>(), It.IsAny<string>()))
-            .ReturnsAsync(IdentityResult.Failed(
-                new IdentityError
-                {
-                    Code = "PasswordMismatch",
-                    Description = "Current passwords do not match."
-                }));
-        HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
-        
-        // Act
-        var result = await _controller.UpdateMyProfile(request);
-        
-        // Assert
-        var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
-        Assert.Equal(StatusCodes.Status400BadRequest, badRequestResult.StatusCode);
-        var validationProblemDetails = Assert.IsType<ValidationProblemDetails>(badRequestResult.Value);
-        const string error = "Current passwords do not match.";
-        Assert.Contains(error, validationProblemDetails.Errors.SelectMany(e => e.Value));
+            var testUser = await DataSeedHelper.SeedUserDataAsync(db);
+            var request = new UserUpdateRequest
+            {
+                CurrentPassword = "test_password",
+                NewPassword = "new_test_password",
+                ConfirmNewPassword = "new_test_password"
+            };
+
+            _userManagerMock
+                .Setup(x => x.ChangePasswordAsync(It.IsAny<ApplicationUser>(),
+                    It.IsAny<string>(), It.IsAny<string>()))
+                .ReturnsAsync(IdentityResult.Failed(
+                    new IdentityError
+                    {
+                        Code = "PasswordMismatch",
+                        Description = "Current passwords do not match."
+                    }));
+
+            HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
+
+            // Act
+            var result = await _controller.UpdateMyProfile(request);
+
+            // Assert
+            var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
+            Assert.Equal(StatusCodes.Status400BadRequest, badRequestResult.StatusCode);
+
+            var validationProblemDetails = Assert.IsType<ValidationProblemDetails>(badRequestResult.Value);
+            const string error = "Current passwords do not match.";
+            Assert.Contains(error, validationProblemDetails.Errors.SelectMany(e => e.Value));
+        }
+        finally
+        {
+            // Always dispose even if assertions fail
+            await db.DisposeAsync();
+            await connection.DisposeAsync();
+        }
     }
+
 
     [Fact]
     public async Task UpdateMyProfile_WithValidUserNameUpdateRequest_ReturnsNoContentResult()
     {
         // Arrange
-        await using var db = TestDbContextFactory.CreateDbContext();
-        var testUser = await DataSeedHelper.SeedUserDataAsync(db);
-        var request = new UserUpdateRequest
+        var (db, connection) = TestDbContextFactory.CreateSqliteDbContext();
+
+        try
         {
-            NewUserName = "new_user_name"
-        };
-        _userManagerMock
-            .Setup(x => x.SetUserNameAsync(It.IsAny<ApplicationUser>(), 
-                It.IsAny<string>()))
-            .ReturnsAsync(IdentityResult.Success);
-        HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
-        
-        // Act
-        var result = await _controller.UpdateMyProfile(request);
-        
-        // Assert
-        var noContentResult = Assert.IsType<NoContentResult>(result);
-        Assert.Equal(StatusCodes.Status204NoContent, noContentResult.StatusCode);
+            var testUser = await DataSeedHelper.SeedUserDataAsync(db);
+            var request = new UserUpdateRequest
+            {
+                NewUserName = "new_user_name"
+            };
+
+            _userManagerMock
+                .Setup(x => x.SetUserNameAsync(It.IsAny<ApplicationUser>(), It.IsAny<string>()))
+                .ReturnsAsync(IdentityResult.Success);
+
+            HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
+
+            // Act
+            var result = await _controller.UpdateMyProfile(request);
+
+            // Assert
+            var noContentResult = Assert.IsType<NoContentResult>(result);
+            Assert.Equal(StatusCodes.Status204NoContent, noContentResult.StatusCode);
+        }
+        finally
+        {
+            await db.DisposeAsync();
+            await connection.DisposeAsync();
+        }
     }
 
     [Fact]
     public async Task UpdateMyProfile_WithValidPasswordUpdateRequest_ReturnsNoContentResult()
     {
         // Arrange
-        await using var db = TestDbContextFactory.CreateDbContext();
-        var testUser = await DataSeedHelper.SeedUserDataAsync(db);
-        var request = new UserUpdateRequest
+        var (db, connection) = TestDbContextFactory.CreateSqliteDbContext();
+        try
         {
-            CurrentPassword = "password",
-            NewPassword = "new_password",
-            ConfirmNewPassword = "new_password"
-        };
-        _userManagerMock
-            .Setup(x => x.ChangePasswordAsync(It.IsAny<ApplicationUser>(),
-                It.IsAny<string>(), It.IsAny<string>()))
-            .ReturnsAsync(IdentityResult.Success);
-        HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
-        
-        // Act
-        var result = await _controller.UpdateMyProfile(request);
-        
-        // Assert
-        var noContentResult = Assert.IsType<NoContentResult>(result);
-        Assert.Equal(StatusCodes.Status204NoContent, noContentResult.StatusCode);
+            var testUser = await DataSeedHelper.SeedUserDataAsync(db);
+            var request = new UserUpdateRequest
+            {
+                CurrentPassword = "password",
+                NewPassword = "new_password",
+                ConfirmNewPassword = "new_password"
+            };
+
+            _userManagerMock
+                .Setup(x => x.ChangePasswordAsync(It.IsAny<ApplicationUser>(), It.IsAny<string>(), It.IsAny<string>()))
+                .ReturnsAsync(IdentityResult.Success);
+
+            HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
+
+            // Act
+            var result = await _controller.UpdateMyProfile(request);
+
+            // Assert
+            var noContentResult = Assert.IsType<NoContentResult>(result);
+            Assert.Equal(StatusCodes.Status204NoContent, noContentResult.StatusCode);
+        }
+        finally
+        {
+            await db.DisposeAsync();
+            await connection.DisposeAsync();
+        }
     }
 
     [Fact]

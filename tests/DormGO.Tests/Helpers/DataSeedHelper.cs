@@ -27,12 +27,13 @@ public static class DataSeedHelper
         var users = new List<ApplicationUser>();
         for (var i = 0; i < maxCount; i++)
         {
+            var unique = Guid.NewGuid().ToString("N");
             var user = new ApplicationUser
             {
-                UserName = $"user{i}",
-                Email = $"user{i}@example.com",
-                NormalizedUserName = $"USER{i}",
-                NormalizedEmail = $"USER{i}@EXAMPLE.COM",
+                UserName = $"user_{unique}",
+                Email = $"user_{unique}@example.com",
+                NormalizedUserName = $"USER_{unique.ToUpper()}",
+                NormalizedEmail = $"USER_{unique.ToUpper()}@EXAMPLE.COM",
                 EmailConfirmed = true,
                 SecurityStamp = Guid.NewGuid().ToString("D")
             };

@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Routing;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Moq;
 
@@ -18,9 +19,10 @@ namespace DormGO.Tests.UnitTests;
 public class AccountControllerTests : IAsyncDisposable
 {
     private readonly ApplicationContext _db;
+    private readonly SqliteConnection _connection;
     public AccountControllerTests()
     {
-        _db = TestDbContextFactory.CreateDbContext();
+        (_db, _connection) = TestDbContextFactory.CreateSqliteDbContext();
     }
     
     [Fact]
@@ -470,6 +472,8 @@ public class AccountControllerTests : IAsyncDisposable
             UserName = "blendereru",
             Fingerprint = visitorId
         };
+        _db.Users.Add(currentUser);
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
         var userManagerMock = UserManagerMockHelper.GetUserManagerMock<ApplicationUser>();
         userManagerMock.Setup(x => x.FindByIdAsync(It.IsAny<string>()))
             .ReturnsAsync(currentUser);
@@ -710,14 +714,13 @@ public class AccountControllerTests : IAsyncDisposable
     public async Task RefreshTokens_WithValidCredentials_ReturnsOkResultWithRefreshTokensResponse()
     {
         // Arrange
+        var testUser = await  DataSeedHelper.SeedUserDataAsync(_db);
         var request = new RefreshTokensRequest
         {
             AccessToken = "access_token",
             RefreshToken = "refresh_token",
-            VisitorId = "sample_visitor_id"
+            VisitorId = testUser.Fingerprint
         };
-        var testUser = await DataSeedHelper.SeedUserDataAsync(_db);
-        testUser.Fingerprint = request.VisitorId;
         var testSession = new RefreshSession
         {
             RefreshToken = "refresh_token",
@@ -733,6 +736,10 @@ public class AccountControllerTests : IAsyncDisposable
         var identityMock = new Mock<IIdentity>();
         identityMock.Setup(i => i.Name).Returns(testUser.Email);
         var claimsPrincipalMock = new ClaimsPrincipal(identityMock.Object);
+        tokensProviderMock.Setup(x => x.GenerateAccessToken(It.IsAny<ApplicationUser>()))
+            .Returns("new_access_token");
+        tokensProviderMock.Setup(x => x.GenerateRefreshToken())
+            .Returns("new_refresh_token");
         tokensProviderMock
             .Setup(tp => tp.GetPrincipalFromExpiredTokenAsync(request.AccessToken))
             .ReturnsAsync(claimsPrincipalMock);
@@ -740,6 +747,7 @@ public class AccountControllerTests : IAsyncDisposable
             _db,
             UserManagerMockHelper.GetUserManagerMock<ApplicationUser>().Object,
             tokensProvider: tokensProviderMock.Object);
+        
         
         // Act
         var result = await controller.RefreshTokens(request);
@@ -755,6 +763,7 @@ public class AccountControllerTests : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         await _db.DisposeAsync();
+        await _connection.DisposeAsync();
         
         GC.SuppressFinalize(this);
     }

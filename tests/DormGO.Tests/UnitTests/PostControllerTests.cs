@@ -6,6 +6,7 @@ using DormGO.DTOs.ResponseDTO;
 using DormGO.Tests.Helpers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
 namespace DormGO.Tests.UnitTests;
@@ -13,10 +14,11 @@ namespace DormGO.Tests.UnitTests;
 public class PostControllerTests : IAsyncDisposable
 {
     private readonly ApplicationContext _db;
+    private readonly SqliteConnection _connection;
     private readonly PostController _controller;
     public PostControllerTests()
     {
-        _db = TestDbContextFactory.CreateDbContext();
+        (_db, _connection) = TestDbContextFactory.CreateSqliteDbContext();
         _controller = ControllerTestHelper.CreatePostController(_db);
     }
     
@@ -271,13 +273,12 @@ public class PostControllerTests : IAsyncDisposable
     }
     
     [Fact] 
-    public async Task JoinPost_WhenPostIsFull_ReturnsConflictResultWithProblemDetails() 
+    public async Task JoinPost_WhenPostIsFull_ReturnsConflictResultWithProblemDetails()
     {
-        var testPostCreator = UserHelper.CreateUser();
-        var testUser = UserHelper.CreateUser();
-        var testMember = UserHelper.CreateUser();
-        testUser.Id = "another_test_user_id";
-        testMember.Id = "member_another_user_id";
+        var users = await DataSeedHelper.SeedUserDataAsync(_db, maxCount: 3);
+        var testPostCreator = users[0];
+        var testUser = users[1];
+        var testMember = users[2];
         var testPost = PostHelper.CreatePost(testPostCreator);
         testPost.MaxPeople = 1;
         testPost.Members.Add(testMember);
@@ -299,9 +300,9 @@ public class PostControllerTests : IAsyncDisposable
     public async Task JoinPost_WhenPostExists_ReturnsNoContentResult()
     {
         // Arrange
-        var testPostCreator = UserHelper.CreateUser();
-        var testUser = UserHelper.CreateUser();
-        testUser.Id = "another_test_user_id";
+        var users = await DataSeedHelper.SeedUserDataAsync(_db, maxCount: 2);
+        var testPostCreator = users[0];
+        var testUser = users[1];
         var testPost = await DataSeedHelper.SeedPostDataAsync(_db, testPostCreator);
         HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
         
@@ -400,8 +401,9 @@ public class PostControllerTests : IAsyncDisposable
     public async Task TransferPostOwnership_WhenPostExists_ReturnsNoContentResult()
     {
         // Arrange
-        var testPostCreator = UserHelper.CreateUser();
-        var testUser = UserHelper.CreateUser();
+        var users = await DataSeedHelper.SeedUserDataAsync(_db, maxCount: 2);
+        var testPostCreator = users[0];
+        var testUser = users[1];
         var testPost = PostHelper.CreatePost(testPostCreator);
         testPost.Members.Add(testUser);
         _db.Posts.Add(testPost);
@@ -585,11 +587,10 @@ public class PostControllerTests : IAsyncDisposable
     public async Task LeavePost_WhenUserNotOwnerAndNotMember_ReturnsNotFoundResultWithProblemDetails()
     {
         // Arrange
-        var testCreator = UserHelper.CreateUser();
+        var testCreator = await DataSeedHelper.SeedUserDataAsync(_db);
         var currentTestUser = UserHelper.CreateUser();
         currentTestUser.Id = "another_test_user_id";
         var testPost = await DataSeedHelper.SeedPostDataAsync(_db, testCreator);
-        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
         HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, currentTestUser);
         
         // Act
@@ -606,7 +607,7 @@ public class PostControllerTests : IAsyncDisposable
     public async Task LeavePost_WhenUserOwnerAndNoMembersLeft_RemovesPostAndReturnsNoContentResult()
     {
         // Arrange
-        var testUser = UserHelper.CreateUser();
+        var testUser = await DataSeedHelper.SeedUserDataAsync(_db);
         var testPost = await DataSeedHelper.SeedPostDataAsync(_db, testUser);
         HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
         
@@ -624,9 +625,9 @@ public class PostControllerTests : IAsyncDisposable
     public async Task LeavePost_WhenUserOwner_LeavesHimselfAndMakesCreatorAnotherMemberAndReturnsNoContentResult()
     {
         // Arrange
-        var testCreator = UserHelper.CreateUser();
-        var currentTestUser = UserHelper.CreateUser();
-        currentTestUser.Id = "another_test_user_id";
+        var users = await DataSeedHelper.SeedUserDataAsync(_db, maxCount: 2);
+        var testCreator = users[0];
+        var currentTestUser = users[1];
         var testPost = PostHelper.CreatePost(testCreator);
         testPost.Members.Add(currentTestUser);
         _db.Posts.Add(testPost);
@@ -648,9 +649,9 @@ public class PostControllerTests : IAsyncDisposable
     public async Task LeavePost_WhenUserMember_LeavesPostAndReturnsNoContentResult()
     {
         // Arrange
-        var testCreator = UserHelper.CreateUser();
-        var currentTestUser = UserHelper.CreateUser();
-        currentTestUser.Id = "another_test_user_id";
+        var users = await DataSeedHelper.SeedUserDataAsync(_db, maxCount: 2);
+        var testCreator = users[0];
+        var currentTestUser = users[1];
         var testPost = PostHelper.CreatePost(testCreator);
         testPost.Members.Add(currentTestUser);
         _db.Posts.Add(testPost);
@@ -672,7 +673,7 @@ public class PostControllerTests : IAsyncDisposable
     public async Task DeletePost_ForUnauthorizedUser_ReturnsUnauthorizedResultWithProblemDetails()
     {
         // Arrange
-        var testId = Guid.NewGuid().ToString();
+        const string testId = "test_post_id";
         
         // Act
         var result = await _controller.DeletePost(testId);
@@ -724,15 +725,14 @@ public class PostControllerTests : IAsyncDisposable
     public async Task DeletePost_WhenUserNotCreator_ReturnsForbiddenResultWithProblemDetails()
     {
         // Arrange
-        var testUser = UserHelper.CreateUser();
-        testUser.Id = "another_test_user_id";
-        var testCreator = UserHelper.CreateUser();
+        var users = await DataSeedHelper.SeedUserDataAsync(_db, maxCount: 2);
+        var testCreator = users[0];
+        var currentTestUser = users[1];
         var testPost = PostHelper.CreatePost(testCreator);
-        testPost.Members.Add(testUser);     
-        _db.Users.AddRange(testUser, testCreator);
+        testPost.Members.Add(currentTestUser);     
         _db.Posts.Add(testPost);
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
-        HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
+        HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, currentTestUser);
         
         // Act
         var result = await _controller.DeletePost(testPost.Id);
@@ -748,7 +748,7 @@ public class PostControllerTests : IAsyncDisposable
     public async Task DeletePost_WhenUserCreator_RemovesPostAndReturnsNoContentResult()
     {
         // Assert
-        var testUser = UserHelper.CreateUser();
+        var testUser = await DataSeedHelper.SeedUserDataAsync(_db);
         var testPost = await DataSeedHelper.SeedPostDataAsync(_db, testUser);
         HttpContextItemsHelper.SetHttpContextItems(_controller.HttpContext, testUser);
         
@@ -765,6 +765,7 @@ public class PostControllerTests : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         await _db.DisposeAsync();
+        await _connection.DisposeAsync();
         
         GC.SuppressFinalize(this);
     }

@@ -5,16 +5,18 @@ using DormGO.DTOs.ResponseDTO;
 using DormGO.Tests.Helpers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 namespace DormGO.Tests.UnitTests;
 
 public class ChatControllerTests : IAsyncDisposable
 {
     private readonly ApplicationContext _db;
+    private readonly SqliteConnection _connection;
     private readonly ChatController _controller;
     public ChatControllerTests()
     {
-        _db = TestDbContextFactory.CreateDbContext();
+        (_db, _connection) = TestDbContextFactory.CreateSqliteDbContext();
         _controller = ControllerTestHelper.CreateChatController(_db);
     }
     [Fact]
@@ -148,7 +150,7 @@ public class ChatControllerTests : IAsyncDisposable
     public async Task AddMessageToPost_ForValidInputData_ReturnsCreatedResultWithMessageResponse()
     {
         // Arrange
-        var testUser = UserHelper.CreateUser();
+        var testUser = await DataSeedHelper.SeedUserDataAsync(_db);
         var testPost = await DataSeedHelper.SeedPostDataAsync(_db, testUser);
         var request = new MessageCreateRequest
         {
@@ -529,6 +531,7 @@ public class ChatControllerTests : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         await _db.DisposeAsync();
+        await _connection.DisposeAsync();
         
         GC.SuppressFinalize(this);
     }

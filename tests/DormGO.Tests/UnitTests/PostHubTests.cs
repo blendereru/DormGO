@@ -2,6 +2,7 @@ using DormGO.Data;
 using DormGO.Models;
 using DormGO.Tests.Helpers;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Moq;
 
@@ -10,9 +11,10 @@ namespace DormGO.Tests.UnitTests;
 public class PostHubTests : IAsyncDisposable
 {
     private readonly ApplicationContext _db;
+    private readonly SqliteConnection _connection;
     public PostHubTests()
     {
-        _db = TestDbContextFactory.CreateDbContext();
+        (_db, _connection) = TestDbContextFactory.CreateSqliteDbContext();
     }
     
     [Fact]
@@ -136,6 +138,7 @@ public class PostHubTests : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         await _db.DisposeAsync();
+        await _connection.DisposeAsync();
         
         GC.SuppressFinalize(this);
     }

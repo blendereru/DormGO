@@ -5,6 +5,7 @@ using DormGO.DTOs.ResponseDTO;
 using DormGO.Tests.Helpers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
 namespace DormGO.Tests.UnitTests;
@@ -12,10 +13,11 @@ namespace DormGO.Tests.UnitTests;
 public class NotificationControllerTests : IAsyncDisposable
 {
     private readonly ApplicationContext _db;
+    private readonly SqliteConnection _connection;
     private readonly NotificationController _controller;
     public NotificationControllerTests()
     {
-        _db = TestDbContextFactory.CreateDbContext();
+        (_db, _connection) = TestDbContextFactory.CreateSqliteDbContext();
         _controller = ControllerTestHelper.CreateNotificationController(_db);
     }
 
@@ -255,6 +257,7 @@ public class NotificationControllerTests : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         await _db.DisposeAsync();
+        await _connection.DisposeAsync();
         
         GC.SuppressFinalize(this);
     }

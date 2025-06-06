@@ -33,10 +33,6 @@ public static class ControllerTestHelper
         tokensProvider ??= Mock.Of<ITokensProvider>();
         sanitizer ??= Mock.Of<IInputSanitizer>();
         hubNotifier ??= Mock.Of<IUserHubNotificationService>();
-        if (db == null)
-        {
-            db = TestDbContextFactory.CreateDbContext();
-        } 
         var controller = new AccountController(
             userManager,
             db,

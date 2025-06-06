@@ -1,6 +1,7 @@
 using DormGO.Data;
 using DormGO.Models;
 using DormGO.Tests.Helpers;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Moq;
 
@@ -9,9 +10,10 @@ namespace DormGO.Tests.UnitTests;
 public class UserHubTests : IAsyncDisposable
 {
     private readonly ApplicationContext _db;
+    private readonly SqliteConnection _connection;
     public UserHubTests()
     {
-        _db = TestDbContextFactory.CreateDbContext();
+        (_db, _connection) = TestDbContextFactory.CreateSqliteDbContext();
     }
     
     [Theory]
@@ -89,11 +91,11 @@ public class UserHubTests : IAsyncDisposable
     public async Task OnDisconnectedAsync_WithValidInputData_RemovesConnectionFromDatabase()
     {
         // Arrange
-        const string userId = "test_user_id";
+        var testUser = await DataSeedHelper.SeedUserDataAsync(_db);
         var connection = new UserConnection
         {
             ConnectionId = "disconnect-conn-id",
-            UserId = userId,
+            UserId = testUser.Id,
             Ip = "127.0.0.1",
             ConnectedAt = DateTime.UtcNow,
             Hub = "/api/userhub"
@@ -114,6 +116,7 @@ public class UserHubTests : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         await _db.DisposeAsync();
+        await _connection.DisposeAsync();
         
         GC.SuppressFinalize(this);
     }
