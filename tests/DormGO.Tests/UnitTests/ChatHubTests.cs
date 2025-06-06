@@ -7,8 +7,14 @@ using Moq;
 
 namespace DormGO.Tests.UnitTests;
 
-public class ChatHubTests
+public class ChatHubTests : IAsyncDisposable
 {
+    private readonly ApplicationContext _db;
+    public ChatHubTests()
+    {
+        _db = TestDbContextFactory.CreateDbContext();
+    }
+    
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -16,7 +22,7 @@ public class ChatHubTests
     public async Task OnConnectedAsync_WhenUserIdIsNullOrWhiteSpace_AbortsConnection(string? testUserId)
     {
         // Arrange
-        var hub = HubTestHelper.CreateChatHub(out var context, userId: testUserId);
+        var hub = HubTestHelper.CreateChatHub(out var context, _db, userId: testUserId);
 
         // Act
         await hub.OnConnectedAsync();
@@ -29,7 +35,7 @@ public class ChatHubTests
     public async Task OnConnectedAsync_WhenIpAddressNull_AbortsConnection()
     {
         // Arrange
-        var hub = HubTestHelper.CreateChatHub(out var context, ipAddress: null);
+        var hub = HubTestHelper.CreateChatHub(out var context, _db, ipAddress: null);
         
         // Act
         await hub.OnConnectedAsync();
@@ -45,7 +51,7 @@ public class ChatHubTests
         var userManagerMock = UserManagerMockHelper.GetUserManagerMock<ApplicationUser>();
         userManagerMock.Setup(x => x.FindByIdAsync(It.IsAny<string>()))
             .ReturnsAsync((ApplicationUser?)null);
-        var hub = HubTestHelper.CreateChatHub(out var context, userManagerMock.Object);
+        var hub = HubTestHelper.CreateChatHub(out var context, _db, userManagerMock.Object);
         
         // Act
         await hub.OnConnectedAsync();
@@ -58,26 +64,19 @@ public class ChatHubTests
     public async Task OnConnectedAsync_ForValidInputData_ConnectsUser()
     {
         // Arrange
-        var testUser = UserHelper.CreateUser();
+        var testUser = await DataSeedHelper.SeedUserDataAsync(_db);
+        var testPost = await DataSeedHelper.SeedPostDataAsync(_db, testUser);
         var userManagerMock = UserManagerMockHelper.GetUserManagerMock<ApplicationUser>();
         userManagerMock.Setup(x => x.FindByIdAsync(It.IsAny<string>()))
                        .ReturnsAsync(testUser);
         var groupsMock = new Mock<IGroupManager>();
-        groupsMock.Setup(g => g.AddToGroupAsync(It.IsAny<string>(), It.IsAny<string>(),
-                It.IsAny<CancellationToken>()))
+        groupsMock.Setup(g => g.AddToGroupAsync(It.IsAny<string>(),
+                It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
-        var dbOptions = new DbContextOptionsBuilder<ApplicationContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options;
-        await using var db = new ApplicationContext(dbOptions);
-        var testPost = PostHelper.CreatePost(testUser);
-        db.Users.Add(testUser);
-        db.Posts.Add(testPost);
-        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         var hub = HubTestHelper.CreateChatHub(
             out var context,
+            _db,
             userManager: userManagerMock.Object,
-            db: db,
             userId: testUser.Id,
             groupManager: groupsMock.Object
         );
@@ -87,7 +86,7 @@ public class ChatHubTests
 
         // Assert
         Assert.False(context.Aborted);
-        var connection = await db.UserConnections.SingleAsync(TestContext.Current.CancellationToken);
+        var connection = await _db.UserConnections.SingleAsync(TestContext.Current.CancellationToken);
         Assert.Equal(testUser.Id, connection.UserId);
         Assert.Equal("127.0.0.1", connection.Ip);
         Assert.Equal("/api/chathub", connection.Hub);
@@ -101,23 +100,16 @@ public class ChatHubTests
     public async Task OnDisconnectedAsync_ForValidUserId_RemovesUserFromGroup()
     {
         // Arrange
-        var testUser = UserHelper.CreateUser();
-        var testPost = PostHelper.CreatePost(testUser);
-        var dbOptions = new DbContextOptionsBuilder<ApplicationContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options;
-        await using var db = new ApplicationContext(dbOptions);
-        db.Users.Add(testUser);
-        db.Posts.Add(testPost);
-        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var testUser = await DataSeedHelper.SeedUserDataAsync(_db);
+        var testPost = await DataSeedHelper.SeedPostDataAsync(_db, testUser);
         var groupsMock = new Mock<IGroupManager>();
         groupsMock.Setup(x => x.RemoveFromGroupAsync(It.IsAny<string>(),
             It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
         var hub = HubTestHelper.CreateChatHub(out var context,
+            _db,
             userId: testUser.Id,
-            groupManager: groupsMock.Object,
-            db: db);
+            groupManager: groupsMock.Object);
         
         // Act
         await hub.OnDisconnectedAsync(null);
@@ -135,7 +127,7 @@ public class ChatHubTests
     {
         // Arrange
         var groupsMock = new Mock<IGroupManager>();
-        var hub = HubTestHelper.CreateChatHub(out _, userId: null, groupManager: groupsMock.Object);
+        var hub = HubTestHelper.CreateChatHub(out _, _db, userId: null, groupManager: groupsMock.Object);
 
         // Act
         var exception = await Record.ExceptionAsync(() => hub.OnDisconnectedAsync(null));
@@ -149,17 +141,11 @@ public class ChatHubTests
     public async Task OnDisconnectedAsync_UserWithNoPosts_DoesNotRemoveFromGroups()
     {
         // Arrange
-        var testUser = UserHelper.CreateUser();
-        var dbOptions = new DbContextOptionsBuilder<ApplicationContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
-        await using var db = new ApplicationContext(dbOptions);
-        db.Users.Add(testUser);
-        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
-
+        var testUser = await DataSeedHelper.SeedUserDataAsync(_db);
         var groupsMock = new Mock<IGroupManager>();
-        var hub = HubTestHelper.CreateChatHub(out _, userId: testUser.Id,
-            groupManager: groupsMock.Object,
-            db: db);
+        var hub = HubTestHelper.CreateChatHub(out _, _db, 
+            userId: testUser.Id,
+            groupManager: groupsMock.Object);
 
         // Act
         await hub.OnDisconnectedAsync(null);
@@ -173,11 +159,7 @@ public class ChatHubTests
     public async Task OnDisconnectedAsync_WithValidInputData_RemovesUserConnectionFromDatabase()
     {
         // Arrange
-        var testUser = UserHelper.CreateUser();
-        var dbOptions = new DbContextOptionsBuilder<ApplicationContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
-        await using var db = new ApplicationContext(dbOptions);
-        db.Users.Add(testUser);
+        var testUser = await DataSeedHelper.SeedUserDataAsync(_db);
         var testUserConnection = new UserConnection
         {
             ConnectionId = "test-connection",
@@ -186,20 +168,25 @@ public class ChatHubTests
             ConnectedAt = DateTime.UtcNow,
             Hub = "/api/chathub"
         };
-        db.UserConnections.Add(testUserConnection);
-        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         var groupsMock = new Mock<IGroupManager>();
-        var hub = HubTestHelper.CreateChatHub(out _, 
+        var hub = HubTestHelper.CreateChatHub(out _,
+            _db,
             connectionId: testUserConnection.ConnectionId,
             userId: testUser.Id,
-            groupManager: groupsMock.Object, 
-            db: db);
+            groupManager: groupsMock.Object);
         
         // Act
         await hub.OnDisconnectedAsync(null);
 
         // Assert
-        var removedRecord = await db.UserConnections.SingleOrDefaultAsync(TestContext.Current.CancellationToken);
+        var removedRecord = await _db.UserConnections.SingleOrDefaultAsync(TestContext.Current.CancellationToken);
         Assert.Null(removedRecord);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await _db.DisposeAsync();
+        
+        GC.SuppressFinalize(this);
     }
 }

@@ -7,14 +7,21 @@ using Moq;
 
 namespace DormGO.Tests.UnitTests;
 
-public class PostHubTests
+public class PostHubTests : IAsyncDisposable
 {
+    private readonly ApplicationContext _db;
+    public PostHubTests()
+    {
+        _db = TestDbContextFactory.CreateDbContext();
+    }
+    
     [Fact]
     public async Task OnConnectedAsync_MissingUserId_AbortsConnection()
     {
         // Arrange
         var userManagerMock = UserManagerMockHelper.GetUserManagerMock<ApplicationUser>();
-        var hub = HubTestHelper.CreatePostHub(out var context, userManager: userManagerMock.Object, userId: string.Empty);
+        var hub = HubTestHelper.CreatePostHub(out var context, _db,
+            userManager: userManagerMock.Object, userId: string.Empty);
 
         // Act
         await hub.OnConnectedAsync();
@@ -31,7 +38,8 @@ public class PostHubTests
         var userManagerMock = UserManagerMockHelper.GetUserManagerMock<ApplicationUser>();
         userManagerMock.Setup(m => m.FindByIdAsync(testUser.Id)).ReturnsAsync(testUser);
 
-        var hub = HubTestHelper.CreatePostHub(out var context, userManager: userManagerMock.Object, userId: testUser.Id, ipAddress: null);
+        var hub = HubTestHelper.CreatePostHub(out var context, _db, 
+            userManager: userManagerMock.Object, userId: testUser.Id, ipAddress: null);
 
         // Act
         await hub.OnConnectedAsync();
@@ -47,7 +55,7 @@ public class PostHubTests
         var userManagerMock = UserManagerMockHelper.GetUserManagerMock<ApplicationUser>();
         userManagerMock.Setup(m => m.FindByIdAsync(It.IsAny<string>())).ReturnsAsync((ApplicationUser)null!);
 
-        var hub = HubTestHelper.CreatePostHub(out var context, userManager: userManagerMock.Object);
+        var hub = HubTestHelper.CreatePostHub(out var context, _db, userManager: userManagerMock.Object);
 
         // Act
         await hub.OnConnectedAsync();
@@ -60,26 +68,19 @@ public class PostHubTests
     public async Task OnConnectedAsync_WithValidUser_ConnectsSuccessfully()
     {
         // Arrange
-        var testUser = UserHelper.CreateUser();
+        var testUser = await DataSeedHelper.SeedUserDataAsync(_db);
         var userManagerMock = UserManagerMockHelper.GetUserManagerMock<ApplicationUser>();
         userManagerMock.Setup(m => m.FindByIdAsync(testUser.Id)).ReturnsAsync(testUser);
 
-        var dbOptions = new DbContextOptionsBuilder<ApplicationContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options;
-        await using var db = new ApplicationContext(dbOptions);
-        db.Users.Add(testUser);
-        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
-
         var groupsMock = new Mock<IGroupManager>();
-        var hub = HubTestHelper.CreatePostHub(out var context, userManager: userManagerMock.Object, db: db,
+        var hub = HubTestHelper.CreatePostHub(out var context, _db, userManager: userManagerMock.Object,
             userId: testUser.Id, groupManager: groupsMock.Object);
 
         // Act
         await hub.OnConnectedAsync();
 
         // Assert
-        var connection = await db.UserConnections.SingleOrDefaultAsync(TestContext.Current.CancellationToken);
+        var connection = await _db.UserConnections.SingleOrDefaultAsync(TestContext.Current.CancellationToken);
         Assert.NotNull(connection);
         Assert.Equal(testUser.Id, connection.UserId);
         groupsMock.Verify(g => g.AddToGroupAsync(context.ConnectionId, testUser.Id, It.IsAny<CancellationToken>()), Times.Once);
@@ -89,15 +90,9 @@ public class PostHubTests
     public async Task OnDisconnectedAsync_ConnectionNotFound_LogsWarning()
     {
         // Arrange
-        var testUser = UserHelper.CreateUser();
-        var dbOptions = new DbContextOptionsBuilder<ApplicationContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options;
-        await using var db = new ApplicationContext(dbOptions);
-        db.Users.Add(testUser);
-        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var testUser = await DataSeedHelper.SeedUserDataAsync(_db);
         var groupsMock = new Mock<IGroupManager>();
-        var hub = HubTestHelper.CreatePostHub(out _, db: db, userId: testUser.Id,
+        var hub = HubTestHelper.CreatePostHub(out _, _db, userId: testUser.Id,
             groupManager: groupsMock.Object, connectionId: "conn-unknown");
 
         // Act
@@ -111,7 +106,7 @@ public class PostHubTests
     public async Task OnDisconnectedAsync_WithValidConnection_RemovesConnection()
     {
         // Arrange
-        var testUser = UserHelper.CreateUser();
+        var testUser = await DataSeedHelper.SeedUserDataAsync(_db);
         var connection = new UserConnection
         {
             ConnectionId = "conn-1",
@@ -122,24 +117,26 @@ public class PostHubTests
         };
 
         var userManagerMock = UserManagerMockHelper.GetUserManagerMock<ApplicationUser>();
-        var dbOptions = new DbContextOptionsBuilder<ApplicationContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options;
-        await using var db = new ApplicationContext(dbOptions);
-        db.Users.Add(testUser);
-        db.UserConnections.Add(connection);
-        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        _db.UserConnections.Add(connection);
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var groupsMock = new Mock<IGroupManager>();
-        var hub = HubTestHelper.CreatePostHub(out _, userManager: userManagerMock.Object,
-            db: db, userId: testUser.Id, groupManager: groupsMock.Object, connectionId: "conn-1");
+        var hub = HubTestHelper.CreatePostHub(out _, _db, userManager: userManagerMock.Object,
+            userId: testUser.Id, groupManager: groupsMock.Object, connectionId: "conn-1");
 
         // Act
         await hub.OnDisconnectedAsync(null);
 
         // Assert
-        Assert.Empty(db.UserConnections);
+        Assert.Empty(_db.UserConnections);
         groupsMock.Verify(g => g.RemoveFromGroupAsync("conn-1", testUser.Id,
             It.IsAny<CancellationToken>()), Times.Once);
+    }
+    
+    public async ValueTask DisposeAsync()
+    {
+        await _db.DisposeAsync();
+        
+        GC.SuppressFinalize(this);
     }
 }

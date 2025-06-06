@@ -6,8 +6,14 @@ using Moq;
 
 namespace DormGO.Tests.UnitTests;
 
-public class UserHubTests
+public class UserHubTests : IAsyncDisposable
 {
+    private readonly ApplicationContext _db;
+    public UserHubTests()
+    {
+        _db = TestDbContextFactory.CreateDbContext();
+    }
+    
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -15,7 +21,7 @@ public class UserHubTests
     public async Task OnConnectedAsync_MissingUserEmail_AbortsConnection(string? testEmail)
     {
         // Arrange
-        var hub = HubTestHelper.CreateUserHub(out var context, userEmail: testEmail);
+        var hub = HubTestHelper.CreateUserHub(out var context, _db, userEmail: testEmail);
 
         // Act
         await hub.OnConnectedAsync();
@@ -28,7 +34,7 @@ public class UserHubTests
     public async Task OnConnectedAsync_MissingIp_AbortsConnection()
     {
         // Arrange
-        var hub = HubTestHelper.CreateUserHub(out var context, ipAddress: null);
+        var hub = HubTestHelper.CreateUserHub(out var context, _db, ipAddress: null);
         
         // Act
         await hub.OnConnectedAsync();
@@ -46,6 +52,7 @@ public class UserHubTests
             .ReturnsAsync((ApplicationUser?)null);
 
         var hub = HubTestHelper.CreateUserHub(out var context,
+            _db,
             userEmail: "invalid@example.com",
             userManager: userManager.Object);
 
@@ -60,27 +67,21 @@ public class UserHubTests
     public async Task OnConnectedAsync_ValidInputData_SavedUserConnectionToDb()
     {
         // Arrange
-        var testUser = UserHelper.CreateUser();
+        var testUser = await DataSeedHelper.SeedUserDataAsync(_db);
         var userManager = UserManagerMockHelper.GetUserManagerMock<ApplicationUser>();
         userManager.Setup(x => x.FindByEmailAsync(It.IsAny<string>()))
             .ReturnsAsync(testUser);
-        var dbOptions = new DbContextOptionsBuilder<ApplicationContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options;
-        await using var db = new ApplicationContext(dbOptions);
-        db.Users.Add(testUser);
-        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         var hub = HubTestHelper.CreateUserHub(out var context, 
+            _db,
             userEmail: testUser.Email,
-            userManager: userManager.Object,
-            db: db);
+            userManager: userManager.Object);
         
         // Act
         await hub.OnConnectedAsync();
         
         // Assert
         Assert.False(context.Aborted);
-        var addedRecord = await db.UserConnections.SingleAsync(TestContext.Current.CancellationToken);
+        var addedRecord = await _db.UserConnections.SingleAsync(TestContext.Current.CancellationToken);
         Assert.Equal(addedRecord.UserId, testUser.Id);
     }
     
@@ -88,11 +89,7 @@ public class UserHubTests
     public async Task OnDisconnectedAsync_WithValidInputData_RemovesConnectionFromDatabase()
     {
         // Arrange
-        var userId = Guid.NewGuid().ToString();
-        var dbOptions = new DbContextOptionsBuilder<ApplicationContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options;
-        await using var db = new ApplicationContext(dbOptions);
+        const string userId = "test_user_id";
         var connection = new UserConnection
         {
             ConnectionId = "disconnect-conn-id",
@@ -101,17 +98,23 @@ public class UserHubTests
             ConnectedAt = DateTime.UtcNow,
             Hub = "/api/userhub"
         };
-        db.UserConnections.Add(connection);
-        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        _db.UserConnections.Add(connection);
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var hub = HubTestHelper.CreateUserHub(out _, connectionId: connection.ConnectionId, db: db);
+        var hub = HubTestHelper.CreateUserHub(out _, _db, connectionId: connection.ConnectionId);
 
         // Act
         await hub.OnDisconnectedAsync(null);
 
         // Assert
-        var remaining = await db.UserConnections.SingleOrDefaultAsync(TestContext.Current.CancellationToken);
+        var remaining = await _db.UserConnections.SingleOrDefaultAsync(TestContext.Current.CancellationToken);
         Assert.Null(remaining);
     }
-
+    
+    public async ValueTask DisposeAsync()
+    {
+        await _db.DisposeAsync();
+        
+        GC.SuppressFinalize(this);
+    }
 }
