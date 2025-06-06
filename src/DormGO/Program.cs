@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using System.Text.Json.Serialization;
 using DormGO.Constants;
 using DormGO.Data;
@@ -22,7 +21,10 @@ builder.Services.AddControllersWithViews().AddJsonOptions(opts =>
 {
     opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
-builder.Services.AddIdentityCore<ApplicationUser>()
+builder.Services.AddIdentityCore<ApplicationUser>(opts =>
+    {
+        opts.User.RequireUniqueEmail = true;
+    })
     .AddEntityFrameworkStores<ApplicationContext>()
     .AddDefaultTokenProviders();
 builder.Host.UseSerilog((context, loggerConfig) =>
@@ -88,7 +90,7 @@ builder.Services.AddProblemDetails(options =>
 builder.Services.AddSignalR();
 builder.Services.AddMapster();
 MapsterConfig.Configure();
-builder.Services.AddSingleton<IEmailSender<ApplicationUser>, EmailSender>();
+builder.Services.AddScoped<IEmailSender<ApplicationUser>, EmailSender>();
 builder.Services.AddSingleton<IInputSanitizer, InputSanitizer>();
 builder.Services.AddScoped<IUserHubNotificationService, UserHubNotificationService>();
 builder.Services.AddScoped<IPostHubNotificationService, PostHubNotificationService>();
@@ -96,6 +98,7 @@ builder.Services.AddScoped<IChatHubNotificationService, ChatHubNotificationServi
 builder.Services.AddScoped<ValidateUserEmailFilter>();
 builder.Services.AddScoped(typeof(INotificationHubNotificationService<>), typeof(NotificationHubNotificationService<>));
 builder.Services.AddScoped<ITokensProvider, TokensProvider>();
+builder.Services.AddScoped<IRazorViewToStringRenderer, RazorViewToStringRenderer>();
 var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {

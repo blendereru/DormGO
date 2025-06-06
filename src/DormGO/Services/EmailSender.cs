@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Mail;
 using System.Text.Encodings.Web;
 using DormGO.Models;
+using DormGO.ViewModels;
 using Microsoft.AspNetCore.Identity;
 
 namespace DormGO.Services;
@@ -9,11 +10,13 @@ namespace DormGO.Services;
 public class EmailSender : IEmailSender<ApplicationUser>
 {
     private readonly IConfiguration _conf;
+    private readonly IRazorViewToStringRenderer _viewRenderer;
     private readonly ILogger<EmailSender> _logger;
 
-    public EmailSender(IConfiguration conf, ILogger<EmailSender> logger)
+    public EmailSender(IConfiguration conf, IRazorViewToStringRenderer viewRenderer, ILogger<EmailSender> logger)
     {
         _conf = conf;
+        _viewRenderer = viewRenderer;
         _logger = logger;
     }
     private async Task SendEmailAsync(string to, string subject, string body, bool isBodyHtml = false)
@@ -33,7 +36,12 @@ public class EmailSender : IEmailSender<ApplicationUser>
     public async Task SendConfirmationLinkAsync(ApplicationUser user, string email, string confirmationLink)
     {
         const string subject = "Confirm your email";
-        var body = $"Please confirm your email by <a href='{HtmlEncoder.Default.Encode(confirmationLink)}'>clicking here</a>.";
+        var model = new ConfirmEmailModel
+        {
+            UserName = user.UserName!,
+            ConfirmationLink = confirmationLink,
+        };
+        var body = await _viewRenderer.RenderViewToStringAsync("/Views/Emails/ConfirmEmail.cshtml", model);
         await SendEmailAsync(email, subject, body, isBodyHtml: true);
         _logger.LogInformation("Email confirmation link sent to user. UserId: {UserId}", user.Id);
     }

@@ -307,7 +307,13 @@ public class AccountController : ControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [HttpGet("email/confirm")]
-    public async Task<IActionResult> ConfirmEmail([Description("User's id to validate")] string userId, [Description("Token using which the link signature is validated")] string token, [Description("User's fingerprint(device id)")] string visitorId)
+    public async Task<IActionResult> ConfirmEmail(
+    [Description("User's id to validate")]
+    [FromQuery] string userId,
+    [Description("Token using which the link signature is validated")]
+    [FromQuery] string token,
+    [Description("User's fingerprint(device id)")]
+    [FromQuery] string visitorId)
     {
         var sanitizedUserId = _inputSanitizer.Sanitize(userId);
         if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(token) || string.IsNullOrEmpty(visitorId))
