@@ -124,4 +124,4 @@ app.MapHub<PostHub>("/api/posthub");
 app.MapHub<ChatHub>("/api/chathub");
 app.MapHub<NotificationHub>("/api/notificationhub");
 app.Run();
-public partial class Program {}
+public partial class Program { }
