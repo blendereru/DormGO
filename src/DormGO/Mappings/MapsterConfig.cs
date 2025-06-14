@@ -73,5 +73,11 @@ public static class MapsterConfig
             .Map(dest => dest.Email, src => src.Email)
             .Map(dest => dest.Username, src => src.UserName)
             .Map(dest => dest.RegisteredAt, src => src.RegistrationDate);
+        TypeAdapterConfig<Post, PostCreatedNotification>.NewConfig()
+            .Map(dest => dest.Id, src => src.Id)
+            .Map(dest => dest.Title, src => src.Title)
+            .Map(dest => dest.Description, src => src.Description)
+            .Map(dest => dest.CreatedAt, src => src.CreatedAt)
+            .Map(dest => dest.MaxPeople, src => src.MaxPeople);
     }
 }

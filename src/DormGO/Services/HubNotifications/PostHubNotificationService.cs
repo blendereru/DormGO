@@ -1,6 +1,8 @@
 using DormGO.Data;
+using DormGO.DTOs.ResponseDTO;
 using DormGO.Hubs;
 using DormGO.Models;
+using Mapster;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
@@ -22,15 +24,8 @@ public class PostHubNotificationService : IPostHubNotificationService
 
     public async Task NotifyPostCreatedAsync(ApplicationUser user, Post post)
     {
-        var notificationDto = new
-        {
-            post.Id,
-            post.Title,
-            post.Description,
-            post.CreatedAt,
-            CreatorName = post.Creator.UserName,
-            post.MaxPeople
-        };
+        var notificationDto = post.Adapt<PostCreatedNotification>();
+        notificationDto.CreatorName = post.Creator.UserName!;
         var excludedConnectionIds = await _db.UserConnections
             .Where(c => c.UserId == user.Id && c.Hub == "/api/posthub")
             .Select(uc => uc.ConnectionId)

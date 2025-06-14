@@ -1,3 +1,4 @@
+using DormGO.Data;
 using DormGO.Models;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
@@ -11,7 +12,7 @@ public class CustomWebApplicationFactoryFixture<TProgram> : WebApplicationFactor
     where TProgram : class
 {
     public ApplicationUser TestUser { get; private set; }
-    private static string TestUserPassword => "P@ssw0rd123!";
+    public string TestUserPassword => "P@ssw0rd123!";
     
     private readonly MsSqlContainerFixture _msSqlFixture;
     private readonly IMessageSink _messageSink;
@@ -23,7 +24,7 @@ public class CustomWebApplicationFactoryFixture<TProgram> : WebApplicationFactor
     
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.UseSetting("ConnectionString:TestConnection", _msSqlFixture.ConnectionString);
+        builder.UseSetting("ConnectionString:IdentityConnection", _msSqlFixture.ConnectionString);
     }
 
     public async ValueTask InitializeAsync()
@@ -31,6 +32,8 @@ public class CustomWebApplicationFactoryFixture<TProgram> : WebApplicationFactor
         await ((IAsyncLifetime)_msSqlFixture).InitializeAsync();
         using var scope = Services.CreateScope();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
+        await ResetDatabaseAsync(db);
         var existingUser = await userManager.FindByNameAsync("testuser@example.com");
         if (existingUser == null)
         {
@@ -51,6 +54,13 @@ public class CustomWebApplicationFactoryFixture<TProgram> : WebApplicationFactor
             TestUser = existingUser;
         }
     }
+    
+    private static async Task ResetDatabaseAsync(ApplicationContext db)
+    {
+        await db.Database.EnsureDeletedAsync();
+        await db.Database.EnsureCreatedAsync();
+    }
+    
     public override async ValueTask DisposeAsync()
     {
         await ((IAsyncLifetime)_msSqlFixture).DisposeAsync();

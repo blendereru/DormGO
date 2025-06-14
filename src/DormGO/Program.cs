@@ -100,11 +100,6 @@ builder.Services.AddScoped(typeof(INotificationHubNotificationService<>), typeof
 builder.Services.AddScoped<ITokensProvider, TokensProvider>();
 builder.Services.AddScoped<IRazorViewToStringRenderer, RazorViewToStringRenderer>();
 var app = builder.Build();
-using (var scope = app.Services.CreateScope())
-{
-    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
-    await dbContext.Database.MigrateAsync();
-}
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
