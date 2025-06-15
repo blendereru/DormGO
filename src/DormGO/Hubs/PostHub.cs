@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.JsonWebTokens;
 
 namespace DormGO.Hubs;
 
@@ -28,7 +29,7 @@ public class PostHub : Hub
         var connectionId = Context.ConnectionId;
         try
         {
-            var userId = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userId = Context.User?.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
             if (string.IsNullOrWhiteSpace(userId))
             {
                 _logger.LogWarning("[{Hub}] Connection aborted: Missing or empty user ID. ConnectionId: {ConnectionId}", hubName, connectionId);

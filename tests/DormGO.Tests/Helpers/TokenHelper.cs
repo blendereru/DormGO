@@ -5,7 +5,7 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace DormGO.Tests.Helpers;
 
-public class TokenHelper
+public static class TokenHelper
 {
     public static string GenerateJwt(string? userId, string? email, string? emailConfirmed, DateTime? expiresAt)
     {
