@@ -1,4 +1,5 @@
 using System.Net;
+using DormGO.Data;
 using DormGO.Models;
 using DormGO.Tests.Helpers;
 using Microsoft.AspNetCore.Builder;
@@ -7,6 +8,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit.Sdk;
 
@@ -68,10 +70,27 @@ public class PostWebApplicationFactory : WebApplicationFactory<Program>
     }
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.UseSetting("ConnectionStrings:IdentityConnection", _fixture.ConnectionString);
-
         builder.ConfigureServices(services =>
         {
+            var descriptor = services.SingleOrDefault(
+                d => d.ServiceType == typeof(DbContextOptions<ApplicationContext>));
+            if (descriptor != null)
+            {
+                services.Remove(descriptor);
+            }
+            
+            services.AddDbContext<ApplicationContext>(options =>
+            {
+                options.UseSqlServer(_fixture.ConnectionString);
+            });
+            
+            var sp = services.BuildServiceProvider();
+            using (var scope = sp.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
+                db.Database.Migrate(); // <-- This is crucial!
+            }
+            
             services.Configure<ForwardedHeadersOptions>(options =>
             {
                 options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
