@@ -96,7 +96,10 @@ public class PostControllerTests : IClassFixture<PostWebApplicationFactory>, IAs
     
     public async ValueTask DisposeAsync()
     {
-        await _factory.DisposeAsync();
+        if (_connection is not null)
+        {
+            await _connection.DisposeAsync();
+        }
         
         GC.SuppressFinalize(this);
     }
