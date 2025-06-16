@@ -52,7 +52,7 @@ public class PostWebApplicationFactory : WebApplicationFactory<Program>
     {
         var jwtToken = TokenHelper.GenerateJwt(TestHubUser!.Id, TestHubUser.Email,
             TestHubUser.EmailConfirmed.ToString(), DateTime.UtcNow.AddMinutes(30));
-        var simulatedIpAddress = "192.168.1.100";
+        const string simulatedIpAddress = "192.168.1.100";
         var hubUri = new Uri(baseUri, "api/posthub");
         var connection = new HubConnectionBuilder()
             .WithUrl(hubUri, conf =>

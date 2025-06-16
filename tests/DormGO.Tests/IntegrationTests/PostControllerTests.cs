@@ -54,7 +54,7 @@ public class PostControllerTests : IClassFixture<PostWebApplicationFactory>, IAs
         var response = await _client.PostAsJsonAsync("api/posts", request, TestContext.Current.CancellationToken);
         
         // Assert
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        response.EnsureSuccessStatusCode();
         var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
         var post = await response.Content.ReadFromJsonAsync<PostResponse>(options, TestContext.Current.CancellationToken);
         Assert.NotNull(post);
@@ -64,6 +64,7 @@ public class PostControllerTests : IClassFixture<PostWebApplicationFactory>, IAs
         Assert.NotNull(hubPostId);
         Assert.Equal(post.Id, hubPostId);
     }
+    
     
     public async ValueTask DisposeAsync()
     {
