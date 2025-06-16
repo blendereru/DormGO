@@ -37,9 +37,9 @@ jobs:
       - name: Test
         run: |
           dotnet test
-      - name: Upload DormGO.Tests.exe
+      - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: DormGO.Tests.exe
-          path: tests/DormGO.Tests/bin/Debug/net8.0/DormGO.Tests.exe
+          name: test-results
+          path: tests/DormGO.Tests/bin/Debug/net8.0/TestResults/DormGO.Tests_net8.0_x64.log

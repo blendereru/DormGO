@@ -20,7 +20,7 @@ public class PostWebApplicationFactory : WebApplicationFactory<Program>
     
     private readonly MsSqlContainerFixture _fixture;
     public PostWebApplicationFactory(IMessageSink sink)
-    {
+    {   
         _fixture = new MsSqlContainerFixture(sink);
         _fixture.Container.StartAsync().GetAwaiter().GetResult();
     }
