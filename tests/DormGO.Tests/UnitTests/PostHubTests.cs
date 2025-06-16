@@ -73,8 +73,7 @@ public class PostHubTests : IAsyncDisposable
         var testUser = await DataSeedHelper.SeedUserDataAsync(_db);
         var userManagerMock = UserManagerMockHelper.GetUserManagerMock<ApplicationUser>();
         userManagerMock.Setup(m => m.FindByIdAsync(testUser.Id)).ReturnsAsync(testUser);
-
-        var groupsMock = new Mock<IGroupManager>();
+        var groupsMock = new Mock<IGroupManager>(); 
         var hub = HubTestHelper.CreatePostHub(out var context, _db, userManager: userManagerMock.Object,
             userId: testUser.Id, groupManager: groupsMock.Object);
 

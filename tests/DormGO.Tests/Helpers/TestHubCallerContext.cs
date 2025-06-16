@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Connections.Features;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.IdentityModel.JsonWebTokens;
 
 namespace DormGO.Tests.Helpers;
 
@@ -24,7 +25,7 @@ public class TestHubCallerContext : HubCallerContext
         {
             User = new ClaimsPrincipal(new ClaimsIdentity(new[]
             {
-                new Claim(ClaimTypes.NameIdentifier, userId)
+                new Claim(JwtRegisteredClaimNames.Sub, userId)
             }));
         }
         UserIdentifier = userId;

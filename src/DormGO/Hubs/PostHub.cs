@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using DormGO.Data;
 using DormGO.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -79,7 +78,7 @@ public class PostHub : Hub
         var connectionId = Context.ConnectionId;
         try
         {
-            var userId = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userId = Context.User?.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
             if (!string.IsNullOrWhiteSpace(userId))
             {
                 await Groups.RemoveFromGroupAsync(connectionId, userId);
