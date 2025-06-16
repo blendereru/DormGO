@@ -68,7 +68,7 @@ public class PostWebApplicationFactory : WebApplicationFactory<Program>
     }
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.UseSetting("ConnectionString:IdentityConnection", _fixture.ConnectionString);
+        builder.UseSetting("ConnectionStrings:IdentityConnection", _fixture.ConnectionString);
 
         builder.ConfigureServices(services =>
         {
