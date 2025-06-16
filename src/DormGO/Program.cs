@@ -1,5 +1,5 @@
 using System.Text.Json.Serialization;
-using DormGO.Constants;
+using DormGO;
 using DormGO.Data;
 using DormGO.Filters;
 using DormGO.Hubs;
@@ -32,6 +32,7 @@ builder.Host.UseSerilog((context, loggerConfig) =>
     loggerConfig.ReadFrom.Configuration(context.Configuration);
 });
 builder.Configuration.AddEnvironmentVariables();
+builder.Services.Configure<AuthOptions>(builder.Configuration.GetSection("JwtSettings"));
 builder.Services.AddSwaggerGen(c =>
 {
     var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
@@ -45,17 +46,18 @@ builder.Services.AddAuthentication(opts =>
     })
     .AddJwtBearer(opts =>
     {
+        var authOptions = builder.Configuration.GetSection("JwtSettings").Get<AuthOptions>()!;
         opts.MapInboundClaims = false;
         opts.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateAudience = true,
-            ValidAudience = AuthOptions.AUDIENCE,
+            ValidAudience = authOptions.Audience,
             ValidateIssuer = true,
-            ValidIssuer = AuthOptions.ISSUER,
+            ValidIssuer = authOptions.Issuer,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
             NameClaimType = JwtRegisteredClaimNames.Name,
-            IssuerSigningKey = AuthOptions.GetSymmetricSecurityKey(),
+            IssuerSigningKey = authOptions.GetSymmetricSecurityKey(),
             ClockSkew = TimeSpan.Zero
         };
 

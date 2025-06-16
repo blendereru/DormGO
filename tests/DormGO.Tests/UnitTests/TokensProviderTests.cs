@@ -2,6 +2,7 @@ using DormGO.Models;
 using DormGO.Services;
 using DormGO.Tests.Helpers;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Moq;
 
@@ -12,8 +13,17 @@ public class TokensProviderTests
     private readonly TokensProvider _sut;
     public TokensProviderTests()
     {
-        var logger = new Mock<ILogger<TokensProvider>>();
-        _sut = new TokensProvider(logger.Object);
+        var mockLogger = new Mock<ILogger<TokensProvider>>();
+        var mockAuthOptions = new Mock<IOptions<AuthOptions>>();
+        var testAuthOptions = new AuthOptions
+        {
+            Issuer = "MyAuthServer",
+            Audience = "MyAuthClient",
+            Key = "mysupersecret_secretsecretsecretkey!123",
+            Lifetime = 30
+        };
+        mockAuthOptions.SetupGet(x => x.Value).Returns(testAuthOptions);
+        _sut = new TokensProvider(mockAuthOptions.Object, mockLogger.Object);
     }
     
     [Fact]
@@ -52,26 +62,28 @@ public class TokensProviderTests
     public async Task GetPrincipalFromExpiredToken_WithExpiredToken_ReturnsPrincipal()
     {
         // Arrange
-        const string userId = "sample_user_id";
-        const string email = "your@example.com";
-        var emailConfirmed = Boolean.TrueString;
-        var expiredJwt = TokenHelper.GenerateExpiredJwt(userId, email, emailConfirmed);
+        var testUser = new ApplicationUser
+        {
+            Id = "sample_user_id",
+            Email = "your@example.com"
+        };
+        var expiredJwt = TokenHelper.GenerateExpiredJwt(testUser);
         
         // Act
         var principal = await _sut.GetPrincipalFromExpiredTokenAsync(expiredJwt);
         
         // Assert
         Assert.NotNull(principal);
-        Assert.Equal(userId, principal.FindFirst(JwtRegisteredClaimNames.Sub)?.Value);
-        Assert.Equal(email, principal.FindFirst(JwtRegisteredClaimNames.Email)?.Value);
-        Assert.Equal(emailConfirmed, principal.FindFirst("EmailConfirmed")?.Value);
+        Assert.Equal(testUser.Id, principal.FindFirst(JwtRegisteredClaimNames.Sub)?.Value);
+        Assert.Equal(testUser.Email, principal.FindFirst(JwtRegisteredClaimNames.Email)?.Value);
+        Assert.Equal(testUser.EmailConfirmed.ToString(), principal.FindFirst("EmailConfirmed")?.Value);
     }
     
     [Fact]
     public async Task GetPrincipalFromExpiredToken_WithInvalidToken_ReturnsNull()
     {
         // Arrange
-        var invalidJwt = "this.is.not.a.valid.jwt";
+        const string invalidJwt = "this.is.not.a.valid.jwt";
         
         // Act
         var principal = await _sut.GetPrincipalFromExpiredTokenAsync(invalidJwt);

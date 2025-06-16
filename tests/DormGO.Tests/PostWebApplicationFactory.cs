@@ -52,8 +52,7 @@ public class PostWebApplicationFactory : WebApplicationFactory<Program>
 
     public async Task<HubConnection> InitializeTestHubConnectionAsync(Uri baseUri)
     {
-        var jwtToken = TokenHelper.GenerateJwt(TestHubUser!.Id, TestHubUser.Email,
-            TestHubUser.EmailConfirmed.ToString(), DateTime.UtcNow.AddMinutes(30));
+        var jwtToken = TokenHelper.GenerateJwt(TestHubUser!, DateTime.UtcNow.AddMinutes(30));
         const string simulatedIpAddress = "192.168.1.100";
         var hubUri = new Uri(baseUri, "api/posthub");
         var connection = new HubConnectionBuilder()
@@ -88,7 +87,7 @@ public class PostWebApplicationFactory : WebApplicationFactory<Program>
             using (var scope = sp.CreateScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
-                db.Database.Migrate(); // <-- This is crucial!
+                db.Database.Migrate();
             }
             
             services.Configure<ForwardedHeadersOptions>(options =>

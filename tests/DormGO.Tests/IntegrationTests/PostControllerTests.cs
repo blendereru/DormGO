@@ -1,10 +1,13 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using DormGO.Data;
 using DormGO.DTOs.RequestDTO;
 using DormGO.DTOs.ResponseDTO;
 using DormGO.Tests.Helpers;
 using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DormGO.Tests.IntegrationTests;
 
@@ -22,8 +25,7 @@ public class PostControllerTests : IClassFixture<PostWebApplicationFactory>, IAs
     { 
         await _factory.InitializeUsersAsync();
         var user = _factory.TestUser;
-        var jwtToken = TokenHelper.GenerateJwt(user!.Id, user.Email, user.EmailConfirmed.ToString(),
-            DateTime.UtcNow.AddMinutes(30));
+        var jwtToken = TokenHelper.GenerateJwt(user!, DateTime.UtcNow.AddMinutes(30));
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", jwtToken);
         _connection = await _factory.InitializeTestHubConnectionAsync(_client.BaseAddress!);
     }
@@ -63,7 +65,34 @@ public class PostControllerTests : IClassFixture<PostWebApplicationFactory>, IAs
         Assert.NotNull(hubPostId);
         Assert.Equal(post.Id, hubPostId);
     }
-    
+
+    [Fact]
+    public async Task CreatePost_SavesPostToDatabase()
+    {
+        // Arrange
+        var request = new PostCreateRequest
+        {
+            Title = "title",
+            Description = "description",
+            CurrentPrice = 123.45m,
+            Latitude = 12.34,
+            Longitude = 45.68,
+            CreatedAt = DateTime.UtcNow,
+            MaxPeople = 12
+        };
+        
+        // Act
+        var response = await _client.PostAsJsonAsync("api/posts", request, TestContext.Current.CancellationToken);
+        
+        // Assert
+        response.EnsureSuccessStatusCode();
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
+        var addedPost = await db.Posts.FirstOrDefaultAsync(p => p.Title == request.Title, TestContext.Current.CancellationToken);
+        Assert.NotNull(addedPost);
+        Assert.NotNull(_factory.TestUser);
+        Assert.Equal(_factory.TestUser.Id, addedPost.CreatorId);
+    }
     
     public async ValueTask DisposeAsync()
     {

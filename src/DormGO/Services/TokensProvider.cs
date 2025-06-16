@@ -1,7 +1,7 @@
 using System.Security.Claims;
 using System.Security.Cryptography;
-using DormGO.Constants;
 using DormGO.Models;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 
@@ -9,9 +9,11 @@ namespace DormGO.Services;
 
 public class TokensProvider : ITokensProvider
 {
+    private readonly AuthOptions _authOptions;
     private readonly ILogger<TokensProvider> _logger;
-    public TokensProvider(ILogger<TokensProvider> logger)
+    public TokensProvider(IOptions<AuthOptions> options, ILogger<TokensProvider> logger)
     {
+        _authOptions = options.Value;
         _logger = logger;
     }
     public string GenerateAccessToken(ApplicationUser user)
@@ -25,10 +27,11 @@ public class TokensProvider : ITokensProvider
         var tokenDescriptor = new SecurityTokenDescriptor
         {
             Subject = new ClaimsIdentity(claims),
-            Expires = DateTime.UtcNow.AddMinutes(AuthOptions.LIFETIME),
-            SigningCredentials = new SigningCredentials(AuthOptions.GetSymmetricSecurityKey(), SecurityAlgorithms.HmacSha256),
-            Issuer = AuthOptions.ISSUER,
-            Audience = AuthOptions.AUDIENCE
+            Expires = DateTime.UtcNow.AddMinutes(_authOptions.Lifetime),
+            SigningCredentials = new SigningCredentials(_authOptions.GetSymmetricSecurityKey(), 
+                SecurityAlgorithms.HmacSha256),
+            Issuer = _authOptions.Issuer,
+            Audience = _authOptions.Audience
         };
         var jwtHandler = new JsonWebTokenHandler();
         _logger.LogDebug("Jwt(Access token) generated. UserId: {UserId}", user.Id);
@@ -49,13 +52,13 @@ public class TokensProvider : ITokensProvider
         var tokenValidationParameters = new TokenValidationParameters
         {
             ValidateAudience = true,
-            ValidAudience = AuthOptions.AUDIENCE,
+            ValidAudience = _authOptions.Audience,
             ValidateIssuer = true,
-            ValidIssuer = AuthOptions.ISSUER,
+            ValidIssuer = _authOptions.Issuer,
             ValidateLifetime = false,
             ValidateIssuerSigningKey = true,
             NameClaimType = ClaimTypes.Name,
-            IssuerSigningKey = AuthOptions.GetSymmetricSecurityKey(),
+            IssuerSigningKey = _authOptions.GetSymmetricSecurityKey(),
             ClockSkew = TimeSpan.Zero
         };
 
