@@ -42,4 +42,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: DormGO.Tests.exe
-          path: tests/DormGO.Tests/bin/Debug/net8.0/DormGO.Tests.ex
+          path: tests/DormGO.Tests/bin/Debug/net8.0/DormGO.Tests.exe
