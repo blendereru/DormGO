@@ -36,5 +36,10 @@ jobs:
           dotnet build --no-restore
       - name: Test
         run: |
-          cd tests/DormGO.Tests
-          dotnet test 
+          dotnet test
+      - name: Upload DormGO.Tests.exe
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: DormGO.Tests.exe
+          path: tests/DormGO.Tests/bin/Debug/net8.0/DormGO.Tests.ex
